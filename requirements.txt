@@ -8,3 +8,4 @@ torch # and specific version/cuda if needed
 Pillow
 pydantic # For request/response schema validation
 pydantic-settings # For config.py
+huggingface_hub
