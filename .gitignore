@@ -1,0 +1,46 @@
+# Python Backend Specific .gitignore
+
+# ------------------------------------------------------------------
+# GENERAL IGNORES
+# ------------------------------------------------------------------
+.DS_Store               # macOS system files
+.localized              # macOS localized files
+.pytest_cache/          # pytest cache directory
+*.swp                   # Vim swap files
+*.bak                   # Backup files
+*.log                   # Log files
+
+# Build artifacts and distribution directories
+dist/                   # PyInstaller output (e.g., dist/app.exe or dist/app)
+build/                  # PyInstaller build cache
+
+# ------------------------------------------------------------------
+# PYTHON SPECIFIC IGNORES
+# ------------------------------------------------------------------
+# Virtual environment
+.venv/
+venv/
+
+# Byte-code files
+__pycache__/
+*.pyc
+.Python
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Log files and runtime data
+*.log
+data/models/      # Large downloaded models (downloaded at runtime, don't commit)
+# data/cache/     # Hugging Face cache (can be huge) - uncomment if you put it here
+# .cache/         # General cache directories (e.g. from diffusers/huggingface_hub default)
+
+# Specific IDE-related files
+.mypy_cache/      # Mypy type checker cache
+.pytest_cache/    # Pytest cache
+
+# ------------------------------------------------------------------
+# ENVIRONMENTS / SECRETS
+# ------------------------------------------------------------------
+.env                    # Environment variables (e.g., API keys, device settings)
+*.env

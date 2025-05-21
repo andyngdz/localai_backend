@@ -1,0 +1,10 @@
+Flask
+waitress # For Windows/Cross-platform production deployment
+# gunicorn # For Linux/macOS production deployment (install conditionally)
+diffusers
+transformers
+accelerate
+torch # and specific version/cuda if needed
+Pillow
+pydantic # For request/response schema validation
+pydantic-settings # For config.py
