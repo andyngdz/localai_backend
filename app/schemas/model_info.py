@@ -14,8 +14,17 @@ class ModelInfo(BaseModel):
     author: Optional[str] = Field(
         None, description="Author or organization of the model on Hugging Face."
     )
+    likes: Optional[int] = (
+        Field(None, description="Number of likes for the model on Hugging Face."),
+    )
+    trending_score: Optional[float] = (
+        Field(None, description="Trending score of the model on Hugging Face."),
+    )
     downloads: Optional[int] = Field(
         None, description="Number of downloads for the model on Hugging Face."
+    )
+    tags: Optional[list[str]] = Field(
+        [], description="List of tags associated with the model."
     )
     is_downloaded: bool = Field(
         False, description="True if the model is downloaded locally."

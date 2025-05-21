@@ -13,11 +13,15 @@ def list_models():
     hf_models = list(hf_models_generator)
     models_info = []
     for m in hf_models:
+        logging.info(m)
         model_info = ModelInfo(
             id=m.id,
             name=m.id,
             author=m.author,
             downloads=m.downloads,
+            likes=m.likes,
+            trending_score=m.trending_score,
+            tags=m.tags,
         )
         models_info.append(model_info)
 
