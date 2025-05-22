@@ -5,6 +5,7 @@ import threading
 from flask import Blueprint, jsonify, logging, request
 from pydantic import ValidationError
 
+from app.schemas.core import ErrorResponse
 from app.schemas.downloads import (
     DownloadRequest,
     DownloadStatus,
@@ -26,6 +27,7 @@ downloads = Blueprint("downloads", __name__)
 
 
 def _download_model_in_background(model_id: str, hf_token: str = None):
+    """Download model in a separate thread"""
     pass
 
 
@@ -38,11 +40,10 @@ def initiate_download():
         logger.error("Validation error for download request: %s", e.errors())
         return (
             jsonify(
-                {
-                    "status": "error",
-                    "message": "Invalid request data",
-                    "details": e.errors(),
-                }
+                ErrorResponse(
+                    detail=e.errors(),
+                    type="ValidationError",
+                ).model_dump()
             ),
             400,
         )
@@ -50,11 +51,10 @@ def initiate_download():
         logger.error("Type error for download request: %s", str(e))
         return (
             jsonify(
-                {
-                    "status": "error",
-                    "message": "Type error in request data",
-                    "details": str(e),
-                }
+                ErrorResponse(
+                    detail=str(e),
+                    type="TypeError",
+                ).model_dump()
             ),
             400,
         )
@@ -62,11 +62,10 @@ def initiate_download():
         logger.error("Value error for download request: %s", str(e))
         return (
             jsonify(
-                {
-                    "status": "error",
-                    "message": "Value error in request data",
-                    "details": str(e),
-                }
+                ErrorResponse(
+                    detail=str(e),
+                    type="ValueError",
+                ).model_dump()
             ),
             400,
         )
