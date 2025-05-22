@@ -1,10 +1,8 @@
 """Shared data for the app."""
 
 from typing import Dict
-from flask import logging
 from app.schemas.downloads import DownloadStatus
 
-logger = logging.create_logger(__name__)
 
 # --- This dictionary will keep track of download statuses ---
 # Key: model_id (the full Hugging Face ID like "runwayml/stable-diffusion-v1-5")

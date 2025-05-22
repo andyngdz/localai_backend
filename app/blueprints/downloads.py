@@ -2,7 +2,8 @@
 
 import os
 import threading
-from flask import Blueprint, jsonify, logging, request
+import logging
+from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
 from app.schemas.core import ErrorResponse
@@ -15,7 +16,7 @@ from app.schemas.downloads import (
 from app.core.shared_data import download_statuses
 
 
-logger = logging.create_logger(__name__)
+logger = logging.getLogger(__name__)
 
 MODEL_STORAGE_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "data", "models"
@@ -28,7 +29,9 @@ downloads = Blueprint("downloads", __name__)
 
 def _download_model_in_background(model_id: str, hf_token: str = None):
     """Download model in a separate thread"""
-    pass
+
+    target_model_path = os.path.join(MODEL_STORAGE_PATH, model_id.replace("/", "--"))
+    logger.info("Downloading model %s to %s", model_id, target_model_path)
 
 
 @downloads.route("/", methods=["POST"])
@@ -89,7 +92,7 @@ def initiate_download():
                 model_id=model_id,
                 status=DownloadStatusStates.PENDING,
                 message="Download started",
-            )
+            ).model_dump()
         ),
         202,
     )
