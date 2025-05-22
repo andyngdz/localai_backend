@@ -4,7 +4,10 @@ import threading
 import logging
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
+from huggingface_hub import snapshot_download
 
+
+from app.core.download_tqdm import DownloadTPDM
 from app.schemas.core import ErrorResponse
 from app.schemas.downloads import (
     DownloadRequest,
@@ -33,6 +36,7 @@ def _download_model_in_background(model_id: str, hf_token: str = None):
                 "message": f"Starting download model {model_id}",
             }
         )
+        snapshot_download(repo_id=model_id, token=hf_token, tqdm_class=DownloadTPDM)
         return
     except (KeyError, AttributeError, TypeError) as e:
         logger.error("Error while downloading: %s", str(e))
