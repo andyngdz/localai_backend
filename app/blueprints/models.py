@@ -1,3 +1,5 @@
+"""Models Blueprint"""
+
 from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi
 from app.schemas.model_info import ModelInfo, ModelInfoListResponse
@@ -8,6 +10,8 @@ api = HfApi()
 
 @models.route("/list", methods=["GET"])
 def list_models():
+    """List models from Hugging Face Hub."""
+
     filter_param = request.args.get("filter", default="stable-diffusion")
     limit_param = request.args.get("limit", type=int, default=50)
 
