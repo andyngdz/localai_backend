@@ -17,7 +17,7 @@ class DownloadStatusStates(str, Enum):
     FAILED = "failed"
 
 
-class DownloadRequest(BaseModel):
+class HuggingFaceRequest(BaseModel):
     """Request model for downloading"""
 
     model_id: str = Field(

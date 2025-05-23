@@ -3,14 +3,11 @@
 import threading
 import logging
 from flask import Blueprint, jsonify, request
+from huggingface_hub import list_repo_files
 from pydantic import ValidationError
-from huggingface_hub import snapshot_download
-
-
-from app.core.download_tqdm import DownloadTPDM
 from app.schemas.core import ErrorResponse
 from app.schemas.downloads import (
-    DownloadRequest,
+    HuggingFaceRequest,
     DownloadStatus,
     DownloadStatusResponse,
     DownloadStatusStates,
@@ -30,13 +27,14 @@ def _download_model_in_background(model_id: str, hf_token: str = None):
         download_statuses[model_id] = DownloadStatus(model_id=model_id)
 
     try:
-        download_statuses[model_id].update(
-            {
+        current_status = download_statuses[model_id]
+        download_statuses[model_id] = current_status.model_copy(
+            update={
                 "status": DownloadStatusStates.DOWNLOADING,
                 "message": f"Starting download model {model_id}",
             }
         )
-        snapshot_download(repo_id=model_id, token=hf_token, tqdm_class=DownloadTPDM)
+
         return
     except (KeyError, AttributeError, TypeError) as e:
         logger.error("Error while downloading: %s", str(e))
@@ -49,8 +47,7 @@ def _download_model_in_background(model_id: str, hf_token: str = None):
 def initiate_download():
     """Start download model"""
     try:
-
-        request_data = DownloadRequest.model_validate_json(request.data)
+        request_data = HuggingFaceRequest.model_validate_json(request.data)
     except ValidationError as e:
         logger.error("Validation error for download request: %s", e.errors())
         return (
@@ -107,4 +104,23 @@ def initiate_download():
             ).model_dump()
         ),
         202,
+    )
+
+
+@downloads.route("/review", methods=["POST"])
+def review():
+    """Review model, list all files"""
+
+    request_data = HuggingFaceRequest.model_validate_json(request.data)
+    model_id = request_data.model_id
+    hf_token = request_data.hf_token
+
+    files = list_repo_files(repo_id=model_id, token=hf_token)
+
+    return jsonify(
+        {
+            "model_id": model_id,
+            "files": files,
+        },
+        200,
     )
