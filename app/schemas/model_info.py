@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field
+"""Model Info"""
+
 from typing import Optional
+from pydantic import BaseModel, Field
 
 
 class ModelInfo(BaseModel):
