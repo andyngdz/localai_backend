@@ -39,9 +39,6 @@ def _get_system_gpu_info() -> GPUDriverInfo:
         # We import here to avoid crashing if torch is not installed or not built with GPU support
         import torch
 
-        print(torch.cuda.is_available())
-        print(torch.cuda.device_count())
-
         system_os = platform.system()
 
         if system_os in ("Windows", "Linux"):
