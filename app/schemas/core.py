@@ -9,5 +9,5 @@ class ErrorResponse(BaseModel):
     Error response schema.
     """
 
-    detail: Any = Field(..., description="Error message.")
-    type: str = Field(..., description="Type of error.")
+    detail: Any = Field(default=..., description="Error message.")
+    type: str = Field(default=..., description="Type of error.")

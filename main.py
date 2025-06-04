@@ -22,8 +22,10 @@ def favicon():
     # send_from_directory serves a file from a specified directory.
     # app.static_folder automatically points to the 'static' folder Flask found.
     # 'favicon.ico' is the filename within that folder.
+    static_folder = app.static_folder or "static"
+
     return send_from_directory(
-        app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon"
+        static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon"
     )
 
 

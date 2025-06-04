@@ -2,6 +2,7 @@
 
 import threading
 import logging
+from typing import Optional
 from flask import Blueprint, jsonify, request
 from huggingface_hub import list_repo_files
 from pydantic import ValidationError
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 downloads = Blueprint("downloads", __name__)
 
 
-def _download_model_in_background(model_id: str, hf_token: str = None):
+def _download_model_in_background(model_id: str, hf_token: Optional[str] = None):
     """Download model in a separate thread"""
 
     # Ensure this model_id exists in the status dict
@@ -38,8 +39,12 @@ def _download_model_in_background(model_id: str, hf_token: str = None):
         return
     except (KeyError, AttributeError, TypeError) as e:
         logger.error("Error while downloading: %s", str(e))
-        download_statuses[model_id].status = DownloadStatusStates.FAILED
-        download_statuses[model_id].message = str(e)
+        current_status = download_statuses[model_id]
+
+        download_statuses[model_id] = current_status.model_copy(
+            update={"status": DownloadStatusStates.FAILED, "message": str(e)}
+        )
+
         return
 
 
