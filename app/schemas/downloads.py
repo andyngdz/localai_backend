@@ -34,7 +34,7 @@ class DownloadStatus(BaseModel):
     """Model download status."""
 
     model_id: str = Field(
-        ..., description="The Hugging Face repository ID of the model."
+        default=..., description="The Hugging Face repository ID of the model."
     )
     status: Optional[DownloadStatusStates] = Field(
         default=DownloadStatusStates.PENDING,
