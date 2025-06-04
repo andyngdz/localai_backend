@@ -5,6 +5,7 @@ from flask import Flask, jsonify, send_from_directory
 
 from app.blueprints.downloads import downloads
 from app.blueprints.models import models
+from app.blueprints.drivers import drivers
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,6 +15,7 @@ logging.basicConfig(
 app = Flask(__name__)
 app.register_blueprint(models, url_prefix="/models")
 app.register_blueprint(downloads, url_prefix="/downloads")
+app.register_blueprint(drivers, url_prefix="/drivers")
 
 
 @app.route("/favicon.ico")
