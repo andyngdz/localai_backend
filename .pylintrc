@@ -1,4 +1,0 @@
-[FORMAT]
-max-line-length=240
-[MASTER]
-ignore=.vscode,build,dist,*.egg-info,*.egg,*.whl,.venv,.git,__pycache__,.pytest_cache,.mypy_cache,.coverage,.tox,.nox,.hypothesis,*.log

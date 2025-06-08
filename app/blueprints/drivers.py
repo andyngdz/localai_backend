@@ -4,12 +4,19 @@ import functools
 import logging
 import platform
 import subprocess
+
 import torch
+from flask import Blueprint, jsonify, request
+from pydantic import ValidationError
 
-from flask import Blueprint, jsonify
-
-from app.schemas.drivers import GPUDeviceInfo, GPUDriverInfo, GPUDriverStatusStates
-
+from app.schemas.core import ErrorResponse, ErrorType
+from app.schemas.drivers import (
+    GPUDeviceInfo,
+    GPUDriverInfo,
+    GPUDriverStatusStates,
+    SelectDeviceRequest,
+)
+from app.services.database import create_or_update_selected_device
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +202,7 @@ def get_driver_status():
     """
     driver_info = _get_system_gpu_info()
 
-    return jsonify(driver_info.model_dump())
+    return jsonify(driver_info.model_dump()), 200
 
 
 @drivers.route("/recheck", methods=["GET"])
@@ -209,4 +216,23 @@ def recheck_driver_status():
     logger.info("Forcing re-check of GPU driver status by clearing cache.")
     driver_info = _get_system_gpu_info()  # Re-run detection (will now actually execute)
 
-    return jsonify(driver_info.model_dump())
+    return jsonify(driver_info.model_dump()), 200
+
+
+@drivers.route("/device", methods=["POST"])
+def select_device():
+    """Select device"""
+    try:
+        json = request.get_json()
+        data = SelectDeviceRequest(**json)
+    except ValidationError as e:
+        return jsonify(
+            ErrorResponse(
+                detail=e.errors(), type=ErrorType.ValidationError
+            ).model_dump()
+        ), 400
+
+    device_index = data.device_index
+    create_or_update_selected_device(device_index=device_index)
+
+    return jsonify({"message": "Device selected successfully"}), 200
