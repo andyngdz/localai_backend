@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from app.database.database import create_or_update_selected_device
 from app.schemas.core import ErrorResponse, ErrorType
-from app.schemas.drivers import (
+from app.schemas.hardware import (
     GPUDeviceInfo,
     GPUDriverInfo,
     GPUDriverStatusStates,
@@ -20,7 +20,7 @@ from app.schemas.drivers import (
 
 logger = logging.getLogger(__name__)
 
-drivers = Blueprint("drivers", __name__)
+hardware = Blueprint("hardware", __name__)
 
 
 def _create_initial_gpu_info() -> GPUDriverInfo:
@@ -194,7 +194,7 @@ def _get_system_gpu_info() -> GPUDriverInfo:
     return info
 
 
-@drivers.route("/status", methods=["GET"])
+@hardware.route("/status", methods=["GET"])
 def get_driver_status():
     """
     Returns the current GPU and driver status of the system.
@@ -205,7 +205,7 @@ def get_driver_status():
     return jsonify(driver_info.model_dump()), 200
 
 
-@drivers.route("/recheck", methods=["GET"])
+@hardware.route("/recheck", methods=["GET"])
 def recheck_driver_status():
     """
     Forces the backend to re-evaluate and update the GPU and driver status.
@@ -219,7 +219,7 @@ def recheck_driver_status():
     return jsonify(driver_info.model_dump()), 200
 
 
-@drivers.route("/device", methods=["POST"])
+@hardware.route("/device", methods=["POST"])
 def select_device():
     """Select device"""
     try:
