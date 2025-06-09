@@ -9,6 +9,7 @@ import torch
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
+from app.database.database import create_or_update_selected_device
 from app.schemas.core import ErrorResponse, ErrorType
 from app.schemas.drivers import (
     GPUDeviceInfo,
@@ -16,7 +17,6 @@ from app.schemas.drivers import (
     GPUDriverStatusStates,
     SelectDeviceRequest,
 )
-from app.services.database import create_or_update_selected_device
 
 logger = logging.getLogger(__name__)
 

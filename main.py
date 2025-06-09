@@ -1,11 +1,12 @@
 """Main entry point for the LocalAI Backend application."""
 
 import logging
+
 from flask import Flask, jsonify, send_from_directory
 
 from app.blueprints.downloads import downloads
-from app.blueprints.models import models
 from app.blueprints.drivers import drivers
+from app.blueprints.models import models
 
 logging.basicConfig(
     level=logging.INFO,
