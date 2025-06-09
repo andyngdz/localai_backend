@@ -1,11 +1,11 @@
 Flask
-waitress # For Windows/Cross-platform production deployment
-# gunicorn # For Linux/macOS production deployment (install conditionally)
+waitress
 diffusers
 transformers
 accelerate
-torch # and specific version/cuda if needed
+torch 
 Pillow
-pydantic # For request/response schema validation
-pydantic-settings # For config.py
+pydantic
+pydantic-settings
 huggingface_hub
+SQLAlchemy

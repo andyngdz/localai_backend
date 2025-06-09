@@ -2,6 +2,7 @@
 
 from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi
+
 from app.schemas.model_info import ModelInfo, ModelInfoListResponse
 
 models = Blueprint("models", __name__)
@@ -35,4 +36,4 @@ def list_models():
         )
         models_info.append(model_info)
 
-    return jsonify(ModelInfoListResponse(models_info=models_info).model_dump())
+    return jsonify(ModelInfoListResponse(models_info=models_info).model_dump()), 200

@@ -69,3 +69,9 @@ class GPUDriverInfo(BaseModel):
     troubleshooting_steps: Optional[List[str]] = Field(
         default=None, description="Specific steps to resolve issues."
     )
+
+
+class SelectDeviceRequest(BaseModel):
+    """Request for selecting a device witn index"""
+
+    device_index: int

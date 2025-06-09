@@ -1,19 +1,21 @@
 """Downloads Blueprint"""
 
-import threading
 import logging
+import threading
 from typing import Optional
+
 from flask import Blueprint, jsonify, request
 from huggingface_hub import list_repo_files
 from pydantic import ValidationError
-from app.schemas.core import ErrorResponse
+
+from app.core.shared_data import download_statuses
+from app.schemas.core import ErrorResponse, ErrorType
 from app.schemas.downloads import (
-    HuggingFaceRequest,
     DownloadStatus,
     DownloadStatusResponse,
     DownloadStatusStates,
+    HuggingFaceRequest,
 )
-from app.core.shared_data import download_statuses
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,7 @@ def initiate_download():
             jsonify(
                 ErrorResponse(
                     detail=e.errors(),
-                    type="ValidationError",
+                    type=ErrorType.ValidationError,
                 ).model_dump()
             ),
             400,
@@ -70,7 +72,7 @@ def initiate_download():
             jsonify(
                 ErrorResponse(
                     detail=str(e),
-                    type="TypeError",
+                    type=ErrorType.TypeError,
                 ).model_dump()
             ),
             400,
@@ -81,7 +83,7 @@ def initiate_download():
             jsonify(
                 ErrorResponse(
                     detail=str(e),
-                    type="ValueError",
+                    type=ErrorType.ValueError,
                 ).model_dump()
             ),
             400,
