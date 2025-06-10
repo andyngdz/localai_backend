@@ -75,3 +75,12 @@ class SelectDeviceRequest(BaseModel):
     """Request for selecting a device witn index"""
 
     device_index: int
+
+
+class GetCurrentDeviceIndex(BaseModel):
+    """Request to get the current selected device index"""
+
+    device_index: int = Field(
+        ...,
+        description="Index of the currently selected device. -2 means not found, -1 means CPU mode.",
+    )

@@ -12,6 +12,7 @@ class ErrorType(str, Enum):
     ValidationError = "ValidationError"
     FileNotFound = "FileNotFound"
     Unauthorized = "Unauthorized"
+    InternalServerError = "InternalServerError"
 
 
 class ErrorResponse(BaseModel):

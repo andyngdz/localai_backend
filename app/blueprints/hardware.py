@@ -9,9 +9,10 @@ import torch
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
-from app.database.database import create_or_update_selected_device
+from app.database.database import create_or_update_selected_device, get_selected_device
 from app.schemas.core import ErrorResponse, ErrorType
 from app.schemas.hardware import (
+    GetCurrentDeviceIndex,
     GPUDeviceInfo,
     GPUDriverInfo,
     GPUDriverStatusStates,
@@ -236,3 +237,20 @@ def select_device():
     create_or_update_selected_device(device_index=device_index)
 
     return jsonify({"message": "Device selected successfully"}), 200
+
+
+@hardware.route("/device", methods=["GET"])
+def get_current_select_device():
+    """Get current selected device"""
+    try:
+        device_index = get_selected_device()
+        return jsonify(
+            GetCurrentDeviceIndex(device_index=device_index).model_dump()
+        ), 200
+    except Exception as e:
+        logger.error("Error retrieving current selected device: %s", e)
+        return jsonify(
+            ErrorResponse(
+                detail=str(e), type=ErrorType.InternalServerError
+            ).model_dump()
+        ), 500
