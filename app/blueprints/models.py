@@ -9,7 +9,7 @@ models = Blueprint("models", __name__)
 api = HfApi()
 
 
-@models.route("/list", methods=["GET"])
+@models.route("/search", methods=["GET"])
 def list_models():
     """List models from Hugging Face Hub."""
 
