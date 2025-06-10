@@ -244,6 +244,7 @@ def get_current_select_device():
     """Get current selected device"""
     try:
         device_index = get_selected_device()
+
         return jsonify(
             GetCurrentDeviceIndex(device_index=device_index).model_dump()
         ), 200
