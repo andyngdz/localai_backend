@@ -3,7 +3,7 @@
 from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi
 
-from app.schemas.model_info import ModelSearchInfo, ModelSearchInfoListResponse
+from app.schemas.models import ModelSearchInfo, ModelSearchInfoListResponse
 
 models = Blueprint("models", __name__)
 api = HfApi()
@@ -27,7 +27,7 @@ def list_models():
     models_search_info = []
 
     for m in hf_models:
-        model_info = ModelSearchInfo(
+        model_search_info = ModelSearchInfo(
             id=m.id,
             name=m.id,
             author=m.author,
@@ -36,7 +36,7 @@ def list_models():
             trending_score=m.trending_score,
             tags=m.tags,
         )
-        models_search_info.append(model_info)
+        models_search_info.append(model_search_info)
 
     return jsonify(
         ModelSearchInfoListResponse(models_search_info=models_search_info).model_dump()
