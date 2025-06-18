@@ -17,6 +17,7 @@ def list_models():
     limit_param = request.args.get("limit", type=int, default=50)
 
     hf_models_generator_params = {
+        "pipeline_tag": "text-to-image",
         "filter": filter_param,
         "limit": limit_param,
     }
