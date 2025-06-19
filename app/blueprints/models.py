@@ -27,6 +27,7 @@ def list_models():
         sort=default_sort,
         filter=filter_param,
         limit=limit_param,
+        full=True
     )
     hf_models = list(hf_models_generator)
 
