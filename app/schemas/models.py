@@ -14,7 +14,6 @@ class ModelSearchInfo(BaseModel):
         default=...,
         description="Unique identifier for the model (Hugging Face repo ID).",
     )
-    name: str = Field(default=..., description="Display name of the model.")
     author: Optional[str] = Field(
         default=None, description="Author or organization of the model on Hugging Face."
     )

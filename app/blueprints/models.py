@@ -3,42 +3,37 @@
 from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi
 
+from app.schemas.core import ErrorResponse, ErrorType
 from app.schemas.models import ModelSearchInfo, ModelSearchInfoListResponse
 
 models = Blueprint("models", __name__)
 api = HfApi()
+
+default_filter = "stable-diffusion"
+default_limit = 50
+default_pipeline_tag = "text-to-image"
+default_sort = "downloads"
 
 
 @models.route("/search", methods=["GET"])
 def list_models():
     """List models from Hugging Face Hub."""
 
-    filter_param = request.args.get("filter", default="stable-diffusion")
-    limit_param = request.args.get("limit", type=int, default=50)
+    filter_param = request.args.get("filter", default=default_filter)
+    limit_param = request.args.get("limit", type=int, default=default_limit)
 
     hf_models_generator = api.list_models(
-        pipeline_tag="text-to-image",
-        sort="donwloads",
+        pipeline_tag=default_pipeline_tag,
+        sort=default_sort,
         filter=filter_param,
         limit=limit_param,
-        full=True,
-        fetch_config=True,
-        cardData=True,
     )
     hf_models = list(hf_models_generator)
 
     models_search_info = []
 
     for m in hf_models:
-        model_search_info = ModelSearchInfo(
-            id=m.id,
-            name=m.id,
-            author=m.author,
-            downloads=m.downloads,
-            likes=m.likes,
-            trending_score=m.trending_score,
-            tags=m.tags,
-        )
+        model_search_info = ModelSearchInfo(**m.__dict__)
         models_search_info.append(model_search_info)
 
     return jsonify(
@@ -46,11 +41,17 @@ def list_models():
     ), 200
 
 
-@models.route("/<string:id>", methods=["GET"])
-def get_model_info(id):
+@models.route("/", methods=["GET"])
+def get_model_info():
     """Get model info by model's id"""
-    model_info = api.model_info(
-        "stable-diffusion-v1-5/stable-diffusion-v1-5", files_metadata=True
-    )
+    id = request.args.get("id")
+    if not id:
+        return jsonify(
+            ErrorResponse(
+                detail="Missing 'id' query parameter", type=ErrorType.ValidationError
+            )
+        ), 400
+
+    model_info = api.model_info(id, files_metadata=True)
 
     return jsonify(model_info), 200
