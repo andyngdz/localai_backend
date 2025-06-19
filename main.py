@@ -7,6 +7,7 @@ from flask import Flask, jsonify, send_from_directory
 from app.blueprints.downloads import downloads
 from app.blueprints.hardware import hardware
 from app.blueprints.models import models
+from app.blueprints.users import users
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,6 +15,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+app.register_blueprint(users, url_prefix="/users")
 app.register_blueprint(models, url_prefix="/models")
 app.register_blueprint(downloads, url_prefix="/downloads")
 app.register_blueprint(hardware, url_prefix="/hardware")

@@ -83,9 +83,7 @@ def _get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
                 capture_output=True,
                 text=True,
                 check=True,
-                creationflags=(
-                    CREATE_NO_WINDOW if system_os == "Windows" else 0
-                ),
+                creationflags=(CREATE_NO_WINDOW if system_os == "Windows" else 0),
             )
             driver_version = result.stdout.strip().split("\n")[0]
             info.nvidia_driver_version = driver_version
@@ -118,9 +116,7 @@ def _get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
                 capture_output=True,
                 text=True,
                 check=True,
-                creationflags=(
-                    CREATE_NO_WINDOW if system_os == "Windows" else 0
-                ),
+                creationflags=(CREATE_NO_WINDOW if system_os == "Windows" else 0),
             )
             # If nvidia-smi runs but torch.cuda.is_available() is false, it's likely a driver/CUDA setup issue
             info.overall_status = GPUDriverStatusStates.DRIVER_ISSUE

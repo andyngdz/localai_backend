@@ -16,13 +16,15 @@ def list_models():
     filter_param = request.args.get("filter", default="stable-diffusion")
     limit_param = request.args.get("limit", type=int, default=50)
 
-    hf_models_generator_params = {
-        "pipeline_tag": "text-to-image",
-        "filter": filter_param,
-        "limit": limit_param,
-    }
-
-    hf_models_generator = api.list_models(**hf_models_generator_params)
+    hf_models_generator = api.list_models(
+        pipeline_tag="text-to-image",
+        sort="donwloads",
+        filter=filter_param,
+        limit=limit_param,
+        full=True,
+        fetch_config=True,
+        cardData=True,
+    )
     hf_models = list(hf_models_generator)
 
     models_search_info = []
@@ -42,3 +44,13 @@ def list_models():
     return jsonify(
         ModelSearchInfoListResponse(models_search_info=models_search_info).model_dump()
     ), 200
+
+
+@models.route("/<string:id>", methods=["GET"])
+def get_model_info(id):
+    """Get model info by model's id"""
+    model_info = api.model_info(
+        "stable-diffusion-v1-5/stable-diffusion-v1-5", files_metadata=True
+    )
+
+    return jsonify(model_info), 200
