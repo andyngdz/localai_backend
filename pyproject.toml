@@ -1,0 +1,4 @@
+[tool.ruff]
+exclude = [
+    "/home/linuxbrew/.linuxbrew",
+]

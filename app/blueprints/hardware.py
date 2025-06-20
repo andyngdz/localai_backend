@@ -4,6 +4,7 @@ import functools
 import logging
 import platform
 import subprocess
+import sys
 
 import torch
 from flask import Blueprint, jsonify, request
@@ -22,6 +23,11 @@ from app.schemas.hardware import (
 logger = logging.getLogger(__name__)
 
 hardware = Blueprint("hardware", __name__)
+
+if sys.platform == "win32":
+    CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW
+else:
+    CREATE_NO_WINDOW = 0
 
 
 def _create_initial_gpu_info() -> GPUDriverInfo:
@@ -77,9 +83,7 @@ def _get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
                 capture_output=True,
                 text=True,
                 check=True,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW if system_os == "Windows" else 0
-                ),
+                creationflags=(CREATE_NO_WINDOW if system_os == "Windows" else 0),
             )
             driver_version = result.stdout.strip().split("\n")[0]
             info.nvidia_driver_version = driver_version
@@ -112,9 +116,7 @@ def _get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
                 capture_output=True,
                 text=True,
                 check=True,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW if system_os == "Windows" else 0
-                ),
+                creationflags=(CREATE_NO_WINDOW if system_os == "Windows" else 0),
             )
             # If nvidia-smi runs but torch.cuda.is_available() is false, it's likely a driver/CUDA setup issue
             info.overall_status = GPUDriverStatusStates.DRIVER_ISSUE
@@ -244,6 +246,7 @@ def get_current_select_device():
     """Get current selected device"""
     try:
         device_index = get_selected_device()
+
         return jsonify(
             GetCurrentDeviceIndex(device_index=device_index).model_dump()
         ), 200

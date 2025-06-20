@@ -1,10 +1,11 @@
 """Model Info"""
 
 from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
-class ModelInfo(BaseModel):
+class ModelSearchInfo(BaseModel):
     """
     Represents a Stable Diffusion model, either local or from Hugging Face Hub.
     """
@@ -13,7 +14,6 @@ class ModelInfo(BaseModel):
         default=...,
         description="Unique identifier for the model (Hugging Face repo ID).",
     )
-    name: str = Field(default=..., description="Display name of the model.")
     author: Optional[str] = Field(
         default=None, description="Author or organization of the model on Hugging Face."
     )
@@ -40,11 +40,11 @@ class ModelInfo(BaseModel):
     )
 
 
-class ModelInfoListResponse(BaseModel):
+class ModelSearchInfoListResponse(BaseModel):
     """
     Response model for listing Stable Diffusion models.
     """
 
-    models_info: list[ModelInfo] = Field(
-        default=..., description="List of Stable Diffusion models."
+    models_search_info: list[ModelSearchInfo] = Field(
+        default=..., description="List of Stable Diffusion models when searching."
     )
