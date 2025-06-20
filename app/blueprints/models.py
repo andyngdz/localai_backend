@@ -19,18 +19,22 @@ default_sort = "downloads"
 def list_models():
     """List models from Hugging Face Hub."""
 
+    model_name_param = request.args.get("model_name")
     filter_param = request.args.get("filter", default=default_filter)
     limit_param = request.args.get("limit", type=int, default=default_limit)
 
+    print(filter_param)
+
     hf_models_generator = api.list_models(
+        filter=filter_param,
+        full=True,
+        limit=limit_param,
+        model_name=model_name_param,
         pipeline_tag=default_pipeline_tag,
         sort=default_sort,
-        filter=filter_param,
-        limit=limit_param,
-        full=True
     )
-    hf_models = list(hf_models_generator)
 
+    hf_models = list(hf_models_generator)
     models_search_info = []
 
     for m in hf_models:
@@ -46,6 +50,7 @@ def list_models():
 def get_model_info():
     """Get model info by model's id"""
     id = request.args.get("id")
+
     if not id:
         return jsonify(
             ErrorResponse(
