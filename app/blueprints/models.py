@@ -64,4 +64,4 @@ def get_model_info():
     model_card = ModelCard.load(id)
     model_info = api.model_info(id, files_metadata=True)
 
-    return jsonify({"model_info": model_info, "text": model_card.text}), 200
+    return jsonify({"model_info": model_info, "content": model_card.text}), 200
