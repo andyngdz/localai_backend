@@ -1,10 +1,13 @@
 """Models Blueprint"""
 
 from flask import Blueprint, jsonify, request
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, ModelCard
 
 from app.schemas.core import ErrorResponse, ErrorType
-from app.schemas.models import ModelSearchInfo, ModelSearchInfoListResponse
+from app.schemas.models import (
+    ModelSearchInfo,
+    ModelSearchInfoListResponse,
+)
 
 models = Blueprint("models", __name__)
 api = HfApi()
@@ -58,6 +61,7 @@ def get_model_info():
             )
         ), 400
 
+    model_card = ModelCard.load(id)
     model_info = api.model_info(id, files_metadata=True)
 
-    return jsonify(model_info), 200
+    return jsonify({"model_info": model_info, "text": model_card.text}), 200
