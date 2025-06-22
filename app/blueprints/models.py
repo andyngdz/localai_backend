@@ -63,4 +63,4 @@ def get_model_info():
 
     model_info = api.model_info(id, files_metadata=True)
 
-    return jsonify({"model_info": model_info}), 200
+    return jsonify(model_info), 200
