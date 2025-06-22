@@ -4,7 +4,10 @@ from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi
 
 from app.schemas.core import ErrorResponse, ErrorType
-from app.schemas.models import ModelSearchInfo, ModelSearchInfoListResponse
+from app.schemas.models import (
+    ModelSearchInfo,
+    ModelSearchInfoListResponse,
+)
 
 models = Blueprint("models", __name__)
 api = HfApi()
