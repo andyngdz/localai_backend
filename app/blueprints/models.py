@@ -1,7 +1,7 @@
 """Models Blueprint"""
 
 from flask import Blueprint, jsonify, request
-from huggingface_hub import HfApi, ModelCard
+from huggingface_hub import HfApi
 
 from app.schemas.core import ErrorResponse, ErrorType
 from app.schemas.models import (
@@ -61,7 +61,6 @@ def get_model_info():
             )
         ), 400
 
-    model_card = ModelCard.load(id)
     model_info = api.model_info(id, files_metadata=True)
 
-    return jsonify({"model_info": model_info, "content": model_card.text}), 200
+    return jsonify({"model_info": model_info}), 200
