@@ -55,11 +55,14 @@ def handle_validation_error(detail: str, type: ErrorType):
     )
 
 
-def progress_callback(filename, downloaded, total):
-    percentage = (downloaded / total) * 100 if total > 0 else 0
-    logger.info(
-        'Downloading %s: %d/%d bytes (%.2f%%)', filename, downloaded, total, percentage
-    )
+def get_progress_callback(model_id: str):
+    def progress_callback(filename, downloaded, total):
+        progress_store[model_id][filename] = {
+            'downloaded': downloaded,
+            'total': total,
+        }
+
+    return progress_callback
 
 
 async def download_file(
@@ -94,7 +97,7 @@ async def limited_download(
     progress_callback=None,
 ):
     async with semaphore:
-        await download_file(session, model_id, filename, model_dir, progress_callback)
+        await download_file(session, model_dir, model_id, filename, progress_callback)
 
 
 @downloads.route('/', methods=['POST'])
@@ -117,6 +120,7 @@ async def init_download():
     model_dir = os.path.join(BASE_MODEL_DIR, model_id.replace('/', '--'))
     os.makedirs(model_dir, exist_ok=True)
 
+    progress_callback = get_progress_callback(model_id)
     files = api.list_repo_files(model_id)
     async with ClientSession() as session:
         tasks = [
