@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database.core import Base
 from app.database.user import User
 
-DATABASE_URL = "sqlite:///localai_backend.db"
+DATABASE_URL = 'sqlite:///localai_backend.db'
 
 engine = create_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -7,12 +7,12 @@ from pydantic import BaseModel, Field
 
 
 class ErrorType(str, Enum):
-    TypeError = "TypeError"
-    ValueError = "ValueError"
-    ValidationError = "ValidationError"
-    FileNotFound = "FileNotFound"
-    Unauthorized = "Unauthorized"
-    InternalServerError = "InternalServerError"
+    TypeError = 'TypeError'
+    ValueError = 'ValueError'
+    ValidationError = 'ValidationError'
+    FileNotFound = 'FileNotFound'
+    Unauthorized = 'Unauthorized'
+    InternalServerError = 'InternalServerError'
 
 
 class ErrorResponse(BaseModel):
@@ -20,5 +20,5 @@ class ErrorResponse(BaseModel):
     Error response schema.
     """
 
-    detail: Any = Field(default=..., description="Error message.")
-    type: ErrorType = Field(default=..., description="Type of error.")
+    detail: Any = Field(default=..., description='Error message.')
+    type: ErrorType = Field(default=..., description='Type of error.')

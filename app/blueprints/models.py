@@ -9,22 +9,22 @@ from app.schemas.models import (
     ModelSearchInfoListResponse,
 )
 
-models = Blueprint("models", __name__)
+models = Blueprint('models', __name__)
 api = HfApi()
 
-default_filter = "stable-diffusion"
+default_filter = 'stable-diffusion'
 default_limit = 50
-default_pipeline_tag = "text-to-image"
-default_sort = "downloads"
+default_pipeline_tag = 'text-to-image'
+default_sort = 'downloads'
 
 
-@models.route("/search", methods=["GET"])
+@models.route('/search', methods=['GET'])
 def list_models():
     """List models from Hugging Face Hub."""
 
-    model_name_param = request.args.get("model_name")
-    filter_param = request.args.get("filter", default=default_filter)
-    limit_param = request.args.get("limit", type=int, default=default_limit)
+    model_name_param = request.args.get('model_name')
+    filter_param = request.args.get('filter', default=default_filter)
+    limit_param = request.args.get('limit', type=int, default=default_limit)
 
     print(filter_param)
 
@@ -49,10 +49,10 @@ def list_models():
     ), 200
 
 
-@models.route("/", methods=["GET"])
+@models.route('/', methods=['GET'])
 def get_model_info():
     """Get model info by model's id"""
-    id = request.args.get("id")
+    id = request.args.get('id')
 
     if not id:
         return jsonify(

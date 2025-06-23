@@ -12,31 +12,31 @@ class ModelSearchInfo(BaseModel):
 
     id: str = Field(
         default=...,
-        description="Unique identifier for the model (Hugging Face repo ID).",
+        description='Unique identifier for the model (Hugging Face repo ID).',
     )
     author: Optional[str] = Field(
-        default=None, description="Author or organization of the model on Hugging Face."
+        default=None, description='Author or organization of the model on Hugging Face.'
     )
     likes: Optional[int] = Field(
-        default=None, description="Number of likes for the model on Hugging Face."
+        default=None, description='Number of likes for the model on Hugging Face.'
     )
     trending_score: Optional[float] = Field(
-        default=None, description="Trending score of the model on Hugging Face."
+        default=None, description='Trending score of the model on Hugging Face.'
     )
     downloads: Optional[int] = Field(
-        default=0, description="Number of downloads for the model on Hugging Face."
+        default=0, description='Number of downloads for the model on Hugging Face.'
     )
     tags: Optional[list[str]] = Field(
-        default=[], description="List of tags associated with the model."
+        default=[], description='List of tags associated with the model.'
     )
     is_downloaded: bool = Field(
-        default=False, description="True if the model is downloaded locally."
+        default=False, description='True if the model is downloaded locally.'
     )
     size_mb: Optional[float] = Field(
-        default=None, description="Estimated size of the model in megabytes."
+        default=None, description='Estimated size of the model in megabytes.'
     )
     description: Optional[str] = Field(
-        default=None, description="A brief description of the model."
+        default=None, description='A brief description of the model.'
     )
 
 
@@ -46,5 +46,5 @@ class ModelSearchInfoListResponse(BaseModel):
     """
 
     models_search_info: list[ModelSearchInfo] = Field(
-        default=..., description="List of Stable Diffusion models when searching."
+        default=..., description='List of Stable Diffusion models when searching.'
     )

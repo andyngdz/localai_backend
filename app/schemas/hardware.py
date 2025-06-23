@@ -9,13 +9,13 @@ from pydantic import BaseModel, Field
 class GPUDriverStatusStates(str, Enum):
     """Overall status of GPU/driver setup for AI acceleration."""
 
-    READY = "ready"  # GPU detected, drivers compatible, ready for AI acceleration
-    NO_GPU = "no_gpu"  # No compatible GPU detected
+    READY = 'ready'  # GPU detected, drivers compatible, ready for AI acceleration
+    NO_GPU = 'no_gpu'  # No compatible GPU detected
     DRIVER_ISSUE = (
-        "driver_issue"  # GPU detected, but drivers are missing/outdated/problematic
+        'driver_issue'  # GPU detected, but drivers are missing/outdated/problematic
     )
-    INCOMPATIBLE_CUDA = "incompatible_cuda"  # GPU/drivers fine, but CUDA version incompatible with backend's PyTorch
-    UNKNOWN_ERROR = "unknown_error"  # An unexpected error occurred during detection
+    INCOMPATIBLE_CUDA = 'incompatible_cuda'  # GPU/drivers fine, but CUDA version incompatible with backend's PyTorch
+    UNKNOWN_ERROR = 'unknown_error'  # An unexpected error occurred during detection
 
 
 class GPUDeviceInfo(BaseModel):
@@ -26,13 +26,13 @@ class GPUDeviceInfo(BaseModel):
         description="Name of the GPU (e.g., 'NVIDIA GeForce RTX 3080', 'Apple M1 Max').",
     )
     memory_mb: Optional[int] = Field(
-        default=None, description="Total memory of the GPU in MB."
+        default=None, description='Total memory of the GPU in MB.'
     )
     cuda_compute_capability: Optional[str] = Field(
         default=None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
     )
     is_primary: bool = Field(
-        default=False, description="True if this is the primary/default GPU."
+        default=False, description='True if this is the primary/default GPU.'
     )
 
 
@@ -40,34 +40,34 @@ class GPUDriverInfo(BaseModel):
     """Comprehensive information about the system's GPU and driver setup."""
 
     overall_status: GPUDriverStatusStates = Field(
-        default=..., description="Overall status of GPU/driver setup."
+        default=..., description='Overall status of GPU/driver setup.'
     )
     message: str = Field(
-        default=..., description="A user-friendly message explaining the status."
+        default=..., description='A user-friendly message explaining the status.'
     )
     detected_gpus: List[GPUDeviceInfo] = Field(
-        default=[], description="List of detected GPU devices."
+        default=[], description='List of detected GPU devices.'
     )
     # Specifics for NVIDIA
     nvidia_driver_version: Optional[str] = Field(
-        default=None, description="NVIDIA driver version (if NVIDIA GPU detected)."
+        default=None, description='NVIDIA driver version (if NVIDIA GPU detected).'
     )
     cuda_runtime_version: Optional[str] = Field(
         default=None,
-        description="CUDA runtime version detected by PyTorch/system (if NVIDIA GPU).",
+        description='CUDA runtime version detected by PyTorch/system (if NVIDIA GPU).',
     )
     # Specifics for Apple Silicon
     macos_mps_available: Optional[bool] = Field(
         default=None,
-        description="True if Metal Performance Shaders (MPS) are available on macOS.",
+        description='True if Metal Performance Shaders (MPS) are available on macOS.',
     )
     # Add recommendations or links
     recommendation_link: Optional[str] = Field(
         default=None,
-        description="A URL for recommended driver downloads or troubleshooting.",
+        description='A URL for recommended driver downloads or troubleshooting.',
     )
     troubleshooting_steps: Optional[List[str]] = Field(
-        default=None, description="Specific steps to resolve issues."
+        default=None, description='Specific steps to resolve issues.'
     )
 
 
@@ -82,5 +82,5 @@ class GetCurrentDeviceIndex(BaseModel):
 
     device_index: int = Field(
         ...,
-        description="Index of the currently selected device. -2 means not found, -1 means CPU mode.",
+        description='Index of the currently selected device. -2 means not found, -1 means CPU mode.',
     )

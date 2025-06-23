@@ -2,3 +2,5 @@
 exclude = [
     "/home/linuxbrew/.linuxbrew",
 ]
+[tool.ruff.format]
+quote-style = "single"
