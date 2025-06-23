@@ -87,8 +87,21 @@ async def download_file(
     filepath = os.path.join(model_dir, filename)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-    async with session.get(url) as response:
+    existing_size = 0
+    if os.path.exists(filepath):
+        existing_size = os.path.getsize(filepath)
+
+    headers = {}
+    if existing_size > 0:
+        headers['Range'] = f'bytes={existing_size}-'
+
+    async with session.get(url, headers=headers) as response:
+        if response.status == 416:
+            # Already fully downloaded
+            return
+
         response.raise_for_status()
+
         total = int(response.headers.get('content-length', 0))
         downloaded = 0
 
