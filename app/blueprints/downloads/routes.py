@@ -1,6 +1,8 @@
 import logging
 import os
 from asyncio import Semaphore, gather
+from collections import defaultdict
+from typing import Dict
 
 from aiohttp import ClientSession
 from flask import Blueprint, jsonify, request
@@ -25,6 +27,17 @@ downloads = Blueprint('downloads', __name__)
 
 api = HfApi()
 semaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
+
+# Global dict to hold progress
+# Example structure:
+# {
+#   "stable-diffusion-v1-5": {
+#       "unet/model.bin": {"downloaded": 1024, "total": 2048},
+#       ...
+#   },
+#   ...
+# }
+progress_store: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(dict)
 
 
 def handle_validation_error(detail: str, type: ErrorType):
