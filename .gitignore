@@ -30,12 +30,13 @@ env/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Log files and runtime data
-*.log
-data/models/    # Large downloaded models (downloaded at runtime, don't commit)
-.models/        # Large downloaded models (downloaded at runtime, don't commit)
-data/cache/     # Hugging Face cache (can be huge) - uncomment if you put it here
-.cache/         # General cache directories (e.g. from diffusers/huggingface_hub default)
+# Runtime downloaded models
+data/models/
+.models/
+
+# Caches
+.cache/
+data/cache/
 
 # Specific IDE-related files
 .mypy_cache/      # Mypy type checker cache
@@ -45,4 +46,3 @@ data/cache/     # Hugging Face cache (can be huge) - uncomment if you put it her
 # ENVIRONMENTS / SECRETS
 # ------------------------------------------------------------------
 .env                    # Environment variables (e.g., API keys, device settings)
-*.env.models/
