@@ -8,6 +8,7 @@ from app.blueprints.downloads import downloads
 from app.blueprints.hardware import hardware
 from app.blueprints.models import models
 from app.blueprints.users import users
+from socket_io import socketio
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,6 +20,7 @@ app.register_blueprint(users, url_prefix='/users')
 app.register_blueprint(models, url_prefix='/models')
 app.register_blueprint(downloads, url_prefix='/downloads')
 app.register_blueprint(hardware, url_prefix='/hardware')
+socketio.init_app(app, cors_allowed_origins='*')
 
 
 @app.route('/favicon.ico')
@@ -41,4 +43,4 @@ def health_check():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app, debug=True)

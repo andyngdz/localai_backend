@@ -10,6 +10,7 @@ from huggingface_hub import HfApi, hf_hub_url
 from pydantic import ValidationError
 
 from app.schemas.core import ErrorResponse, ErrorType
+from socket_io import socketio
 
 from .schemas import (
     DownloadStatus,
@@ -61,6 +62,16 @@ def get_progress_callback(model_id: str):
             'downloaded': downloaded,
             'total': total,
         }
+
+        socketio.emit(
+            'download_progress_update',
+            {
+                'model_id': model_id,
+                'filename': filename,
+                'downloaded': downloaded,
+                'total': total,
+            },
+        )
 
     return progress_callback
 
