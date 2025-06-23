@@ -9,18 +9,19 @@ from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi, hf_hub_url
 from pydantic import ValidationError
 
-from app.core.shared_data import download_statuses
 from app.schemas.core import ErrorResponse, ErrorType
-from app.schemas.downloads import (
+
+from .schemas import (
     DownloadStatus,
     DownloadStatusResponse,
     DownloadStatusStates,
     HuggingFaceRequest,
+    download_statuses,
 )
 
 MAX_CONCURRENT_DOWNLOADS = 8
 CHUNK_SIZE = 8192
-BASE_MODEL_DIR = './models'
+BASE_MODEL_DIR = './.models'
 
 logger = logging.getLogger(__name__)
 downloads = Blueprint('downloads', __name__)

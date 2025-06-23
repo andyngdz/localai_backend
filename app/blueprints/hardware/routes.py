@@ -12,7 +12,8 @@ from pydantic import ValidationError
 
 from app.database.database import create_or_update_selected_device, get_selected_device
 from app.schemas.core import ErrorResponse, ErrorType
-from app.schemas.hardware import (
+
+from .schemas import (
     GetCurrentDeviceIndex,
     GPUDeviceInfo,
     GPUDriverInfo,
