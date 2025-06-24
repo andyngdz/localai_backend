@@ -21,7 +21,7 @@ class DownloadStatusStates(str, Enum):
 class HuggingFaceRequest(BaseModel):
     """Request model for downloading"""
 
-    model_id: str = Field(
+    id: str = Field(
         default=...,
         description='The Hugging Face repository ID of the model to download.',
     )
@@ -34,7 +34,7 @@ class HuggingFaceRequest(BaseModel):
 class DownloadStatus(BaseModel):
     """Model download status."""
 
-    model_id: str = Field(
+    id: str = Field(
         default=..., description='The Hugging Face repository ID of the model.'
     )
     status: Optional[DownloadStatusStates] = Field(
@@ -58,9 +58,7 @@ class DownloadStatusResponse(BaseModel):
     Response schema for the status of a model download.
     """
 
-    model_id: str = Field(
-        default=..., description='The ID of the model being downloaded.'
-    )
+    id: str = Field(default=..., description='The ID of the model being downloaded.')
     status: DownloadStatusStates = Field(
         default=..., description='Current status of the download.'
     )

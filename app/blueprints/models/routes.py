@@ -1,14 +1,13 @@
 """Models Blueprint"""
 
 import logging
-import os
 
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi
 
 from app.schemas.core import ErrorResponse, ErrorType
-from config import BASE_MODEL_DIR
+from app.services.storage import get_model_dir
 
 from .schemas import (
     LoadModelResponse,
@@ -85,8 +84,8 @@ def load_model():
         ), 400
 
     try:
-        model_dir = os.path.join(BASE_MODEL_DIR, id.replace('/', '--'))
-        pipeline = DiffusionPipeline.from_pretrained(model_dir)
+        dir = get_model_dir(id)
+        pipeline = DiffusionPipeline.from_pretrained(dir)
         pipeline.to('cuda')
 
         return jsonify(

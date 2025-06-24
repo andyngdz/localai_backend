@@ -10,7 +10,8 @@ from huggingface_hub import HfApi, hf_hub_url
 from pydantic import ValidationError
 
 from app.schemas.core import ErrorResponse, ErrorType
-from config import BASE_MODEL_DIR, CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
+from app.services.storage import get_model_dir
+from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 from socket_io import socketio
 
 from .schemas import (
@@ -53,9 +54,9 @@ def handle_validation_error(detail: str, type: ErrorType):
     )
 
 
-def get_progress_callback(model_id: str):
+def get_progress_callback(id: str):
     def progress_callback(filename, downloaded, total):
-        progress_store[model_id][filename] = {
+        progress_store[id][filename] = {
             'downloaded': downloaded,
             'total': total,
         }
@@ -63,7 +64,7 @@ def get_progress_callback(model_id: str):
         socketio.emit(
             'download_progress_update',
             {
-                'model_id': model_id,
+                'id': id,
                 'filename': filename,
                 'downloaded': downloaded,
                 'total': total,
@@ -75,13 +76,13 @@ def get_progress_callback(model_id: str):
 
 async def download_file(
     session: ClientSession,
-    model_dir: str,
-    model_id: str,
+    dir: str,
+    id: str,
     filename: str,
     progress_callback=None,
 ):
-    url = hf_hub_url(model_id, filename)
-    filepath = os.path.join(model_dir, filename)
+    url = hf_hub_url(id, filename)
+    filepath = os.path.join(dir, filename)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     existing_size = 0
@@ -112,13 +113,13 @@ async def download_file(
 
 async def limited_download(
     session: ClientSession,
-    model_dir: str,
-    model_id: str,
+    dir: str,
+    id: str,
     filename: str,
     progress_callback=None,
 ):
     async with semaphore:
-        await download_file(session, model_dir, model_id, filename, progress_callback)
+        await download_file(session, dir, id, filename, progress_callback)
 
 
 @downloads.route('/', methods=['POST'])
@@ -126,29 +127,29 @@ async def init_download():
     try:
         request_data = HuggingFaceRequest.model_validate_json(request.data)
     except ValidationError:
-        return handle_validation_error('Missing model_id', ErrorType.ValidationError)
+        return handle_validation_error('Missing id', ErrorType.ValidationError)
     except TypeError:
         return handle_validation_error('Value type is incorrect', ErrorType.TypeError)
     except ValueError:
         return handle_validation_error('Value is not valid', ErrorType.ValueError)
 
-    model_id = request_data.model_id
+    id = request_data.id
 
-    logger.info('API Request: Initiating download for model_id: %s', model_id)
+    logger.info('API Request: Initiating download for id: %s', id)
 
-    download_statuses[model_id] = DownloadStatus(model_id=model_id)
+    download_statuses[id] = DownloadStatus(id=id)
 
-    model_dir = os.path.join(BASE_MODEL_DIR, model_id.replace('/', '--'))
-    os.makedirs(model_dir, exist_ok=True)
+    dir = get_model_dir(id)
+    os.makedirs(dir, exist_ok=True)
 
-    progress_callback = get_progress_callback(model_id)
-    files = api.list_repo_files(model_id)
+    progress_callback = get_progress_callback(id)
+    files = api.list_repo_files(id)
     async with ClientSession() as session:
         tasks = [
             limited_download(
                 session,
-                model_dir,
-                model_id,
+                dir,
+                id,
                 filename,
                 progress_callback=progress_callback,
             )
@@ -160,7 +161,7 @@ async def init_download():
     return (
         jsonify(
             DownloadStatusResponse(
-                model_id=model_id,
+                id=id,
                 status=DownloadStatusStates.COMPLETED,
                 message='Download completed',
             ).model_dump()
