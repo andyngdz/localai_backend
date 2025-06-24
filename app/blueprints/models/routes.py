@@ -1,19 +1,25 @@
 """Models Blueprint"""
 
+import logging
+import os
+
+from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi
 
 from app.schemas.core import ErrorResponse, ErrorType
+from config import BASE_MODEL_DIR
 
 from .schemas import (
+    LoadModelResponse,
     ModelSearchInfo,
     ModelSearchInfoListResponse,
 )
 
+logger = logging.getLogger(__name__)
 models = Blueprint('models', __name__)
 api = HfApi()
 
-default_filter = 'stable-diffusion'
 default_limit = 50
 default_pipeline_tag = 'text-to-image'
 default_sort = 'downloads'
@@ -24,25 +30,24 @@ def list_models():
     """List models from Hugging Face Hub."""
 
     model_name_param = request.args.get('model_name')
-    filter_param = request.args.get('filter', default=default_filter)
+    filter_param = request.args.get('filter')
     limit_param = request.args.get('limit', type=int, default=default_limit)
 
-    print(filter_param)
-
     hf_models_generator = api.list_models(
-        filter=filter_param,
         full=True,
+        filter=filter_param,
         limit=limit_param,
         model_name=model_name_param,
         pipeline_tag=default_pipeline_tag,
         sort=default_sort,
     )
 
-    hf_models = list(hf_models_generator)
+    models = list(hf_models_generator)
+
     models_search_info = []
 
-    for m in hf_models:
-        model_search_info = ModelSearchInfo(**m.__dict__)
+    for model in models:
+        model_search_info = ModelSearchInfo(**model.__dict__)
         models_search_info.append(model_search_info)
 
     return jsonify(
@@ -65,3 +70,33 @@ def get_model_info():
     model_info = api.model_info(id, files_metadata=True)
 
     return jsonify(model_info), 200
+
+
+@models.route('/load', methods=['GET'])
+def load_model():
+    """Load model by id"""
+    id = request.args.get('id')
+
+    if not id:
+        return jsonify(
+            ErrorResponse(
+                detail="Missing 'id' query parameter", type=ErrorType.ValidationError
+            )
+        ), 400
+
+    try:
+        model_dir = os.path.join(BASE_MODEL_DIR, id.replace('/', '--'))
+        pipeline = DiffusionPipeline.from_pretrained(model_dir)
+        pipeline.to('cuda')
+
+        return jsonify(
+            LoadModelResponse(
+                id=id,
+                config=dict(pipeline.config),
+            ).model_dump()
+        ), 200
+    except Exception as e:
+        logger.exception('Failed to load model')
+        return jsonify(
+            ErrorResponse(detail=str(e), type=ErrorType.InternalServerError)
+        ), 500

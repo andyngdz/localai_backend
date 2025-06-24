@@ -1,6 +1,6 @@
 """Model Info"""
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
@@ -15,13 +15,13 @@ class ModelSearchInfo(BaseModel):
         description='Unique identifier for the model (Hugging Face repo ID).',
     )
     author: Optional[str] = Field(
-        default=None, description='Author or organization of the model on Hugging Face.'
+        default=..., description='Author or organization of the model on Hugging Face.'
     )
     likes: Optional[int] = Field(
-        default=None, description='Number of likes for the model on Hugging Face.'
+        default=..., description='Number of likes for the model on Hugging Face.'
     )
     trending_score: Optional[float] = Field(
-        default=None, description='Trending score of the model on Hugging Face.'
+        default=..., description='Trending score of the model on Hugging Face.'
     )
     downloads: Optional[int] = Field(
         default=0, description='Number of downloads for the model on Hugging Face.'
@@ -33,10 +33,10 @@ class ModelSearchInfo(BaseModel):
         default=False, description='True if the model is downloaded locally.'
     )
     size_mb: Optional[float] = Field(
-        default=None, description='Estimated size of the model in megabytes.'
+        default=..., description='Estimated size of the model in megabytes.'
     )
     description: Optional[str] = Field(
-        default=None, description='A brief description of the model.'
+        default=..., description='A brief description of the model.'
     )
 
 
@@ -46,5 +46,19 @@ class ModelSearchInfoListResponse(BaseModel):
     """
 
     models_search_info: list[ModelSearchInfo] = Field(
-        default=..., description='List of Stable Diffusion models when searching.'
+        default=[], description='List of Stable Diffusion models when searching.'
+    )
+
+
+class LoadModelResponse(BaseModel):
+    """
+    Response model for loading a Stable Diffusion model.
+    """
+
+    id: str = Field(
+        default=...,
+        description='Unique identifier for the model (Hugging Face repo ID).',
+    )
+    config: Dict[str, Any] = Field(
+        default={}, description='Model configuration details.'
     )

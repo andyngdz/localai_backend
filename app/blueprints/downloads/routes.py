@@ -10,6 +10,7 @@ from huggingface_hub import HfApi, hf_hub_url
 from pydantic import ValidationError
 
 from app.schemas.core import ErrorResponse, ErrorType
+from config import BASE_MODEL_DIR, CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 from socket_io import socketio
 
 from .schemas import (
@@ -19,10 +20,6 @@ from .schemas import (
     HuggingFaceRequest,
     download_statuses,
 )
-
-MAX_CONCURRENT_DOWNLOADS = 8
-CHUNK_SIZE = 8192
-BASE_MODEL_DIR = './.models'
 
 logger = logging.getLogger(__name__)
 downloads = Blueprint('downloads', __name__)
