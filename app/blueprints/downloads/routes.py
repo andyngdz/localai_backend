@@ -1,13 +1,14 @@
 import logging
 import os
-from asyncio import Semaphore, gather
+from asyncio import CancelledError, Semaphore, gather
 from collections import defaultdict
 from typing import Dict
 
-from aiohttp import ClientSession
+from aiohttp import ClientError, ClientSession, ClientTimeout
 from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi, hf_hub_url
 from pydantic import ValidationError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.schemas.core import ErrorResponse, ErrorType
 from app.services.storage import get_model_dir
@@ -93,22 +94,26 @@ async def download_file(
     if existing_size > 0:
         headers['Range'] = f'bytes={existing_size}-'
 
-    async with session.get(url, headers=headers) as response:
-        if response.status == 416:
-            # Already fully downloaded
-            return
+    try:
+        async with session.get(url, headers=headers) as response:
+            if response.status == 416:
+                # Already fully downloaded
+                return
 
-        response.raise_for_status()
+            response.raise_for_status()
 
-        total = int(response.headers.get('content-length', 0))
-        downloaded = 0
+            total = int(response.headers.get('content-length', 0))
+            downloaded = 0
 
-        with open(filepath, 'wb') as file:
-            async for chunk in response.content.iter_chunked(CHUNK_SIZE):
-                file.write(chunk)
-                downloaded += len(chunk)
-                if progress_callback and total > 0:
-                    progress_callback(filename, downloaded, total)
+            with open(filepath, 'wb') as file:
+                async for chunk in response.content.iter_chunked(CHUNK_SIZE):
+                    file.write(chunk)
+                    downloaded += len(chunk)
+                    if progress_callback and total > 0:
+                        progress_callback(filename, downloaded, total)
+    except CancelledError:
+        logger.warning('Download was cancelled')
+        raise
 
 
 async def limited_download(
@@ -122,6 +127,11 @@ async def limited_download(
         await download_file(session, dir, id, filename, progress_callback)
 
 
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_fixed(2),
+    retry=retry_if_exception_type((TimeoutError, ClientError)),
+)
 @downloads.route('/', methods=['POST'])
 async def init_download():
     try:
@@ -143,8 +153,10 @@ async def init_download():
     os.makedirs(dir, exist_ok=True)
 
     progress_callback = get_progress_callback(id)
+    timeout = ClientTimeout(total=None, sock_read=60)
     files = api.list_repo_files(id)
-    async with ClientSession() as session:
+
+    async with ClientSession(timeout=timeout) as session:
         tasks = [
             limited_download(
                 session,
