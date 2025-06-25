@@ -16,6 +16,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+app.url_map.strict_slashes = False
 app.register_blueprint(users, url_prefix='/users')
 app.register_blueprint(models, url_prefix='/models')
 app.register_blueprint(downloads, url_prefix='/downloads')

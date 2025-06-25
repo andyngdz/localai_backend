@@ -26,16 +26,24 @@ logger = logging.getLogger(__name__)
 downloads = Blueprint('downloads', __name__)
 
 api = HfApi()
-semaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
 
 
-def clean_up_model(id: str):
+def delete_model_from_disk(id: str):
     """Clean up the model directory if it exists"""
     model_dir = get_model_dir(id)
 
     if os.path.exists(model_dir):
         logger.info('Cleaning up model directory: %s', model_dir)
         shutil.rmtree(model_dir)
+
+
+def clean_up(id: str):
+    """Clean up the model directory and remove task from tracking"""
+
+    delete_model_from_disk(id)
+    download_tasks.pop(id, None)
+    download_progresses.pop(id, None)
+    logger.info('Cleaned up resources for id: %s', id)
 
 
 def handle_validation_error(detail: str, type: ErrorType):
@@ -94,8 +102,8 @@ async def run_download(id: str):
 
             await gather(*tasks)
     except CancelledError:
+        clean_up(id)
         logger.warning('Download task for id %s was cancelled', id)
-        clean_up_model(id)
 
 
 async def download_file(
@@ -135,7 +143,8 @@ async def download_file(
                     if progress_callback and total > 0:
                         progress_callback(filename, downloaded, total)
     except CancelledError:
-        logger.warning('Download was cancelled')
+        logger.warning('Download %s was cancelled', filename)
+        raise
 
 
 async def limited_download(
@@ -145,6 +154,7 @@ async def limited_download(
     filename: str,
     progress_callback,
 ):
+    semaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
     async with semaphore:
         await download_file(session, model_dir, id, filename, progress_callback)
 
