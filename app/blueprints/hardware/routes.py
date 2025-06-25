@@ -31,7 +31,7 @@ else:
     CREATE_NO_WINDOW = 0
 
 
-def _create_initial_gpu_info() -> GPUDriverInfo:
+def create_initial_gpu_info() -> GPUDriverInfo:
     """Initializes GPUDriverInfo with default unknown status."""
     return GPUDriverInfo(
         overall_status=GPUDriverStatusStates.UNKNOWN_ERROR,
@@ -45,7 +45,7 @@ def _create_initial_gpu_info() -> GPUDriverInfo:
     )
 
 
-def _get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
+def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
     # NVIDIA GPU Detection
     cuda = torch.cuda
 
@@ -130,7 +130,7 @@ def _get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
             pass
 
 
-def _get_mps_gpu_info(info: GPUDriverInfo):
+def get_mps_gpu_info(info: GPUDriverInfo):
     info.overall_status = GPUDriverStatusStates.READY
     info.message = 'Apple Silicon (MPS) GPU detected and ready for acceleration.'
     info.macos_mps_available = True
@@ -147,25 +147,25 @@ def _get_mps_gpu_info(info: GPUDriverInfo):
 
 
 @functools.cache
-def _get_system_gpu_info() -> GPUDriverInfo:
+def get_system_gpu_info() -> GPUDriverInfo:
     """
     Detects GPU and driver information based on the operating system.
     This function will be called by the endpoints.
     """
 
     # Initialize with default unknown status
-    info = _create_initial_gpu_info()
+    info = create_initial_gpu_info()
 
     try:
         system_os = platform.system()
         backends = torch.backends
 
         if system_os in ('Windows', 'Linux'):
-            _get_nvidia_gpu_info(system_os, info)
+            get_nvidia_gpu_info(system_os, info)
         elif system_os == 'Darwin':  # macOS
             # Apple Silicon (MPS) Detection
             if hasattr(backends, 'mps') and backends.mps.is_available():
-                _get_mps_gpu_info(info)
+                get_mps_gpu_info(info)
             else:
                 info.overall_status = GPUDriverStatusStates.NO_GPU
                 info.message = 'No Apple Silicon (MPS) GPU detected or PyTorch MPS backend not available. Running on CPU.'
@@ -204,7 +204,7 @@ def get_driver_status():
     Returns the current GPU and driver status of the system.
     This will return the cached result of _get_system_gpu_info().
     """
-    driver_info = _get_system_gpu_info()
+    driver_info = get_system_gpu_info()
 
     return jsonify(driver_info.model_dump()), 200
 
@@ -215,10 +215,10 @@ def recheck_driver_status():
     Forces the backend to re-evaluate and update the GPU and driver status.
     This clears the cache of _get_system_gpu_info() and then calls it again.
     """
-    _get_system_gpu_info.cache_clear()  # Clear the cache
+    get_system_gpu_info.cache_clear()  # Clear the cache
 
     logger.info('Forcing re-check of GPU driver status by clearing cache.')
-    driver_info = _get_system_gpu_info()  # Re-run detection (will now actually execute)
+    driver_info = get_system_gpu_info()  # Re-run detection (will now actually execute)
 
     return jsonify(driver_info.model_dump()), 200
 

@@ -8,7 +8,7 @@ from app.blueprints.downloads import downloads
 from app.blueprints.hardware import hardware
 from app.blueprints.models import models
 from app.blueprints.users import users
-from socket_io import socketio
+from app.services.socket_io import socketio
 
 logging.basicConfig(
     level=logging.INFO,

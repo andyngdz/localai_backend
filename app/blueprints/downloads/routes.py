@@ -1,9 +1,9 @@
 import logging
 import os
-from asyncio import CancelledError, Semaphore, gather
-from collections import defaultdict
-from typing import Dict
+import shutil
+from asyncio import CancelledError, Semaphore, create_task, gather
 
+import aiofiles
 from aiohttp import ClientError, ClientSession, ClientTimeout
 from flask import Blueprint, jsonify, request
 from huggingface_hub import HfApi, hf_hub_url
@@ -11,17 +11,16 @@ from pydantic import ValidationError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.schemas.core import ErrorResponse, ErrorType
+from app.services.socket_io import SocketEvents, socketio
 from app.services.storage import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
-from socket_io import socketio
 
 from .schemas import (
-    DownloadStatus,
+    DownloadProgressResponse,
+    DownloadRequest,
     DownloadStatusResponse,
-    DownloadStatusStates,
-    HuggingFaceRequest,
-    download_statuses,
 )
+from .states import download_progresses, download_tasks
 
 logger = logging.getLogger(__name__)
 downloads = Blueprint('downloads', __name__)
@@ -29,16 +28,14 @@ downloads = Blueprint('downloads', __name__)
 api = HfApi()
 semaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
 
-# Global dict to hold progress
-# Example structure:
-# {
-#   "stable-diffusion-v1-5": {
-#       "unet/model.bin": {"downloaded": 1024, "total": 2048},
-#       ...
-#   },
-#   ...
-# }
-progress_store: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(dict)
+
+def clean_up_model(id: str):
+    """Clean up the model directory if it exists"""
+    model_dir = get_model_dir(id)
+
+    if os.path.exists(model_dir):
+        logger.info('Cleaning up model directory: %s', model_dir)
+        shutil.rmtree(model_dir)
 
 
 def handle_validation_error(detail: str, type: ErrorType):
@@ -56,23 +53,49 @@ def handle_validation_error(detail: str, type: ErrorType):
 
 
 def get_progress_callback(id: str):
-    def progress_callback(filename, downloaded, total):
-        progress_store[id][filename] = {
+    def progress_callback(filename: str, downloaded: int, total: int):
+        download_progresses[id][filename] = {
             'downloaded': downloaded,
             'total': total,
         }
 
         socketio.emit(
-            'download_progress_update',
-            {
-                'id': id,
-                'filename': filename,
-                'downloaded': downloaded,
-                'total': total,
-            },
+            SocketEvents.DOWNLOAD_PROGRESS_UPDATE,
+            DownloadProgressResponse(
+                id=id,
+                filename=filename,
+                downloaded=downloaded,
+                total=total,
+            ).model_dump(),
         )
 
     return progress_callback
+
+
+async def run_download(id: str):
+    try:
+        files = api.list_repo_files(id)
+        model_dir = get_model_dir(id)
+        os.makedirs(model_dir, exist_ok=True)
+        progress_callback = get_progress_callback(id)
+        timeout = ClientTimeout(total=None, sock_read=60)
+
+        async with ClientSession(timeout=timeout) as session:
+            tasks = [
+                limited_download(
+                    session,
+                    model_dir,
+                    id,
+                    filename,
+                    progress_callback=progress_callback,
+                )
+                for filename in files
+            ]
+
+            await gather(*tasks)
+    except CancelledError:
+        logger.warning('Download task for id %s was cancelled', id)
+        clean_up_model(id)
 
 
 async def download_file(
@@ -80,7 +103,7 @@ async def download_file(
     model_dir: str,
     id: str,
     filename: str,
-    progress_callback=None,
+    progress_callback,
 ):
     url = hf_hub_url(id, filename)
     filepath = os.path.join(model_dir, filename)
@@ -96,8 +119,8 @@ async def download_file(
 
     try:
         async with session.get(url, headers=headers) as response:
+            # Check if already fully downloaded, then skip
             if response.status == 416:
-                # Already fully downloaded
                 return
 
             response.raise_for_status()
@@ -105,15 +128,14 @@ async def download_file(
             total = int(response.headers.get('content-length', 0))
             downloaded = 0
 
-            with open(filepath, 'wb') as file:
+            async with aiofiles.open(filepath, 'wb') as file:
                 async for chunk in response.content.iter_chunked(CHUNK_SIZE):
-                    file.write(chunk)
+                    await file.write(chunk)
                     downloaded += len(chunk)
                     if progress_callback and total > 0:
                         progress_callback(filename, downloaded, total)
     except CancelledError:
         logger.warning('Download was cancelled')
-        raise
 
 
 async def limited_download(
@@ -121,10 +143,26 @@ async def limited_download(
     model_dir: str,
     id: str,
     filename: str,
-    progress_callback=None,
+    progress_callback,
 ):
     async with semaphore:
         await download_file(session, model_dir, id, filename, progress_callback)
+
+
+async def cancel_task(id: str):
+    """Cancel the download task by id"""
+    if id in download_tasks:
+        task = download_tasks[id]
+
+        if not task.done():
+            try:
+                task.cancel()
+            except CancelledError:
+                logger.info('Download task %s was cancelled', id)
+        else:
+            logger.info('Download task %s is already completed', id)
+    else:
+        logger.warning('No download task found for id: %s', id)
 
 
 @retry(
@@ -135,7 +173,7 @@ async def limited_download(
 @downloads.route('/', methods=['POST'])
 async def init_download():
     try:
-        request_data = HuggingFaceRequest.model_validate_json(request.data)
+        request_data = DownloadRequest.model_validate_json(request.data)
     except ValidationError:
         return handle_validation_error('Missing id', ErrorType.ValidationError)
     except TypeError:
@@ -147,36 +185,39 @@ async def init_download():
 
     logger.info('API Request: Initiating download for id: %s', id)
 
-    download_statuses[id] = DownloadStatus(id=id)
+    if id in download_tasks and not download_tasks[id].done():
+        await cancel_task(id)
 
-    model_dir = get_model_dir(id)
-    os.makedirs(model_dir, exist_ok=True)
-
-    progress_callback = get_progress_callback(id)
-    timeout = ClientTimeout(total=None, sock_read=60)
-    files = api.list_repo_files(id)
-
-    async with ClientSession(timeout=timeout) as session:
-        tasks = [
-            limited_download(
-                session,
-                model_dir,
-                id,
-                filename,
-                progress_callback=progress_callback,
-            )
-            for filename in files
-        ]
-
-        await gather(*tasks)
+    task = create_task(run_download(id))
+    download_tasks[id] = task
+    await task
 
     return (
         jsonify(
             DownloadStatusResponse(
                 id=id,
-                status=DownloadStatusStates.COMPLETED,
                 message='Download completed',
             ).model_dump()
         ),
         202,
     )
+
+
+@downloads.route('/cancel', methods=['GET'])
+async def cancel_download():
+    """Cancel the download by id"""
+    id = request.args.get('id')
+
+    if not id:
+        return handle_validation_error(
+            "Missing 'id' query parameter", ErrorType.ValidationError
+        )
+
+    await cancel_task(id)
+
+    return jsonify(
+        DownloadStatusResponse(
+            id=id,
+            message='Download cancelled',
+        ).model_dump()
+    ), 200
