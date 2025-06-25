@@ -84,8 +84,8 @@ def load_model():
         ), 400
 
     try:
-        dir = get_model_dir(id)
-        pipeline = DiffusionPipeline.from_pretrained(dir)
+        model_dir = get_model_dir(id)
+        pipeline = DiffusionPipeline.from_pretrained(model_dir)
         pipeline.to('cuda')
 
         return jsonify(

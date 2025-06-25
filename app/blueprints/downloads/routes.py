@@ -77,13 +77,13 @@ def get_progress_callback(id: str):
 
 async def download_file(
     session: ClientSession,
-    dir: str,
+    model_dir: str,
     id: str,
     filename: str,
     progress_callback=None,
 ):
     url = hf_hub_url(id, filename)
-    filepath = os.path.join(dir, filename)
+    filepath = os.path.join(model_dir, filename)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     existing_size = 0
@@ -118,13 +118,13 @@ async def download_file(
 
 async def limited_download(
     session: ClientSession,
-    dir: str,
+    model_dir: str,
     id: str,
     filename: str,
     progress_callback=None,
 ):
     async with semaphore:
-        await download_file(session, dir, id, filename, progress_callback)
+        await download_file(session, model_dir, id, filename, progress_callback)
 
 
 @retry(
@@ -149,8 +149,8 @@ async def init_download():
 
     download_statuses[id] = DownloadStatus(id=id)
 
-    dir = get_model_dir(id)
-    os.makedirs(dir, exist_ok=True)
+    model_dir = get_model_dir(id)
+    os.makedirs(model_dir, exist_ok=True)
 
     progress_callback = get_progress_callback(id)
     timeout = ClientTimeout(total=None, sock_read=60)
@@ -160,7 +160,7 @@ async def init_download():
         tasks = [
             limited_download(
                 session,
-                dir,
+                model_dir,
                 id,
                 filename,
                 progress_callback=progress_callback,
