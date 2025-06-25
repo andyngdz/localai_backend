@@ -68,7 +68,7 @@ def get_progress_callback(id: str):
         }
 
         socketio.emit(
-            SocketEvents.DOWNLOAD_PROGRESS_UPDATE,
+            f'{SocketEvents.DOWNLOAD_PROGRESS_UPDATE}_{id}',
             DownloadProgressResponse(
                 id=id,
                 filename=filename,
