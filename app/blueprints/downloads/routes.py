@@ -24,7 +24,7 @@ from .states import download_progresses, download_tasks
 
 logger = logging.getLogger(__name__)
 downloads = Blueprint('downloads', __name__)
-
+semaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
 api = HfApi()
 
 
@@ -68,7 +68,7 @@ def get_progress_callback(id: str):
         }
 
         socketio.emit(
-            f'{SocketEvents.DOWNLOAD_PROGRESS_UPDATE}_{id}',
+            SocketEvents.DOWNLOAD_PROGRESS_UPDATE,
             DownloadProgressResponse(
                 id=id,
                 filename=filename,
@@ -95,7 +95,7 @@ async def run_download(id: str):
                     model_dir,
                     id,
                     filename,
-                    progress_callback=progress_callback,
+                    progress_callback,
                 )
                 for filename in files
             ]
@@ -136,6 +136,8 @@ async def download_file(
             total = int(response.headers.get('content-length', 0))
             downloaded = 0
 
+            logger.info('Starting download for %s (id: %s)', filename, id)
+
             async with aiofiles.open(filepath, 'wb') as file:
                 async for chunk in response.content.iter_chunked(CHUNK_SIZE):
                     await file.write(chunk)
@@ -145,6 +147,10 @@ async def download_file(
     except CancelledError:
         logger.warning('Download %s was cancelled', filename)
         raise
+    except Exception as e:
+        logger.error('Error downloading %s: %s', filename, e)
+        clean_up(id)
+        raise e
 
 
 async def limited_download(
@@ -154,7 +160,6 @@ async def limited_download(
     filename: str,
     progress_callback,
 ):
-    semaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
     async with semaphore:
         await download_file(session, model_dir, id, filename, progress_callback)
 
