@@ -102,8 +102,10 @@ async def run_download(id: str):
 
             await gather(*tasks)
     except CancelledError:
-        clean_up(id)
         logger.warning('Download task for id %s was cancelled', id)
+    finally:
+        clean_up(id)
+        logger.info('Download task for id %s completed', id)
 
 
 async def download_file(
@@ -147,10 +149,6 @@ async def download_file(
     except CancelledError:
         logger.warning('Download %s was cancelled', filename)
         raise
-    except Exception as e:
-        logger.error('Error downloading %s: %s', filename, e)
-        clean_up(id)
-        raise e
 
 
 async def limited_download(

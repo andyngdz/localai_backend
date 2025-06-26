@@ -10,6 +10,7 @@ class SocketEvents(str, Enum):
     """
 
     DOWNLOAD_PROGRESS_UPDATE = 'download_progress_update'
+    DOWNLOAD_CANCELED = 'download_cancelled'
 
 
 socketio = SocketIO()
