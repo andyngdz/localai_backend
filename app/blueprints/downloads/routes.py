@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from huggingface_hub import HfApi, hf_hub_url
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from app.blueprints.websocket import SocketEvents, emit_events
+from app.blueprints.websocket import SocketEvents, emit
 from app.schemas.core import ErrorResponse, ErrorType
 from app.services.storage import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
@@ -47,7 +47,7 @@ async def clean_up(id: str):
     delete_model_from_disk(id)
     download_tasks.pop(id, None)
     download_progresses.pop(id, None)
-    await emit_events(
+    await emit(
         SocketEvents.DOWNLOAD_CANCELED, DownloadCancelResponse(id=id).model_dump()
     )
     logger.info('Cleaned up resources for id: %s', id)
@@ -72,7 +72,7 @@ def get_progress_callback(id: str):
             'total': total,
         }
 
-        await emit_events(
+        await emit(
             SocketEvents.DOWNLOAD_PROGRESS_UPDATE,
             DownloadProgressResponse(
                 id=id,
@@ -183,7 +183,7 @@ async def cancel_task(id: str):
         logger.warning('No download task found for id: %s', id)
 
 
-@downloads.post('/', response_model=DownloadStatusResponse)
+@downloads.post('/init', response_model=DownloadStatusResponse)
 @retry(
     stop=stop_after_attempt(5),
     wait=wait_fixed(2),

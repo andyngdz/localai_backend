@@ -55,7 +55,7 @@ def list_models(
     return ModelSearchInfoListResponse(models_search_info=models_search_info)
 
 
-@models.get('/')
+@models.get('/details')
 def get_model_info(id: str = Query(..., description='Model ID')):
     """Get model info by model's id"""
     if not id:

@@ -1,3 +1,3 @@
-from .routes import SocketEvents, emit_events, socket
+from .routes import SocketEvents, emit, socket_app
 
-__all__ = ['socket', 'SocketEvents', 'emit_events']
+__all__ = ['socket_app', 'emit', 'SocketEvents']
