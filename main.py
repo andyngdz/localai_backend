@@ -1,47 +1,52 @@
 """Main entry point for the LocalAI Backend application."""
 
 import logging
+import os
 
-from flask import Flask, jsonify, send_from_directory
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.blueprints.downloads import downloads
 from app.blueprints.hardware import hardware
 from app.blueprints.models import models
 from app.blueprints.users import users
-from app.services.socket_io import socketio
+from app.blueprints.websocket import socket
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 )
 
-app = Flask(__name__)
-app.url_map.strict_slashes = False
-app.register_blueprint(users, url_prefix='/users')
-app.register_blueprint(models, url_prefix='/models')
-app.register_blueprint(downloads, url_prefix='/downloads')
-app.register_blueprint(hardware, url_prefix='/hardware')
-socketio.init_app(app, cors_allowed_origins='*')
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],  # Adjust for production
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
+app.include_router(users)
+app.include_router(models)
+app.include_router(downloads)
+app.include_router(hardware)
+app.include_router(socket)
 
 
-@app.route('/favicon.ico')
-def favicon():
-    """Serve the favicon.ico file from the static folder."""
-    # send_from_directory serves a file from a specified directory.
-    # app.static_folder automatically points to the 'static' folder Flask found.
-    # 'favicon.ico' is the filename within that folder.
-    static_folder = app.static_folder or 'static'
-
-    return send_from_directory(
-        static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon'
-    )
+@app.get('/favicon.ico')
+async def favicon():
+    static_folder = 'static'
+    favicon_path = os.path.join(static_folder, 'favicon.ico')
+    return FileResponse(favicon_path, media_type='image/vnd.microsoft.icon')
 
 
-@app.route('/')
+@app.get('/')
 def health_check():
     """Health check endpoint to verify if the server is running."""
-    return jsonify({'status': 'healthy', 'message': 'LocalAI Backend is running!'})
+    return {'status': 'healthy', 'message': 'LocalAI Backend is running!'}
 
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    uvicorn.run('main:app', host='127.0.0.1', port=8000, reload=True)

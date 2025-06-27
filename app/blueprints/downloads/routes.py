@@ -5,13 +5,13 @@ from asyncio import CancelledError, Semaphore, create_task, gather
 
 import aiofiles
 from aiohttp import ClientError, ClientSession, ClientTimeout
-from flask import Blueprint, jsonify, request
+from fastapi import APIRouter, Query, status
+from fastapi.responses import JSONResponse
 from huggingface_hub import HfApi, hf_hub_url
-from pydantic import ValidationError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
+from app.blueprints.websocket import SocketEvents, emit_events
 from app.schemas.core import ErrorResponse, ErrorType
-from app.services.socket_io import SocketEvents, socketio
 from app.services.storage import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
@@ -24,7 +24,10 @@ from .schemas import (
 from .states import download_progresses, download_tasks
 
 logger = logging.getLogger(__name__)
-downloads = Blueprint('downloads', __name__)
+downloads = APIRouter(
+    prefix='/downloads',
+    tags=['downloads'],
+)
 semaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
 api = HfApi()
 
@@ -38,15 +41,15 @@ def delete_model_from_disk(id: str):
         shutil.rmtree(model_dir)
 
 
-def clean_up(id: str):
+async def clean_up(id: str):
     """Clean up the model directory and remove task from tracking"""
 
     delete_model_from_disk(id)
-    socketio.emit(
-        SocketEvents.DOWNLOAD_CANCELED, DownloadCancelResponse(id=id).model_dump()
-    )
     download_tasks.pop(id, None)
     download_progresses.pop(id, None)
+    await emit_events(
+        SocketEvents.DOWNLOAD_CANCELED, DownloadCancelResponse(id=id).model_dump()
+    )
     logger.info('Cleaned up resources for id: %s', id)
 
 
@@ -54,24 +57,22 @@ def handle_validation_error(detail: str, type: ErrorType):
     logger.error('%s for download request: %s', type, detail)
 
     return (
-        jsonify(
-            ErrorResponse(
-                detail=detail,
-                type=type,
-            ).model_dump()
-        ),
+        ErrorResponse(
+            detail=detail,
+            type=type,
+        ).model_dump(),
         400,
     )
 
 
 def get_progress_callback(id: str):
-    def progress_callback(filename: str, downloaded: int, total: int):
+    async def progress_callback(filename: str, downloaded: int, total: int):
         download_progresses[id][filename] = {
             'downloaded': downloaded,
             'total': total,
         }
 
-        socketio.emit(
+        await emit_events(
             SocketEvents.DOWNLOAD_PROGRESS_UPDATE,
             DownloadProgressResponse(
                 id=id,
@@ -106,7 +107,7 @@ async def run_download(id: str):
 
             await gather(*tasks)
     except CancelledError:
-        clean_up(id)
+        await clean_up(id)
         logger.warning('Download task for id %s was cancelled', id)
     finally:
         logger.info('Download task for id %s completed', id)
@@ -182,57 +183,39 @@ async def cancel_task(id: str):
         logger.warning('No download task found for id: %s', id)
 
 
+@downloads.post('/', response_model=DownloadStatusResponse)
 @retry(
     stop=stop_after_attempt(5),
     wait=wait_fixed(2),
     retry=retry_if_exception_type((TimeoutError, ClientError)),
 )
-@downloads.route('/', methods=['POST'])
-async def init_download():
-    try:
-        request_data = DownloadRequest.model_validate_json(request.data)
-    except ValidationError:
-        return handle_validation_error('Missing id', ErrorType.ValidationError)
-    except TypeError:
-        return handle_validation_error('Value type is incorrect', ErrorType.TypeError)
-    except ValueError:
-        return handle_validation_error('Value is not valid', ErrorType.ValueError)
-
-    id = request_data.id
+async def init_download(request: DownloadRequest):
+    id = request.id
 
     logger.info('API Request: Initiating download for id: %s', id)
 
     if id in download_tasks and not download_tasks[id].done():
-        return (
-            jsonify(
-                DownloadStatusResponse(
-                    id=id,
-                    message='Download already started',
-                ).model_dump()
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content=DownloadStatusResponse(
+                id=id,
+                message='Download already started',
             ),
-            202,
         )
 
     task = create_task(run_download(id))
     download_tasks[id] = task
-    await task
 
-    return (
-        jsonify(
-            DownloadStatusResponse(
-                id=id,
-                message='Download completed',
-            ).model_dump()
-        ),
-        202,
+    return DownloadStatusResponse(
+        id=id,
+        message='Download completed',
     )
 
 
-@downloads.route('/cancel', methods=['GET'])
-async def cancel_download():
+@downloads.get('/cancel', response_model=DownloadStatusResponse)
+async def cancel_download(id: str = Query(..., description='The model ID to cancel')):
     """Cancel the download by id"""
-    id = request.args.get('id')
-
+    logger.info('API Request: Cancelling download for id: %s', id)
     if not id:
         return handle_validation_error(
             "Missing 'id' query parameter", ErrorType.ValidationError
@@ -240,9 +223,7 @@ async def cancel_download():
 
     await cancel_task(id)
 
-    return jsonify(
-        DownloadStatusResponse(
-            id=id,
-            message='Download cancelled',
-        ).model_dump()
-    ), 200
+    return DownloadStatusResponse(
+        id=id,
+        message='Download cancelled',
+    )

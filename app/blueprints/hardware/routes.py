@@ -7,8 +7,8 @@ import subprocess
 import sys
 
 import torch
-from flask import Blueprint, jsonify, request
-from pydantic import ValidationError
+from fastapi import APIRouter, status
+from fastapi.responses import JSONResponse
 
 from app.database.database import create_or_update_selected_device, get_selected_device
 from app.schemas.core import ErrorResponse, ErrorType
@@ -23,7 +23,10 @@ from .schemas import (
 
 logger = logging.getLogger(__name__)
 
-hardware = Blueprint('hardware', __name__)
+hardware = APIRouter(
+    prefix='/hardware',
+    tags=['hardware'],
+)
 
 if sys.platform == 'win32':
     CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW
@@ -198,7 +201,7 @@ def get_system_gpu_info() -> GPUDriverInfo:
     return info
 
 
-@hardware.route('/status', methods=['GET'])
+@hardware.get('/status')
 def get_driver_status():
     """
     Returns the current GPU and driver status of the system.
@@ -206,10 +209,10 @@ def get_driver_status():
     """
     driver_info = get_system_gpu_info()
 
-    return jsonify(driver_info.model_dump()), 200
+    return driver_info
 
 
-@hardware.route('/recheck', methods=['GET'])
+@hardware.get('/recheck')
 def recheck_driver_status():
     """
     Forces the backend to re-evaluate and update the GPU and driver status.
@@ -220,41 +223,29 @@ def recheck_driver_status():
     logger.info('Forcing re-check of GPU driver status by clearing cache.')
     driver_info = get_system_gpu_info()  # Re-run detection (will now actually execute)
 
-    return jsonify(driver_info.model_dump()), 200
+    return driver_info
 
 
-@hardware.route('/device', methods=['POST'])
-def select_device():
+@hardware.post('/device')
+def select_device(request: SelectDeviceRequest):
     """Select device"""
-    try:
-        json = request.get_json()
-        data = SelectDeviceRequest(**json)
-    except ValidationError as e:
-        return jsonify(
-            ErrorResponse(
-                detail=e.errors(), type=ErrorType.ValidationError
-            ).model_dump()
-        ), 400
 
-    device_index = data.device_index
+    device_index = request.device_index
     create_or_update_selected_device(device_index=device_index)
 
-    return jsonify({'message': 'Device selected successfully'}), 200
+    return {'message': 'Device selected successfully'}
 
 
-@hardware.route('/device', methods=['GET'])
+@hardware.get('/device')
 def get_current_select_device():
     """Get current selected device"""
     try:
         device_index = get_selected_device()
 
-        return jsonify(
-            GetCurrentDeviceIndex(device_index=device_index).model_dump()
-        ), 200
+        return GetCurrentDeviceIndex(device_index=device_index).model_dump()
     except Exception as e:
         logger.error('Error retrieving current selected device: %s', e)
-        return jsonify(
-            ErrorResponse(
-                detail=str(e), type=ErrorType.InternalServerError
-            ).model_dump()
-        ), 500
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=ErrorResponse(detail=str(e), type=ErrorType.InternalServerError),
+        )

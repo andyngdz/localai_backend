@@ -1,12 +1,12 @@
 """Models Blueprint"""
 
 import logging
+from typing import Optional
 
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
-from flask import Blueprint, jsonify, request
+from fastapi import APIRouter, HTTPException, Query, status
 from huggingface_hub import HfApi
 
-from app.schemas.core import ErrorResponse, ErrorType
 from app.services.storage import get_model_dir
 
 from .schemas import (
@@ -16,7 +16,10 @@ from .schemas import (
 )
 
 logger = logging.getLogger(__name__)
-models = Blueprint('models', __name__)
+models = APIRouter(
+    prefix='/models',
+    tags=['models'],
+)
 api = HfApi()
 
 default_limit = 50
@@ -24,19 +27,19 @@ default_pipeline_tag = 'text-to-image'
 default_sort = 'downloads'
 
 
-@models.route('/search', methods=['GET'])
-def list_models():
+@models.get('/search', response_model=ModelSearchInfoListResponse)
+def list_models(
+    model_name: Optional[str] = Query(None),
+    filter: Optional[str] = Query(None),
+    limit: int = Query(10),
+):
     """List models from Hugging Face Hub."""
-
-    model_name_param = request.args.get('model_name')
-    filter_param = request.args.get('filter')
-    limit_param = request.args.get('limit', type=int, default=default_limit)
 
     hf_models_generator = api.list_models(
         full=True,
-        filter=filter_param,
-        limit=limit_param,
-        model_name=model_name_param,
+        filter=filter,
+        limit=limit,
+        model_name=model_name,
         pipeline_tag=default_pipeline_tag,
         sort=default_sort,
     )
@@ -49,53 +52,45 @@ def list_models():
         model_search_info = ModelSearchInfo(**model.__dict__)
         models_search_info.append(model_search_info)
 
-    return jsonify(
-        ModelSearchInfoListResponse(models_search_info=models_search_info).model_dump()
-    ), 200
+    return ModelSearchInfoListResponse(models_search_info=models_search_info)
 
 
-@models.route('/', methods=['GET'])
-def get_model_info():
+@models.get('/')
+def get_model_info(id: str = Query(..., description='Model ID')):
     """Get model info by model's id"""
-    id = request.args.get('id')
-
     if not id:
-        return jsonify(
-            ErrorResponse(
-                detail="Missing 'id' query parameter", type=ErrorType.ValidationError
-            )
-        ), 400
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing 'id' query parameter",
+        )
 
     model_info = api.model_info(id, files_metadata=True)
 
-    return jsonify(model_info), 200
+    return model_info
 
 
-@models.route('/load', methods=['GET'])
-def load_model():
+@models.get('/load')
+def load_model(id: str = Query(..., description='Model ID')):
     """Load model by id"""
-    id = request.args.get('id')
 
     if not id:
-        return jsonify(
-            ErrorResponse(
-                detail="Missing 'id' query parameter", type=ErrorType.ValidationError
-            )
-        ), 400
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing 'id' query parameter",
+        )
 
     try:
         model_dir = get_model_dir(id)
         pipeline = DiffusionPipeline.from_pretrained(model_dir)
         pipeline.to('cuda')
 
-        return jsonify(
-            LoadModelResponse(
-                id=id,
-                config=dict(pipeline.config),
-            ).model_dump()
-        ), 200
+        return LoadModelResponse(
+            id=id,
+            config=dict(pipeline.config),
+        )
     except Exception as e:
         logger.exception('Failed to load model')
-        return jsonify(
-            ErrorResponse(detail=str(e), type=ErrorType.InternalServerError)
-        ), 500
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )

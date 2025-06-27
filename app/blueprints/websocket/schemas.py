@@ -1,7 +1,5 @@
 from enum import Enum
-
-from flask_socketio import SocketIO
-
+from pydantic import BaseModel
 
 class SocketEvents(str, Enum):
     """
@@ -13,4 +11,10 @@ class SocketEvents(str, Enum):
     DOWNLOAD_CANCELED = 'download_cancelled'
 
 
-socketio = SocketIO()
+class SocketResponse(BaseModel):
+    """
+    Base response model for WebSocket events.
+    """
+    event: SocketEvents
+
+    data: dict

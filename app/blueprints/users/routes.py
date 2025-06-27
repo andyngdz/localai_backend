@@ -1,14 +1,19 @@
 """Users Blueprint"""
 
 import requests
-from flask import Blueprint, Response, send_file
+from fastapi import APIRouter
+from fastapi.responses import FileResponse
 
-users = Blueprint('users', __name__)
+users = APIRouter(
+    prefix='/users',
+    tags=['users'],
+)
+
 PLACEHOLDER_IMAGE_PATH = 'static/empty.png'
 
 
-@users.route('/avatar/<string:user_id>.png', methods=['GET'])
-def get_user_avatar(user_id):
+@users.get('/avatar/{user_id}.png')
+def get_user_avatar(user_id: str):
     """Proxy and serve the Hugging Face user avatar"""
     try:
         response = requests.get(
@@ -24,12 +29,12 @@ def get_user_avatar(user_id):
         avatar_url = response.json().get('avatarUrl')
 
         if not avatar_url or avatar_url.endswith('.svg'):
-            return send_file(PLACEHOLDER_IMAGE_PATH)
+            return FileResponse(PLACEHOLDER_IMAGE_PATH)
 
         avatar_image_response = requests.get(avatar_url, timeout=5)
         avatar_image_response.raise_for_status()
 
-        return Response(avatar_image_response.content)
+        return avatar_image_response.content
 
     except requests.RequestException:
-        return send_file(PLACEHOLDER_IMAGE_PATH)
+        return FileResponse(PLACEHOLDER_IMAGE_PATH)
