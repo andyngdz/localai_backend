@@ -16,6 +16,7 @@ from app.services.storage import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
 from .schemas import (
+    DownloadCancelResponse,
     DownloadProgressResponse,
     DownloadRequest,
     DownloadStatusResponse,
@@ -41,6 +42,9 @@ def clean_up(id: str):
     """Clean up the model directory and remove task from tracking"""
 
     delete_model_from_disk(id)
+    socketio.emit(
+        SocketEvents.DOWNLOAD_CANCELED, DownloadCancelResponse(id=id).model_dump()
+    )
     download_tasks.pop(id, None)
     download_progresses.pop(id, None)
     logger.info('Cleaned up resources for id: %s', id)
@@ -102,9 +106,9 @@ async def run_download(id: str):
 
             await gather(*tasks)
     except CancelledError:
+        clean_up(id)
         logger.warning('Download task for id %s was cancelled', id)
     finally:
-        clean_up(id)
         logger.info('Download task for id %s completed', id)
 
 
@@ -199,7 +203,15 @@ async def init_download():
     logger.info('API Request: Initiating download for id: %s', id)
 
     if id in download_tasks and not download_tasks[id].done():
-        await cancel_task(id)
+        return (
+            jsonify(
+                DownloadStatusResponse(
+                    id=id,
+                    message='Download already started',
+                ).model_dump()
+            ),
+            202,
+        )
 
     task = create_task(run_download(id))
     download_tasks[id] = task

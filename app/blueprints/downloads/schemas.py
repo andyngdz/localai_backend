@@ -35,6 +35,12 @@ class DownloadProgressResponse(BaseModel):
     )
 
 
+class DownloadCancelResponse(BaseModel):
+    """Response model for cancelling a download."""
+
+    id: str = Field(default=..., description='The ID of the model download to cancel.')
+
+
 class DownloadStatusResponse(BaseModel):
     """
     Response schema for the status of a model download.
