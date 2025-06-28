@@ -17,6 +17,7 @@ from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
 from .schemas import (
     DownloadCancelResponse,
+    DownloadPrepareResponse,
     DownloadProgressResponse,
     DownloadRequest,
     DownloadStatusResponse,
@@ -84,6 +85,14 @@ async def run_download(id: str):
         model_dir = get_model_dir(id)
         progress_callback = get_progress_callback(id)
         timeout = ClientTimeout(total=None, sock_read=60)
+
+        await emit(
+            SocketEvents.DOWNLOAD_PREPARE,
+            DownloadPrepareResponse(
+                id=id,
+                files=files,
+            ).model_dump(),
+        )
 
         async with ClientSession(timeout=timeout) as session:
             tasks = [

@@ -18,6 +18,18 @@ class DownloadRequest(BaseModel):
     )
 
 
+class DownloadPrepareResponse(BaseModel):
+    """
+    Response model for preparing a download.
+    Contains the list of files to be downloaded.
+    """
+
+    id: str = Field(default=..., description='The ID of the model being downloaded.')
+    files: list[str] = Field(
+        default=..., description='List of files to be downloaded for the model.'
+    )
+
+
 class DownloadProgressResponse(BaseModel):
     """
     Progress model for tracking download status.
