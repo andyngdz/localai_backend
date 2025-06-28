@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database.core import Base
+from app.database.model import Model
 from app.database.user import User
 
 DATABASE_URL = 'sqlite:///localai_backend.db'
@@ -44,5 +45,20 @@ def get_selected_device() -> int:
     try:
         user = db.query(User).first()
         return user.selected_device if user else DeviceSelection.NOT_FOUND
+    finally:
+        db.close()
+
+
+def add_model(model_id: str, model_dir: str):
+    """Add a model to the database"""
+    db = SessionLocal()
+
+    try:
+        model = db.query(Model).filter_by(model_id=model_id).first()
+        if not model:
+            model = Model(model_id=model_id, model_dir=model_dir)
+            db.add(model)
+
+        db.commit()
     finally:
         db.close()

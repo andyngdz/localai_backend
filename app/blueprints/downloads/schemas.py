@@ -18,6 +18,15 @@ class DownloadRequest(BaseModel):
     )
 
 
+class DownloadCompletedResponse(BaseModel):
+    """
+    Response model for a completed download.
+    Contains the ID of the model that was downloaded.
+    """
+
+    id: str = Field(default=..., description='The ID of the model that was downloaded.')
+
+
 class DownloadPrepareResponse(BaseModel):
     """
     Response model for preparing a download.
@@ -47,7 +56,7 @@ class DownloadProgressResponse(BaseModel):
     )
 
 
-class DownloadCancelResponse(BaseModel):
+class DownloadCancelledResponse(BaseModel):
     """Response model for cancelling a download."""
 
     id: str = Field(default=..., description='The ID of the model download to cancel.')

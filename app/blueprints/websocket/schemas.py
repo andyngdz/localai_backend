@@ -12,6 +12,7 @@ class SocketEvents(str, Enum):
     DOWNLOAD_PREPARE = 'download_prepare'
     DOWNLOAD_PROGRESS_UPDATE = 'download_progress_update'
     DOWNLOAD_CANCELED = 'download_cancelled'
+    DOWNLOAD_COMPLETED = 'download_completed'
 
 
 class SocketResponse(BaseModel):

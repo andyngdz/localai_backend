@@ -12,11 +12,13 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 from app.blueprints.downloads.types import ProgressCallbackType
 from app.blueprints.websocket import SocketEvents, emit
+from app.database import database
 from app.services.storage import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
 from .schemas import (
-    DownloadCancelResponse,
+    DownloadCancelledResponse,
+    DownloadCompletedResponse,
     DownloadPrepareResponse,
     DownloadProgressResponse,
     DownloadRequest,
@@ -72,7 +74,7 @@ async def clean_up(id: str):
     download_tasks.pop(id, None)
     download_progresses.pop(id, None)
     await emit(
-        SocketEvents.DOWNLOAD_CANCELED, DownloadCancelResponse(id=id).model_dump()
+        SocketEvents.DOWNLOAD_CANCELED, DownloadCancelledResponse(id=id).model_dump()
     )
     logger.info('Cleaned up resources for id: %s', id)
 
@@ -101,6 +103,12 @@ async def run_download(id: str):
             ]
 
             await gather(*tasks)
+
+        await emit(
+            SocketEvents.DOWNLOAD_COMPLETED,
+            DownloadCompletedResponse(id=id).model_dump(),
+        )
+        database.add_model(id, model_dir)
     except CancelledError:
         await clean_up(id)
         logger.warning('Download task for id %s was cancelled', id)
@@ -144,8 +152,7 @@ async def download_file(
 
     try:
         async with session.get(url, headers=headers) as response:
-            # Check if already fully downloaded, then skip
-            if response.status == 416:
+            if response.status == status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE:
                 return
 
             response.raise_for_status()
