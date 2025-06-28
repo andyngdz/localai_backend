@@ -8,11 +8,13 @@ from aiohttp import ClientError, ClientSession, ClientTimeout
 from fastapi import APIRouter, Query, status
 from fastapi.responses import JSONResponse
 from huggingface_hub import HfApi, hf_hub_url
+from sqlalchemy import event
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.blueprints.downloads.types import ProgressCallbackType
 from app.blueprints.websocket import SocketEvents, emit
 from app.database import database
+from app.database.model import Model
 from app.services.storage import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
@@ -188,6 +190,11 @@ async def cancel_task(id: str):
             logger.info('Download task %s is already completed', id)
     else:
         logger.warning('No download task found for id: %s', id)
+
+
+@event.listens_for(Model, 'after_insert')
+def after_insert_model(mapper, connection, target):
+    logger.info('Model inserted into database: %s', target)
 
 
 @downloads.post('/init', response_model=DownloadStatusResponse)
