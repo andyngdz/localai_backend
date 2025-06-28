@@ -13,4 +13,7 @@ def get_model_dir(id: str) -> str:
     Returns:
         str: The directory path where the model is stored.
     """
-    return os.path.join(BASE_MODEL_DIR, id.replace('/', '--'))
+    dir = os.path.join(BASE_MODEL_DIR, id.replace('/', '--'))
+    os.makedirs(dir, exist_ok=True)
+
+    return dir

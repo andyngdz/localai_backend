@@ -10,8 +10,8 @@ from fastapi.responses import JSONResponse
 from huggingface_hub import HfApi, hf_hub_url
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
+from app.blueprints.downloads.types import ProgressCallbackType
 from app.blueprints.websocket import SocketEvents, emit
-from app.schemas.core import ErrorResponse, ErrorType
 from app.services.storage import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
@@ -34,6 +34,7 @@ api = HfApi()
 
 def delete_model_from_disk(id: str):
     """Clean up the model directory if it exists"""
+
     model_dir = get_model_dir(id)
 
     if os.path.exists(model_dir):
@@ -41,31 +42,9 @@ def delete_model_from_disk(id: str):
         shutil.rmtree(model_dir)
 
 
-async def clean_up(id: str):
-    """Clean up the model directory and remove task from tracking"""
+def get_progress_callback(id: str) -> ProgressCallbackType:
+    """Create a progress callback function for tracking download progress."""
 
-    delete_model_from_disk(id)
-    download_tasks.pop(id, None)
-    download_progresses.pop(id, None)
-    await emit(
-        SocketEvents.DOWNLOAD_CANCELED, DownloadCancelResponse(id=id).model_dump()
-    )
-    logger.info('Cleaned up resources for id: %s', id)
-
-
-def handle_validation_error(detail: str, type: ErrorType):
-    logger.error('%s for download request: %s', type, detail)
-
-    return (
-        ErrorResponse(
-            detail=detail,
-            type=type,
-        ).model_dump(),
-        400,
-    )
-
-
-def get_progress_callback(id: str):
     async def progress_callback(filename: str, downloaded: int, total: int):
         download_progresses[id][filename] = {
             'downloaded': downloaded,
@@ -85,23 +64,30 @@ def get_progress_callback(id: str):
     return progress_callback
 
 
+async def clean_up(id: str):
+    """Clean up the model directory and remove task from tracking"""
+
+    delete_model_from_disk(id)
+    download_tasks.pop(id, None)
+    download_progresses.pop(id, None)
+    await emit(
+        SocketEvents.DOWNLOAD_CANCELED, DownloadCancelResponse(id=id).model_dump()
+    )
+    logger.info('Cleaned up resources for id: %s', id)
+
+
 async def run_download(id: str):
+    """Run the download task for the given model ID."""
+
     try:
         files = api.list_repo_files(id)
         model_dir = get_model_dir(id)
-        os.makedirs(model_dir, exist_ok=True)
         progress_callback = get_progress_callback(id)
         timeout = ClientTimeout(total=None, sock_read=60)
 
         async with ClientSession(timeout=timeout) as session:
             tasks = [
-                limited_download(
-                    session,
-                    model_dir,
-                    id,
-                    filename,
-                    progress_callback,
-                )
+                limited_download(session, model_dir, id, filename, progress_callback)
                 for filename in files
             ]
 
@@ -113,13 +99,28 @@ async def run_download(id: str):
         logger.info('Download task for id %s completed', id)
 
 
+async def limited_download(
+    session: ClientSession,
+    model_dir: str,
+    id: str,
+    filename: str,
+    progress_callback: ProgressCallbackType,
+):
+    """Download a file with semaphore to limit concurrent downloads."""
+
+    async with semaphore:
+        await download_file(session, model_dir, id, filename, progress_callback)
+
+
 async def download_file(
     session: ClientSession,
     model_dir: str,
     id: str,
     filename: str,
-    progress_callback,
+    progress_callback: ProgressCallbackType,
 ):
+    """Download a single file from the Hugging Face Hub."""
+
     url = hf_hub_url(id, filename)
     filepath = os.path.join(model_dir, filename)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -150,25 +151,15 @@ async def download_file(
                     await file.write(chunk)
                     downloaded += len(chunk)
                     if progress_callback and total > 0:
-                        progress_callback(filename, downloaded, total)
+                        await progress_callback(filename, downloaded, total)
     except CancelledError:
         logger.warning('Download %s was cancelled', filename)
         raise
 
 
-async def limited_download(
-    session: ClientSession,
-    model_dir: str,
-    id: str,
-    filename: str,
-    progress_callback,
-):
-    async with semaphore:
-        await download_file(session, model_dir, id, filename, progress_callback)
-
-
 async def cancel_task(id: str):
     """Cancel the download task by id"""
+
     if id in download_tasks:
         task = download_tasks[id]
 
@@ -190,6 +181,8 @@ async def cancel_task(id: str):
     retry=retry_if_exception_type((TimeoutError, ClientError)),
 )
 async def init_download(request: DownloadRequest):
+    """Initialize a download for the given model ID"""
+
     id = request.id
 
     logger.info('API Request: Initiating download for id: %s', id)
@@ -215,10 +208,15 @@ async def init_download(request: DownloadRequest):
 @downloads.get('/cancel', response_model=DownloadStatusResponse)
 async def cancel_download(id: str = Query(..., description='The model ID to cancel')):
     """Cancel the download by id"""
+
     logger.info('API Request: Cancelling download for id: %s', id)
+
     if not id:
-        return handle_validation_error(
-            "Missing 'id' query parameter", ErrorType.ValidationError
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=DownloadStatusResponse(
+                id=id, message="Missing 'id' query parameter"
+            ),
         )
 
     await cancel_task(id)

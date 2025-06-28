@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 
 app = FastAPI()
-app.mount('/ws', socket_app)
+app.mount('/ws', app=socket_app)
 app.include_router(users)
 app.include_router(models)
 app.include_router(downloads)
