@@ -2,7 +2,7 @@
 
 import requests
 from fastapi import APIRouter
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 users = APIRouter(
     prefix='/users',
@@ -34,7 +34,7 @@ def get_user_avatar(user_id: str):
         avatar_image_response = requests.get(avatar_url, timeout=5)
         avatar_image_response.raise_for_status()
 
-        return avatar_image_response.content
+        return Response(content=avatar_image_response.content, media_type='image/png')
 
     except requests.RequestException:
         return FileResponse(PLACEHOLDER_IMAGE_PATH)
