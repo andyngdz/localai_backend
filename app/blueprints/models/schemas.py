@@ -75,4 +75,4 @@ class ModelAvailableResponse(BaseModel):
 class ModelDownloadedResponse(BaseModel, arbitrary_types_allowed=True):
     """Return list of downloaded models."""
 
-    models: list[Model] = Field([], description='List of downloaded models.')
+    models: list[Model] = Field(default_factory=list, description='List of downloaded models.')
