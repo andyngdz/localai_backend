@@ -62,3 +62,14 @@ def add_model(model_id: str, model_dir: str):
         db.commit()
     finally:
         db.close()
+
+
+def get_all_models():
+    """Get all models from the database"""
+    db = SessionLocal()
+
+    try:
+        models = db.query(Model).all()
+        return models
+    finally:
+        db.close()
