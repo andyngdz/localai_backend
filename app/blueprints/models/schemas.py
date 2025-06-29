@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
+from app.database.model import Model
+
 
 class ModelSearchInfo(BaseModel):
     """
@@ -68,3 +70,9 @@ class ModelAvailableResponse(BaseModel):
     is_downloaded: bool = Field(
         default=False, description='Is the model downloaded locally?'
     )
+
+
+class ModelDownloadedResponse(BaseModel, arbitrary_types_allowed=True):
+    """Return list of downloaded models."""
+
+    models: list[Model] = Field([], description='List of downloaded models.')

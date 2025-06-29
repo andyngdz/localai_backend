@@ -3,6 +3,7 @@
 import logging
 from typing import Optional
 
+import torch
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from fastapi import APIRouter, HTTPException, Query, status
 from huggingface_hub import HfApi
@@ -13,6 +14,7 @@ from app.services.storage import get_model_dir
 from .schemas import (
     LoadModelResponse,
     ModelAvailableResponse,
+    ModelDownloadedResponse,
     ModelSearchInfo,
     ModelSearchInfoListResponse,
 )
@@ -76,7 +78,8 @@ def get_downloaded_models():
     """Get a list of downloaded models"""
     try:
         models = database.get_all_downloaded_models()
-        return models
+
+        return ModelDownloadedResponse(models=models).model_dump()
     except Exception as e:
         logger.exception('Failed to fetch available models')
         return HTTPException(
@@ -88,12 +91,6 @@ def get_downloaded_models():
 @models.get('/available')
 def check_if_model_already_downloaded(id: str = Query(..., description='Model ID')):
     """Check if model is already downloaded by id"""
-
-    if not id:
-        return HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing 'id' query parameter",
-        )
 
     try:
         is_downloaded = database.check_if_model_downloaded(id)
@@ -110,16 +107,14 @@ def check_if_model_already_downloaded(id: str = Query(..., description='Model ID
 def load_model(id: str = Query(..., description='Model ID')):
     """Load model by id"""
 
-    if not id:
-        return HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing 'id' query parameter",
-        )
-
     try:
         model_dir = get_model_dir(id)
-        pipeline = DiffusionPipeline.from_pretrained(model_dir)
-        pipeline.to('cuda')
+        pipeline = DiffusionPipeline.from_pretrained(
+            model_dir, torch_dtype=torch.float16, use_safetensors=True
+        )
+        pipeline = pipeline.to('cuda')
+        generator = torch.Generator('cuda').manual_seed(0)
+        pipeline()  # type: ignore
 
         return LoadModelResponse(
             id=id,
