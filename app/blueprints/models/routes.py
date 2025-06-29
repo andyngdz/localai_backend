@@ -12,6 +12,7 @@ from app.services.storage import get_model_dir
 
 from .schemas import (
     LoadModelResponse,
+    ModelAvailableResponse,
     ModelSearchInfo,
     ModelSearchInfoListResponse,
 )
@@ -70,14 +71,35 @@ def get_model_info(id: str = Query(..., description='Model ID')):
     return model_info
 
 
-@models.get('/available')
-def get_available_models():
-    """Get a list of available models"""
+@models.get('/downloaded')
+def get_downloaded_models():
+    """Get a list of downloaded models"""
     try:
-        models = database.get_all_models()
+        models = database.get_all_downloaded_models()
         return models
     except Exception as e:
         logger.exception('Failed to fetch available models')
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
+@models.get('/available')
+def check_if_model_already_downloaded(id: str = Query(..., description='Model ID')):
+    """Check if model is already downloaded by id"""
+
+    if not id:
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing 'id' query parameter",
+        )
+
+    try:
+        is_downloaded = database.check_if_model_downloaded(id)
+        return ModelAvailableResponse(id=id, is_downloaded=is_downloaded)
+    except Exception as e:
+        logger.exception('Failed to check if model is downloaded')
         return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),

@@ -64,12 +64,23 @@ def add_model(model_id: str, model_dir: str):
         db.close()
 
 
-def get_all_models():
+def get_all_downloaded_models():
     """Get all models from the database"""
     db = SessionLocal()
 
     try:
         models = db.query(Model).all()
         return models
+    finally:
+        db.close()
+
+
+def check_if_model_downloaded(model_id: str) -> bool:
+    """Check if a model is downloaded"""
+    db = SessionLocal()
+
+    try:
+        model = db.query(Model).filter_by(model_id=model_id).first()
+        return model is not None
     finally:
         db.close()
