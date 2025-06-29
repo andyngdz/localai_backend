@@ -1,6 +1,6 @@
 import socketio
 
-from app.blueprints.websocket.schemas import SocketEvents
+from app.routers.websocket.schemas import SocketEvents
 
 socket_server = socketio.AsyncServer(
     async_mode='asgi',

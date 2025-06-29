@@ -7,11 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.blueprints.downloads import downloads
-from app.blueprints.hardware import hardware
-from app.blueprints.models import models
-from app.blueprints.users import users
-from app.blueprints.websocket import socket_app
+from app.routers.downloads import downloads
+from app.routers.hardware import hardware
+from app.routers.models import models
+from app.routers.users import users
+from app.routers.websocket import socket_app
 
 logging.basicConfig(
     level=logging.INFO,

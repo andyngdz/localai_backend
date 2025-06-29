@@ -10,9 +10,9 @@ from fastapi.responses import JSONResponse
 from huggingface_hub import HfApi, hf_hub_url
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from app.blueprints.downloads.types import ProgressCallbackType
-from app.blueprints.websocket import SocketEvents, emit
 from app.database import database
+from app.routers.downloads.types import ProgressCallbackType
+from app.routers.websocket import SocketEvents, emit
 from app.services.storage import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
