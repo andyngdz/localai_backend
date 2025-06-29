@@ -6,28 +6,42 @@ from typing import Optional
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from fastapi import APIRouter, HTTPException, Query, status
 from huggingface_hub import HfApi
+from sqlalchemy import event
 
+from app.blueprints.websocket.routes import emit
+from app.blueprints.websocket.schemas import SocketEvents
+from app.database.model import Model
 from app.services.storage import get_model_dir
 
 from .schemas import (
     LoadModelResponse,
     ModelSearchInfo,
     ModelSearchInfoListResponse,
+    NewModelAvailableResponse,
 )
 
 logger = logging.getLogger(__name__)
 models = APIRouter(
-    prefix='/models',
-    tags=['models'],
+    prefix="/models",
+    tags=["models"],
 )
 api = HfApi()
 
 default_limit = 50
-default_pipeline_tag = 'text-to-image'
-default_sort = 'downloads'
+default_pipeline_tag = "text-to-image"
+default_sort = "downloads"
 
 
-@models.get('/search', response_model=ModelSearchInfoListResponse)
+@event.listens_for(Model, "after_insert")
+async def after_insert_model(mapper, connection, target: Model):
+    logger.info("Model inserted into database: %s", target.__dict__)
+    await emit(
+        SocketEvents.NEW_MODEL_AVAILABLE,
+        NewModelAvailableResponse(id=target.model_id).model_dump(),
+    )
+
+
+@models.get("/search", response_model=ModelSearchInfoListResponse)
 def list_models(
     model_name: Optional[str] = Query(None),
     filter: Optional[str] = Query(None),
@@ -55,8 +69,8 @@ def list_models(
     return ModelSearchInfoListResponse(models_search_info=models_search_info)
 
 
-@models.get('/details')
-def get_model_info(id: str = Query(..., description='Model ID')):
+@models.get("/details")
+def get_model_info(id: str = Query(..., description="Model ID")):
     """Get model info by model's id"""
     if not id:
         return HTTPException(
@@ -69,8 +83,8 @@ def get_model_info(id: str = Query(..., description='Model ID')):
     return model_info
 
 
-@models.get('/load')
-def load_model(id: str = Query(..., description='Model ID')):
+@models.get("/load")
+def load_model(id: str = Query(..., description="Model ID")):
     """Load model by id"""
 
     if not id:
@@ -82,14 +96,14 @@ def load_model(id: str = Query(..., description='Model ID')):
     try:
         model_dir = get_model_dir(id)
         pipeline = DiffusionPipeline.from_pretrained(model_dir)
-        pipeline.to('cuda')
+        pipeline.to("cuda")
 
         return LoadModelResponse(
             id=id,
             config=dict(pipeline.config),
         )
     except Exception as e:
-        logger.exception('Failed to load model')
+        logger.exception("Failed to load model")
         return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
