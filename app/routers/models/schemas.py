@@ -29,7 +29,8 @@ class ModelSearchInfoListResponse(BaseModel):
     """
 
     models_search_info: list[ModelSearchInfo] = Field(
-        default=[], description='List of Stable Diffusion models when searching.'
+        default_factory=list,
+        description='List of Stable Diffusion models when searching.',
     )
 
 
@@ -43,7 +44,7 @@ class LoadModelResponse(BaseModel):
         description='Unique identifier for the model (Hugging Face repo ID).',
     )
     config: Dict[str, Any] = Field(
-        default={}, description='Model configuration details.'
+        default_factory=dict, description='Model configuration details.'
     )
 
 
@@ -75,4 +76,6 @@ class ModelAvailableResponse(BaseModel):
 class ModelDownloadedResponse(BaseModel, arbitrary_types_allowed=True):
     """Return list of downloaded models."""
 
-    models: list[Model] = Field(default_factory=list, description='List of downloaded models.')
+    models: list[Model] = Field(
+        default_factory=list, description='List of downloaded models.'
+    )
