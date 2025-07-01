@@ -208,7 +208,7 @@ async def init_download(request: DownloadRequest, db: Session = Depends(get_db))
         return DownloadStatusResponse(
             id=id,
             message='Download already started',
-        )
+        ), status.HTTP_202_ACCEPTED
 
     task = create_task(run_download(id, db))
     download_tasks[id] = task
