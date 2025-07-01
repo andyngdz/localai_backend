@@ -7,10 +7,12 @@ import subprocess
 import sys
 
 import torch
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
-from app.database.database import create_or_update_selected_device, get_selected_device
+from app.database import get_db
+from app.database.crud import create_or_update_selected_device, get_selected_device
 from app.schemas.core import ErrorResponse, ErrorType
 
 from .schemas import (
@@ -227,20 +229,20 @@ def recheck_driver_status():
 
 
 @hardware.post('/device')
-def select_device(request: SelectDeviceRequest):
+def select_device(request: SelectDeviceRequest, db: Session = Depends(get_db)):
     """Select device"""
 
     device_index = request.device_index
-    create_or_update_selected_device(device_index=device_index)
+    create_or_update_selected_device(db, device_index=device_index)
 
     return {'message': 'Device selected successfully'}
 
 
 @hardware.get('/device')
-def get_current_select_device():
+def get_current_select_device(db: Session = Depends(get_db)):
     """Get current selected device"""
     try:
-        device_index = get_selected_device()
+        device_index = get_selected_device(db)
 
         return GetCurrentDeviceIndex(device_index=device_index).model_dump()
     except Exception as e:

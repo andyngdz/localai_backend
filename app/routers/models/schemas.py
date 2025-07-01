@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
-from app.database.model import Model
+from app.database.models.model import Model
 
 
 class ModelSearchInfo(BaseModel):
@@ -79,3 +79,9 @@ class ModelDownloadedResponse(BaseModel, arbitrary_types_allowed=True):
     models: list[Model] = Field(
         default_factory=list, description='List of downloaded models.'
     )
+
+
+class LoadModelRequest(BaseModel):
+    """Request model for loading a model by ID."""
+
+    id: str = Field(..., description='The ID of the model to load.')

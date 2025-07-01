@@ -2,6 +2,7 @@
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +19,23 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup event to initialize the database."""
+    from app.database import init_db
+
+    init_db()
+    logging.info('Database initialized successfully.')
+    yield
+
+
+app = FastAPI(
+    title='LocalAI Backend',
+    description='Backend for Local AI operations.',
+    version='0.1.0',
+    lifespan=lifespan,
+)
 app.mount('/ws', app=socket_app)
 app.include_router(users)
 app.include_router(models)
