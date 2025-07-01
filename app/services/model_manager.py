@@ -14,12 +14,11 @@ class ModelManager:
     """
 
     _instance: Optional['ModelManager'] = None
-    _lock: threading.Lock = threading.Lock()  # For thread-safe operations on _pipe
+    _lock: threading.Lock = threading.Lock()
 
     def __new__(cls):
-        # Implement a basic singleton pattern
         if cls._instance is None:
-            with cls._lock:  # Ensure only one instance is created
+            with cls._lock:
                 if cls._instance is None:
                     cls._instance = super(ModelManager, cls).__new__(cls)
                     cls._instance._pipe = None
@@ -42,16 +41,15 @@ class ModelManager:
         Loads a diffusion pipeline, handles existing models, and clears VRAM.
         This method is blocking and thread-safe.
         """
-        with self._lock:  # Acquire lock for the entire load/unload process
+        with self._lock:
             logger.info(f'Attempting to load model: {model_id}')
 
             if self._current_model_id == model_id and self._pipe is not None:
                 logger.info(
                     f'Model {model_id} is already loaded. Skipping load operation.'
                 )
-                return dict(self._pipe.config)  # Return existing config
+                return dict(self._pipe.config)
 
-            # Unload any existing model first
             if self._pipe is not None:
                 logger.info(f'Unloading existing model: {self._current_model_id}')
                 try:
@@ -66,37 +64,32 @@ class ModelManager:
                         f'Error during existing model unload/cache clear: {e}'
                     )
 
-            # Load the new model
             try:
-                # Determine device
                 device = 'cuda' if torch.cuda.is_available() else 'cpu'
                 logger.info(f'Loading model {model_id} to device: {device}')
 
-                # Model loading is heavy, log before and after
                 self._pipe = AutoPipelineForText2Image.from_pretrained(
                     model_dir,
-                    torch_dtype=torch.float16
-                    if device == 'cuda'
-                    else torch.float32,  # Use float32 for CPU
-                    local_files_only=True,  # Assume model_dir means it's already downloaded locally
+                    torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
+                    local_files_only=True,
                 )
                 self._pipe.to(device)
 
                 if device == 'cuda':
-                    self._pipe.enable_model_cpu_offload()  # Moves parts to CPU when not used
-                    self._pipe.enable_attention_slicing()  # Saves VRAM during attention computation
+                    self._pipe.enable_model_cpu_offload()
+                    self._pipe.enable_attention_slicing()
 
                 self._current_model_id = model_id
                 logger.info(f'Model {model_id} loaded successfully.')
                 return dict(self._pipe.config)
 
             except Exception as e:
-                self._pipe = None  # Ensure pipe is cleared on failure
+                self._pipe = None
                 self._current_model_id = None
                 logger.error(f'Failed to load model {model_id}: {e}', exc_info=True)
                 if torch.cuda.is_available():
-                    torch.cuda.empty_cache()  # Try to clear cache even on failure
-                raise  # Re-raise to be caught by the endpoint's error handler
+                    torch.cuda.empty_cache()
+                raise
 
     def unload_model(self):
         """Unloads the current model and frees VRAM."""
@@ -116,5 +109,4 @@ class ModelManager:
                 logger.info('No model currently loaded to unload.')
 
 
-# Get a singleton instance of the ModelManager
 model_manager = ModelManager()

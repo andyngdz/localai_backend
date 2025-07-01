@@ -1,6 +1,6 @@
 # python_backend/app/database/crud.py
 
-from enum import IntEnum  # For DeviceSelection
+from enum import IntEnum
 from typing import List
 
 from sqlalchemy.orm import Session
@@ -9,9 +9,6 @@ from app.database.models.model import Model
 from app.database.models.user import User
 
 
-# Define DeviceSelection enum here if it's only used for database operations,
-# or in schemas.py if it's part of API request/response too.
-# If it's used as a type hint in your API, put it in schemas.py.
 class DeviceSelection(IntEnum):
     NOT_FOUND = -2
 

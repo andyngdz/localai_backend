@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database.base import Base
 
-# Define the database URL. It's good practice to make this configurable (e.g., from an environment variable)
+# Define the database URL
 DATABASE_URL = 'sqlite:///localai_backend.db'
 
 # Create the SQLAlchemy engine
@@ -25,7 +25,7 @@ def init_db():
     """
     # Import all models here so that Base.metadata knows about them
     # This is crucial for Base.metadata.create_all() to find all your defined tables
-    from app.database.models import (  # Import models to register them with Base
+    from app.database.models import (
         Model,
         User,
     )
@@ -33,7 +33,6 @@ def init_db():
     # Create all tables defined by Base.metadata
     Base.metadata.create_all(bind=engine)
     print('Database schema initialized.')
-    # You would typically use a proper logger here if Flask app context isn't available
 
 
 def get_db():
