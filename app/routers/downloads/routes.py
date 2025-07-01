@@ -80,7 +80,7 @@ async def clean_up(id: str):
     logger.info('Cleaned up resources for id: %s', id)
 
 
-async def run_download(id: str, db: Session = Depends(get_db)):
+async def run_download(id: str, db: Session):
     """Run the download task for the given model ID."""
 
     try:
@@ -197,7 +197,7 @@ async def cancel_task(id: str):
     wait=wait_fixed(2),
     retry=retry_if_exception_type((TimeoutError, ClientError)),
 )
-async def init_download(request: DownloadRequest):
+async def init_download(request: DownloadRequest, db: Session = Depends(get_db)):
     """Initialize a download for the given model ID"""
 
     id = request.id
@@ -210,7 +210,7 @@ async def init_download(request: DownloadRequest):
             message='Download already started',
         ), status.HTTP_202_ACCEPTED
 
-    task = create_task(run_download(id))
+    task = create_task(run_download(id, db))
     download_tasks[id] = task
 
     return DownloadStatusResponse(
