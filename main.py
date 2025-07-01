@@ -8,11 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.routers.downloads import downloads
-from app.routers.hardware import hardware
-from app.routers.models import models
-from app.routers.users import users
-from app.routers.websocket import socket_app
+from app.routers import downloads, hardware, models, socket_app, users
 
 logging.basicConfig(
     level=logging.INFO,
