@@ -152,13 +152,3 @@ async def unload_model():
 @models.get('/generate')
 def generate_image(prompt: str):
     pass
-    # if pipe is None:
-    #     raise Exception('Model is not loaded')
-
-    # result = pipe(prompt, num_inference_steps=30, guidance_scale=7.5)
-    # image = result.images[0]
-    # print(image)
-    # filename = f'/tmp/{uuid.uuid4().hex}.png'
-    # image.save(filename)
-
-    # return FileResponse(filename, media_type='image/png')
