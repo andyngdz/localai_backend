@@ -7,13 +7,11 @@ import subprocess
 import sys
 
 import torch
-from fastapi import APIRouter, Depends, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.database.crud import create_or_update_selected_device, get_selected_device
-from app.schemas.core import ErrorResponse, ErrorType
 
 from .schemas import (
     GetCurrentDeviceIndex,
@@ -247,7 +245,7 @@ def get_current_select_device(db: Session = Depends(get_db)):
         return GetCurrentDeviceIndex(device_index=device_index).model_dump()
     except Exception as e:
         logger.error('Error retrieving current selected device: %s', e)
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content=ErrorResponse(detail=str(e), type=ErrorType.InternalServerError),
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
         )
