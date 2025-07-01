@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
+from app.database.models.model import Model
+
 
 class ModelSearchInfo(BaseModel):
     """
@@ -27,7 +29,8 @@ class ModelSearchInfoListResponse(BaseModel):
     """
 
     models_search_info: list[ModelSearchInfo] = Field(
-        default=[], description='List of Stable Diffusion models when searching.'
+        default_factory=list,
+        description='List of Stable Diffusion models when searching.',
     )
 
 
@@ -41,7 +44,7 @@ class LoadModelResponse(BaseModel):
         description='Unique identifier for the model (Hugging Face repo ID).',
     )
     config: Dict[str, Any] = Field(
-        default={}, description='Model configuration details.'
+        default_factory=dict, description='Model configuration details.'
     )
 
 
@@ -68,3 +71,17 @@ class ModelAvailableResponse(BaseModel):
     is_downloaded: bool = Field(
         default=False, description='Is the model downloaded locally?'
     )
+
+
+class ModelDownloadedResponse(BaseModel, arbitrary_types_allowed=True):
+    """Return list of downloaded models."""
+
+    models: list[Model] = Field(
+        default_factory=list, description='List of downloaded models.'
+    )
+
+
+class LoadModelRequest(BaseModel):
+    """Request model for loading a model by ID."""
+
+    id: str = Field(..., description='The ID of the model to load.')

@@ -5,15 +5,16 @@ from asyncio import CancelledError, Semaphore, create_task, gather
 
 import aiofiles
 from aiohttp import ClientError, ClientSession, ClientTimeout
-from fastapi import APIRouter, Query, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Query, status
 from huggingface_hub import HfApi, hf_hub_url
+from sqlalchemy.orm import Session
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from app.blueprints.downloads.types import ProgressCallbackType
-from app.blueprints.websocket import SocketEvents, emit
-from app.database import database
-from app.services.storage import get_model_dir
+from app.database import get_db
+from app.database.crud import add_model
+from app.routers.downloads.types import ProgressCallbackType
+from app.routers.websocket import SocketEvents, emit
+from app.services import get_model_dir
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
 from .schemas import (
@@ -79,7 +80,7 @@ async def clean_up(id: str):
     logger.info('Cleaned up resources for id: %s', id)
 
 
-async def run_download(id: str):
+async def run_download(id: str, db: Session):
     """Run the download task for the given model ID."""
 
     try:
@@ -108,7 +109,7 @@ async def run_download(id: str):
             SocketEvents.DOWNLOAD_COMPLETED,
             DownloadCompletedResponse(id=id).model_dump(),
         )
-        database.add_model(id, model_dir)
+        add_model(db, id, model_dir)
     except CancelledError:
         await clean_up(id)
         logger.warning('Download task for id %s was cancelled', id)
@@ -196,7 +197,7 @@ async def cancel_task(id: str):
     wait=wait_fixed(2),
     retry=retry_if_exception_type((TimeoutError, ClientError)),
 )
-async def init_download(request: DownloadRequest):
+async def init_download(request: DownloadRequest, db: Session = Depends(get_db)):
     """Initialize a download for the given model ID"""
 
     id = request.id
@@ -204,15 +205,12 @@ async def init_download(request: DownloadRequest):
     logger.info('API Request: Initiating download for id: %s', id)
 
     if id in download_tasks and not download_tasks[id].done():
-        return JSONResponse(
-            status_code=status.HTTP_202_ACCEPTED,
-            content=DownloadStatusResponse(
-                id=id,
-                message='Download already started',
-            ),
-        )
+        return DownloadStatusResponse(
+            id=id,
+            message='Download already started',
+        ), status.HTTP_202_ACCEPTED
 
-    task = create_task(run_download(id))
+    task = create_task(run_download(id, db))
     download_tasks[id] = task
 
     return DownloadStatusResponse(
@@ -226,14 +224,6 @@ async def cancel_download(id: str = Query(..., description='The model ID to canc
     """Cancel the download by id"""
 
     logger.info('API Request: Cancelling download for id: %s', id)
-
-    if not id:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content=DownloadStatusResponse(
-                id=id, message="Missing 'id' query parameter"
-            ),
-        )
 
     await cancel_task(id)
 
