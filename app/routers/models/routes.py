@@ -132,7 +132,7 @@ def load_model(request: LoadModelRequest):
         )
 
 
-@models.post('/unload')  # Use POST for state-changing operations
+@models.post('/unload')
 async def unload_model():
     """
     Unloads the current model from memory.
