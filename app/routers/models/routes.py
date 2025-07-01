@@ -12,6 +12,7 @@ from app.database.crud import check_if_model_downloaded, get_all_downloaded_mode
 from app.services import get_model_dir, model_manager
 
 from .schemas import (
+    GenerateImageRequest,
     LoadModelRequest,
     LoadModelResponse,
     ModelAvailableResponse,
@@ -149,6 +150,10 @@ async def unload_model():
         )
 
 
-@models.get('/generate')
-def generate_image(prompt: str):
+@models.post('/generate')
+async def generate_image(request: GenerateImageRequest):
+    """
+    Generates an image based on the provided prompt and parameters.
+    Returns the generated image as a file.
+    """
     pass
