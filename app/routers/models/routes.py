@@ -64,7 +64,7 @@ def list_models(
 def get_model_info(id: str = Query(..., description='Model ID')):
     """Get model info by model's id"""
     if not id:
-        return HTTPException(
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing 'id' query parameter",
         )
@@ -83,7 +83,7 @@ def get_downloaded_models(db: Session = Depends(get_db)):
         return ModelDownloadedResponse(models=models).model_dump()
     except Exception as e:
         logger.exception('Failed to fetch available models')
-        return HTTPException(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
@@ -100,7 +100,7 @@ def check_if_model_already_downloaded(
         return ModelAvailableResponse(id=id, is_downloaded=is_downloaded)
     except Exception as e:
         logger.exception('Failed to check if model is downloaded')
-        return HTTPException(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
