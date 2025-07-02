@@ -3,7 +3,10 @@ import threading
 from typing import Any, Dict, Optional
 
 import torch
-from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
+from diffusers.pipelines import AutoPipelineForText2Image
+
+from .schedulers import SCHEDULER_DESCRIPTIONS, SamplerType
+from .schemas import AvailableSampler
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +32,13 @@ class ModelManager:
     @property
     def current_model_id(self) -> Optional[str]:
         """Returns the ID of the currently loaded model."""
+
         return self._current_model_id
 
     @property
     def pipe(self) -> Optional[AutoPipelineForText2Image]:
         """Returns the currently active pipeline."""
+
         return self._pipe
 
     def load_model(self, model_id: str, model_dir: str) -> Dict[str, Any]:
@@ -41,6 +46,7 @@ class ModelManager:
         Loads a diffusion pipeline, handles existing models, and clears VRAM.
         This method is blocking and thread-safe.
         """
+
         with self._lock:
             logger.info(f'Attempting to load model: {model_id}')
 
@@ -93,6 +99,7 @@ class ModelManager:
 
     def unload_model(self):
         """Unloads the current model and frees VRAM."""
+
         with self._lock:
             if self._pipe is not None:
                 logger.info(f'Manually unloading model: {self._current_model_id}')
@@ -107,6 +114,18 @@ class ModelManager:
                     logger.warning(f'Error during manual unload/cache clear: {e}')
             else:
                 logger.info('No model currently loaded to unload.')
+
+    def get_available_samplers(self) -> list[AvailableSampler]:
+        """Returns a list of available samplers with their names and descriptions."""
+
+        return [
+            AvailableSampler(
+                value=s.value,
+                name=s.name,
+                description=SCHEDULER_DESCRIPTIONS[s],
+            )
+            for s in SamplerType
+        ]
 
 
 model_manager = ModelManager()

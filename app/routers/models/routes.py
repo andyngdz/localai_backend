@@ -12,7 +12,6 @@ from app.database.crud import check_if_model_downloaded, get_all_downloaded_mode
 from app.services import get_model_dir, model_manager
 
 from .schemas import (
-    GenerateImageRequest,
     LoadModelRequest,
     LoadModelResponse,
     ModelAvailableResponse,
@@ -110,6 +109,8 @@ def check_if_model_already_downloaded(
 @models.post('/load', response_model=LoadModelResponse)
 def load_model(request: LoadModelRequest):
     """Load model by id"""
+    model_id = None
+
     try:
         model_id = request.id
         model_dir = get_model_dir(model_id)
@@ -148,12 +149,3 @@ async def unload_model():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to unload model: {e}',
         )
-
-
-@models.post('/generate')
-async def generate_image(request: GenerateImageRequest):
-    """
-    Generates an image based on the provided prompt and parameters.
-    Returns the generated image as a file.
-    """
-    pass

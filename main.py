@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.routers import downloads, hardware, models, socket_app, users
+from app.routers import downloads, generators, hardware, models, socket_app, users
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +37,7 @@ app.include_router(users)
 app.include_router(models)
 app.include_router(downloads)
 app.include_router(hardware)
+app.include_router(generators)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
