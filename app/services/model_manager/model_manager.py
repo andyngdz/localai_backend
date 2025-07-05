@@ -120,11 +120,11 @@ class ModelManager:
 
         return [
             AvailableSampler(
-                value=s.value,
-                name=SCHEDULER_NAMES[s],
-                description=SCHEDULER_DESCRIPTIONS[s],
+                value=samplerType.value,
+                name=SCHEDULER_NAMES[samplerType],
+                description=SCHEDULER_DESCRIPTIONS[samplerType],
             )
-            for s in SamplerType
+            for samplerType in SamplerType
         ]
 
 
