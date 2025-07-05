@@ -13,15 +13,15 @@ generators = APIRouter(
 )
 
 
-@generators.post('/')
-async def generate_image(request: GenerateImageRequest):
+@generators.post('/start')
+async def start_generation_image(request: GenerateImageRequest):
     """
     Generates an image based on the provided prompt and parameters.
     Returns the generated image as a file.
     """
 
     logger.info(request)
-    pass
+    return request
 
 
 @generators.get('/available-samplers')

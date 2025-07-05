@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import torch
 from diffusers.pipelines import AutoPipelineForText2Image
 
-from .schedulers import SCHEDULER_DESCRIPTIONS, SamplerType
+from .schedulers import SCHEDULER_DESCRIPTIONS, SCHEDULER_NAMES, SamplerType
 from .schemas import AvailableSampler
 
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ class ModelManager:
         return [
             AvailableSampler(
                 value=s.value,
-                name=s.name,
+                name=SCHEDULER_NAMES[s],
                 description=SCHEDULER_DESCRIPTIONS[s],
             )
             for s in SamplerType
