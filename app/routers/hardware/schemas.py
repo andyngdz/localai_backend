@@ -22,17 +22,15 @@ class GPUDeviceInfo(BaseModel):
     """Information about a single detected GPU device."""
 
     name: str = Field(
-        default=...,
+        ...,
         description="Name of the GPU (e.g., 'NVIDIA GeForce RTX 3080', 'Apple M1 Max').",
     )
-    memory_mb: Optional[int] = Field(
-        default=None, description='Total memory of the GPU in MB.'
-    )
+    memory_mb: Optional[int] = Field(None, description='Total memory of the GPU in MB.')
     cuda_compute_capability: Optional[str] = Field(
-        default=None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
+        None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
     )
     is_primary: bool = Field(
-        default=False, description='True if this is the primary/default GPU.'
+        False, description='True if this is the primary/default GPU.'
     )
 
 
@@ -40,34 +38,34 @@ class GPUDriverInfo(BaseModel):
     """Comprehensive information about the system's GPU and driver setup."""
 
     overall_status: GPUDriverStatusStates = Field(
-        default=..., description='Overall status of GPU/driver setup.'
+        ..., description='Overall status of GPU/driver setup.'
     )
     message: str = Field(
-        default=..., description='A user-friendly message explaining the status.'
+        ..., description='A user-friendly message explaining the status.'
     )
     detected_gpus: List[GPUDeviceInfo] = Field(
         default_factory=list, description='List of detected GPU devices.'
     )
     # Specifics for NVIDIA
     nvidia_driver_version: Optional[str] = Field(
-        default=None, description='NVIDIA driver version (if NVIDIA GPU detected).'
+        None, description='NVIDIA driver version (if NVIDIA GPU detected).'
     )
     cuda_runtime_version: Optional[str] = Field(
-        default=None,
+        None,
         description='CUDA runtime version detected by PyTorch/system (if NVIDIA GPU).',
     )
     # Specifics for Apple Silicon
     macos_mps_available: Optional[bool] = Field(
-        default=None,
+        None,
         description='True if Metal Performance Shaders (MPS) are available on macOS.',
     )
     # Add recommendations or links
     recommendation_link: Optional[str] = Field(
-        default=None,
+        None,
         description='A URL for recommended driver downloads or troubleshooting.',
     )
     troubleshooting_steps: Optional[List[str]] = Field(
-        default=None, description='Specific steps to resolve issues.'
+        None, description='Specific steps to resolve issues.'
     )
 
 

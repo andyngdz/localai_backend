@@ -40,7 +40,7 @@ class LoadModelResponse(BaseModel):
     """
 
     id: str = Field(
-        default=...,
+        ...,
         description='Unique identifier for the model (Hugging Face repo ID).',
     )
     config: Dict[str, Any] = Field(
@@ -54,7 +54,7 @@ class NewModelAvailableResponse(BaseModel):
     """
 
     id: str = Field(
-        default=...,
+        ...,
         description='Unique identifier for the new model (Hugging Face repo ID).',
     )
 
@@ -65,12 +65,10 @@ class ModelAvailableResponse(BaseModel):
     """
 
     id: str = Field(
-        default=...,
+        ...,
         description='Unique identifier for the model (Hugging Face repo ID).',
     )
-    is_downloaded: bool = Field(
-        default=False, description='Is the model downloaded locally?'
-    )
+    is_downloaded: bool = Field(False, description='Is the model downloaded locally?')
 
 
 class ModelDownloadedResponse(BaseModel):
@@ -88,31 +86,3 @@ class LoadModelRequest(BaseModel):
     """Request model for loading a model by ID."""
 
     id: str = Field(..., description='The ID of the model to load.')
-
-
-class GenerateImageRequest(BaseModel):
-    """Request model for generating an image."""
-
-    prompt: str = Field(..., description='The text prompt for image generation.')
-    num_inference_steps: Optional[int] = Field(
-        30, ge=1, description='Number of inference steps.'
-    )
-    guidance_scale: Optional[float] = Field(
-        7.5, ge=0.0, description='Guidance scale (CFG scale).'
-    )
-    seed: Optional[int] = Field(
-        None, ge=0, description='Random seed for reproducibility.'
-    )
-    height: Optional[int] = Field(
-        512, ge=64, description='Height of the generated image.'
-    )
-    width: Optional[int] = Field(
-        512, ge=64, description='Width of the generated image.'
-    )
-
-
-class GenerateImageResponse(BaseModel):
-    """Response model for image generation (you might not need this if returning FileResponse directly)."""
-
-    message: str = Field('Image generated successfully.', description='Status message.')
-    path: str = Field(..., description='Path to the generated image file.')
