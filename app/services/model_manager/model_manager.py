@@ -3,7 +3,7 @@ import threading
 from typing import Any, Dict, Optional
 
 import torch
-from diffusers.pipelines import AutoPipelineForText2Image
+from diffusers.pipelines import StableDiffusionPipeline
 
 from .schedulers import SCHEDULER_DESCRIPTIONS, SCHEDULER_NAMES, SamplerType
 from .schemas import AvailableSampler
@@ -36,7 +36,7 @@ class ModelManager:
         return self._current_model_id
 
     @property
-    def pipe(self) -> Optional[AutoPipelineForText2Image]:
+    def pipe(self) -> Optional[StableDiffusionPipeline]:
         """Returns the currently active pipeline."""
 
         return self._pipe
@@ -74,7 +74,7 @@ class ModelManager:
                 device = 'cuda' if torch.cuda.is_available() else 'cpu'
                 logger.info(f'Loading model {model_id} to device: {device}')
 
-                self._pipe = AutoPipelineForText2Image.from_pretrained(
+                self._pipe = StableDiffusionPipeline.from_pretrained(
                     model_dir,
                     torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                     local_files_only=True,
