@@ -27,31 +27,13 @@ class DownloadCompletedResponse(BaseModel):
     id: str = Field(..., description='The ID of the model that was downloaded.')
 
 
-class DownloadPrepareResponse(BaseModel):
+class DownloadStartResponse(BaseModel):
     """
     Response model for preparing a download.
     Contains the list of files to be downloaded.
     """
 
     id: str = Field(..., description='The ID of the model being downloaded.')
-    files: list[str] = Field(
-        ..., description='List of files to be downloaded for the model.'
-    )
-
-
-class DownloadProgressResponse(BaseModel):
-    """
-    Progress model for tracking download status.
-    """
-
-    id: str = Field(..., description='The ID of the model being downloaded.')
-    filename: str = Field(
-        ..., description='The name of the file currently being downloaded.'
-    )
-    downloaded: int = Field(0, description='The number of bytes downloaded so far.')
-    total: int = Field(
-        0, description='The total size of the file being downloaded in bytes.'
-    )
 
 
 class DownloadCancelledResponse(BaseModel):

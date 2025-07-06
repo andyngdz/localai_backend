@@ -83,6 +83,7 @@ def get_downloaded_models(db: Session = Depends(get_db)):
         return ModelDownloadedResponse(models=models).model_dump()
     except Exception as e:
         logger.exception('Failed to fetch available models')
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
@@ -97,9 +98,11 @@ def check_if_model_already_downloaded(
 
     try:
         is_downloaded = check_if_model_downloaded(db, id)
+
         return ModelAvailableResponse(id=id, is_downloaded=is_downloaded)
     except Exception as e:
         logger.exception('Failed to check if model is downloaded')
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
@@ -122,12 +125,14 @@ def load_model(request: LoadModelRequest):
 
     except FileNotFoundError as e:
         logger.error(f'Model file not found for {id}: {e}')
+
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model files not found for ID '{id}'. {e}",
         )
     except Exception as e:
         logger.exception(f'Failed to load model {id}')
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load model '{id}': {e}",
@@ -135,16 +140,18 @@ def load_model(request: LoadModelRequest):
 
 
 @models.post('/unload')
-async def unload_model():
+def unload_model():
     """
     Unloads the current model from memory.
     """
 
     try:
         model_manager.unload_model()
+
         return {'message': 'Model unloaded successfully.'}
     except Exception as e:
         logger.exception('Failed to unload model')
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to unload model: {e}',

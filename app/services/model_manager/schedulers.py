@@ -1,7 +1,7 @@
 # python_backend/schemas.py (Updated SamplerType)
 
 from enum import Enum
-from typing import Any, Dict, Type  # Ensure all types are imported
+from typing import Any, Dict  # Ensure all types are imported
 
 from diffusers import (
     DDIMScheduler,
@@ -48,7 +48,7 @@ class SamplerType(str, Enum):
     KDPM2 = 'KDPM2'  # K-Diffusion PM2 Discrete (deterministic)
 
 
-SCHEDULER_MAPPING: Dict[SamplerType, Type[Any]] = {
+SCHEDULER_MAPPING: Dict[SamplerType, Any] = {
     # Ancestral (stochastic) samplers
     SamplerType.EULER_A: EulerAncestralDiscreteScheduler,
     SamplerType.KDPM2_A: KDPM2AncestralDiscreteScheduler,
