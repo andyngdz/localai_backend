@@ -3,6 +3,7 @@ import os
 import uuid
 
 import torch
+from diffusers import EulerAncestralDiscreteScheduler
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
@@ -88,6 +89,10 @@ async def start_generation_image(request: GenerateImageRequest):
             logger.warning(
                 'Hires fix requested, but not fully implemented in this MVP. Generating directly at requested resolution.'
             )
+
+        pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(
+            pipe.scheduler.config
+        )
 
         generation_output = pipe(
             prompt=request.prompt,

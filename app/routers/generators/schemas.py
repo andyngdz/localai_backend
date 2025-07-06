@@ -19,10 +19,10 @@ class GenerateImageRequest(BaseModel):
     width: int = Field(512, ge=64, description='Width of the generated image.')
     hires_fix: bool = Field(False, description='Enable high-resolution fix.')
     negative_prompt: Optional[str] = Field(
-        ..., max_length=500, description='Negative prompt to avoid certain features.'
+        ..., max_length=1000, description='Negative prompt to avoid certain features.'
     )
     prompt: str = Field(
-        ..., max_length=500, description='The text prompt for image generation.'
+        ..., max_length=1000, description='The text prompt for image generation.'
     )
     steps: int = Field(24, ge=1, description='Number of inference steps.')
     seed: int = Field(-1, description='Random seed for reproducibility.')

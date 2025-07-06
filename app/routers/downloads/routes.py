@@ -1,10 +1,10 @@
 import logging
 import os
 import shutil
-from asyncio import CancelledError, Semaphore, create_task, gather
+from asyncio import CancelledError, Semaphore, create_task
 
 import aiofiles
-from aiohttp import ClientError, ClientSession, ClientTimeout
+from aiohttp import ClientError, ClientSession
 from fastapi import APIRouter, Depends, Query, status
 from huggingface_hub import HfApi, hf_hub_url
 from sqlalchemy.orm import Session
@@ -14,13 +14,12 @@ from app.database import get_db
 from app.database.crud import add_model
 from app.routers.downloads.types import ProgressCallbackType
 from app.routers.websocket import SocketEvents, emit
-from app.services import get_model_dir
+from app.services import get_model_dir, model_manager
 from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
 
 from .schemas import (
     DownloadCancelledResponse,
     DownloadCompletedResponse,
-    DownloadPrepareResponse,
     DownloadProgressResponse,
     DownloadRequest,
     DownloadStatusResponse,
@@ -84,26 +83,27 @@ async def run_download(id: str, db: Session):
     """Run the download task for the given model ID."""
 
     try:
-        files = api.list_repo_files(id)
+        # files = api.list_repo_files(id)
         model_dir = get_model_dir(id)
-        progress_callback = get_progress_callback(id)
-        timeout = ClientTimeout(total=None, sock_read=60)
+        # progress_callback = get_progress_callback(id)
+        # timeout = ClientTimeout(total=None, sock_read=60)
+        model_manager.load_model(id)
 
-        await emit(
-            SocketEvents.DOWNLOAD_PREPARE,
-            DownloadPrepareResponse(
-                id=id,
-                files=files,
-            ).model_dump(),
-        )
+        # await emit(
+        #     SocketEvents.DOWNLOAD_PREPARE,
+        #     DownloadPrepareResponse(
+        #         id=id,
+        #         files=files,
+        #     ).model_dump(),
+        # )
 
-        async with ClientSession(timeout=timeout) as session:
-            tasks = [
-                limited_download(session, model_dir, id, filename, progress_callback)
-                for filename in files
-            ]
+        # async with ClientSession(timeout=timeout) as session:
+        #     tasks = [
+        #         limited_download(session, model_dir, id, filename, progress_callback)
+        #         for filename in files
+        #     ]
 
-            await gather(*tasks)
+        #     await gather(*tasks)
 
         await emit(
             SocketEvents.DOWNLOAD_COMPLETED,

@@ -3,7 +3,9 @@ import threading
 from typing import Any, Dict, Optional
 
 import torch
-from diffusers.pipelines import StableDiffusionPipeline
+from diffusers.pipelines import AutoPipelineForText2Image
+
+from config import BASE_MODEL_DIR
 
 from .schedulers import SCHEDULER_DESCRIPTIONS, SCHEDULER_NAMES, SamplerType
 from .schemas import AvailableSampler
@@ -16,55 +18,43 @@ class ModelManager:
     Manages the active diffusion pipeline, ensuring thread-safe loading and unloading.
     """
 
-    _instance: Optional['ModelManager'] = None
-    _lock: threading.Lock = threading.Lock()
+    instance: Optional['ModelManager'] = None
+    lock: threading.Lock = threading.Lock()
 
     def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super(ModelManager, cls).__new__(cls)
-                    cls._instance._pipe = None
-                    cls._instance._current_model_id = None
+        if cls.instance is None:
+            with cls.lock:
+                if cls.instance is None:
+                    cls.instance = super(ModelManager, cls).__new__(cls)
+                    cls.instance.pipe = None
+                    cls.instance.current_id = None
                     logger.info('ModelManager instance created.')
-        return cls._instance
+        return cls.instance
 
-    @property
-    def current_model_id(self) -> Optional[str]:
-        """Returns the ID of the currently loaded model."""
-
-        return self._current_model_id
-
-    @property
-    def pipe(self) -> Optional[StableDiffusionPipeline]:
-        """Returns the currently active pipeline."""
-
-        return self._pipe
-
-    def load_model(self, model_id: str, model_dir: str) -> Dict[str, Any]:
+    def load_model(self, id: str) -> Dict[str, Any]:
         """
         Loads a diffusion pipeline, handles existing models, and clears VRAM.
         This method is blocking and thread-safe.
         """
 
-        with self._lock:
-            logger.info(f'Attempting to load model: {model_id}')
+        with self.lock:
+            logger.info(f'Attempting to load model: {id}')
 
-            if self._current_model_id == model_id and self._pipe is not None:
-                logger.info(
-                    f'Model {model_id} is already loaded. Skipping load operation.'
-                )
-                return dict(self._pipe.config)
+            if self.current_id == id and self.pipe is not None:
+                logger.info(f'Model {id} is already loaded. Skipping load operation.')
+                return dict(self.pipe.config)
 
-            if self._pipe is not None:
-                logger.info(f'Unloading existing model: {self._current_model_id}')
+            if self.pipe is not None:
+                logger.info(f'Unloading existing model: {self.current_id}')
                 try:
-                    del self._pipe
-                    self._pipe = None
-                    self._current_model_id = None
+                    del self.pipe
+                    self.pipe = None
+                    self.current_id = None
+
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
                         logger.info('CUDA cache emptied.')
+
                 except Exception as e:
                     logger.warning(
                         f'Error during existing model unload/cache clear: {e}'
@@ -72,41 +62,51 @@ class ModelManager:
 
             try:
                 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-                logger.info(f'Loading model {model_id} to device: {device}')
+                logger.info(f'Loading model {id} to device: {device}')
 
-                self._pipe = StableDiffusionPipeline.from_pretrained(
-                    model_dir,
+                self.pipe = AutoPipelineForText2Image.from_pretrained(
+                    id,
+                    cache_dir=BASE_MODEL_DIR,
                     torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
-                    local_files_only=True,
+                    use_safetensors=True,
                 )
-                self._pipe.to(device)
+
+                self.pipe.to(device)
 
                 if device == 'cuda':
-                    self._pipe.enable_model_cpu_offload()
-                    self._pipe.enable_attention_slicing()
+                    self.pipe.enable_model_cpu_offload()
+                    self.pipe.enable_attention_slicing()
 
-                self._current_model_id = model_id
-                logger.info(f'Model {model_id} loaded successfully.')
-                return dict(self._pipe.config)
+                self.current_id = id
+
+                logger.info(f'Model {id} loaded successfully.')
+
+                return dict(self.pipe.config)
 
             except Exception as e:
-                self._pipe = None
-                self._current_model_id = None
-                logger.error(f'Failed to load model {model_id}: {e}', exc_info=True)
+                self.pipe = None
+                self.current_id = None
+
+                logger.error(f'Failed to load model {id}: {e}', exc_info=True)
+
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
+
                 raise
 
     def unload_model(self):
         """Unloads the current model and frees VRAM."""
 
-        with self._lock:
-            if self._pipe is not None:
-                logger.info(f'Manually unloading model: {self._current_model_id}')
+        with self.lock:
+            if self.pipe is not None:
+                logger.info(f'Manually unloading model: {self.current_id}')
+
                 try:
-                    del self._pipe
-                    self._pipe = None
-                    self._current_model_id = None
+                    del self.pipe
+
+                    self.pipe = None
+                    self.current_id = None
+
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
                         logger.info('CUDA cache emptied after manual unload.')

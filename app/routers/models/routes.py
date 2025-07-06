@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.database.crud import check_if_model_downloaded, get_all_downloaded_models
-from app.services import get_model_dir, model_manager
+from app.services import model_manager
 
 from .schemas import (
     LoadModelRequest,
@@ -109,28 +109,28 @@ def check_if_model_already_downloaded(
 @models.post('/load', response_model=LoadModelResponse)
 def load_model(request: LoadModelRequest):
     """Load model by id"""
-    model_id = None
+    id = None
 
     try:
-        model_id = request.id
-        model_dir = get_model_dir(model_id)
-        model_config = model_manager.load_model(model_id, model_dir)
+        id = request.id
+        model_config = model_manager.load_model(id)
+
         return LoadModelResponse(
-            id=model_id,
+            id=id,
             config=model_config,
         )
 
     except FileNotFoundError as e:
-        logger.error(f'Model file not found for {model_id}: {e}')
+        logger.error(f'Model file not found for {id}: {e}')
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model files not found for ID '{model_id}'. {e}",
+            detail=f"Model files not found for ID '{id}'. {e}",
         )
     except Exception as e:
-        logger.exception(f'Failed to load model {model_id}')
+        logger.exception(f'Failed to load model {id}')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to load model '{model_id}': {e}",
+            detail=f"Failed to load model '{id}': {e}",
         )
 
 

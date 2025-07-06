@@ -9,6 +9,7 @@
 *.swp                   # Vim swap files
 *.bak                   # Backup files
 *.log                   # Log files
+logs.txt
 localai_backend.db
 
 # Build artifacts and distribution directories
