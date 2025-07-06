@@ -48,6 +48,8 @@ class ModelManager:
 
         logger.info(f'Started background model download: {id}')
 
+        return self.load_process
+
     def cancel_model_download(self):
         """Cancel the active model download and clean up cache."""
 

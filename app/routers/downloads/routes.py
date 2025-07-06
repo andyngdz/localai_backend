@@ -70,7 +70,9 @@ async def run_download(id: str, db: Session):
 
         logger.info('Download model into folder: %s', model_dir)
 
-        model_manager.start_model_download(id)
+        process = model_manager.start_model_download(id)
+
+        process.join()
 
         await emit(
             SocketEvents.DOWNLOAD_COMPLETED,
