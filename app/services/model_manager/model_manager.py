@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import torch
 from diffusers.pipelines import AutoPipelineForText2Image
 
-from config import BASE_MODEL_DIR
+from config import BASE_CACHE_DIR
 
 from .schedulers import SCHEDULER_DESCRIPTIONS, SCHEDULER_NAMES, SamplerType
 from .schemas import AvailableSampler
@@ -66,7 +66,7 @@ class ModelManager:
 
                 self.pipe = AutoPipelineForText2Image.from_pretrained(
                     id,
-                    cache_dir=BASE_MODEL_DIR,
+                    cache_dir=BASE_CACHE_DIR,
                     torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                     use_safetensors=True,
                 )

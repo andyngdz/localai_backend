@@ -1,6 +1,6 @@
 import os
 
-from config import BASE_MODEL_DIR
+from config import BASE_CACHE_DIR
 
 
 def get_model_dir(id: str) -> str:
@@ -13,7 +13,7 @@ def get_model_dir(id: str) -> str:
     Returns:
         str: The directory path where the model is stored.
     """
-    dir = os.path.join(BASE_MODEL_DIR, id.replace('/', '--'))
-    os.makedirs(dir, exist_ok=True)
+    name_serialized = id.replace('/', '--')
+    dir = os.path.join(BASE_CACHE_DIR, f'models--{name_serialized}')
 
     return dir

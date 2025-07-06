@@ -3,24 +3,21 @@ import os
 import shutil
 from asyncio import CancelledError, Semaphore, create_task
 
-import aiofiles
-from aiohttp import ClientError, ClientSession
+from aiohttp import ClientError
 from fastapi import APIRouter, Depends, Query, status
-from huggingface_hub import HfApi, hf_hub_url
+from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.database import get_db
 from app.database.crud import add_model
-from app.routers.downloads.types import ProgressCallbackType
 from app.routers.websocket import SocketEvents, emit
 from app.services import get_model_dir, model_manager
-from config import CHUNK_SIZE, MAX_CONCURRENT_DOWNLOADS
+from config import MAX_CONCURRENT_DOWNLOADS
 
 from .schemas import (
     DownloadCancelledResponse,
     DownloadCompletedResponse,
-    DownloadProgressResponse,
     DownloadRequest,
     DownloadStatusResponse,
 )
@@ -45,28 +42,6 @@ def delete_model_from_disk(id: str):
         shutil.rmtree(model_dir)
 
 
-def get_progress_callback(id: str) -> ProgressCallbackType:
-    """Create a progress callback function for tracking download progress."""
-
-    async def progress_callback(filename: str, downloaded: int, total: int):
-        download_progresses[id][filename] = {
-            'downloaded': downloaded,
-            'total': total,
-        }
-
-        await emit(
-            SocketEvents.DOWNLOAD_PROGRESS_UPDATE,
-            DownloadProgressResponse(
-                id=id,
-                filename=filename,
-                downloaded=downloaded,
-                total=total,
-            ).model_dump(),
-        )
-
-    return progress_callback
-
-
 async def clean_up(id: str):
     """Clean up the model directory and remove task from tracking"""
 
@@ -83,27 +58,11 @@ async def run_download(id: str, db: Session):
     """Run the download task for the given model ID."""
 
     try:
-        # files = api.list_repo_files(id)
         model_dir = get_model_dir(id)
-        # progress_callback = get_progress_callback(id)
-        # timeout = ClientTimeout(total=None, sock_read=60)
+
+        logger.info('Download model into folder: %s', model_dir)
+
         model_manager.load_model(id)
-
-        # await emit(
-        #     SocketEvents.DOWNLOAD_PREPARE,
-        #     DownloadPrepareResponse(
-        #         id=id,
-        #         files=files,
-        #     ).model_dump(),
-        # )
-
-        # async with ClientSession(timeout=timeout) as session:
-        #     tasks = [
-        #         limited_download(session, model_dir, id, filename, progress_callback)
-        #         for filename in files
-        #     ]
-
-        #     await gather(*tasks)
 
         await emit(
             SocketEvents.DOWNLOAD_COMPLETED,
@@ -115,63 +74,6 @@ async def run_download(id: str, db: Session):
         logger.warning('Download task for id %s was cancelled', id)
     finally:
         logger.info('Download task for id %s completed', id)
-
-
-async def limited_download(
-    session: ClientSession,
-    model_dir: str,
-    id: str,
-    filename: str,
-    progress_callback: ProgressCallbackType,
-):
-    """Download a file with semaphore to limit concurrent downloads."""
-
-    async with semaphore:
-        await download_file(session, model_dir, id, filename, progress_callback)
-
-
-async def download_file(
-    session: ClientSession,
-    model_dir: str,
-    id: str,
-    filename: str,
-    progress_callback: ProgressCallbackType,
-):
-    """Download a single file from the Hugging Face Hub."""
-
-    url = hf_hub_url(id, filename)
-    filepath = os.path.join(model_dir, filename)
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-    existing_size = 0
-    if os.path.exists(filepath):
-        existing_size = os.path.getsize(filepath)
-
-    headers = {}
-    if existing_size > 0:
-        headers['Range'] = f'bytes={existing_size}-'
-
-    try:
-        async with session.get(url, headers=headers) as response:
-            if response.status == status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE:
-                return
-
-            response.raise_for_status()
-
-            total = int(response.headers.get('content-length', 0))
-            downloaded = 0
-
-            logger.info('Starting download for %s (id: %s)', filename, id)
-
-            async with aiofiles.open(filepath, 'wb') as file:
-                async for chunk in response.content.iter_chunked(CHUNK_SIZE):
-                    await file.write(chunk)
-                    downloaded += len(chunk)
-                    if progress_callback and total > 0:
-                        await progress_callback(filename, downloaded, total)
-    except CancelledError:
-        logger.warning('Download %s was cancelled', filename)
-        raise
 
 
 async def cancel_task(id: str):
