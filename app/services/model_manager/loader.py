@@ -1,13 +1,19 @@
+import logging
+
 import torch
 from diffusers import AutoPipelineForText2Image
 
+from config import BASE_CACHE_DIR
 
-def load_model_process(id: str, device: str, cache_dir: str):
+logger = logging.getLogger(__name__)
+
+
+def load_model_process(id: str, device: str):
     print(f'[Process] Downloading model {id} to {device}...')
 
     pipe = AutoPipelineForText2Image.from_pretrained(
         id,
-        cache_dir=cache_dir,
+        cache_dir=BASE_CACHE_DIR,
         torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
         use_safetensors=True,
     )
@@ -18,4 +24,6 @@ def load_model_process(id: str, device: str, cache_dir: str):
         pipe.enable_model_cpu_offload()
         pipe.enable_attention_slicing()
 
-    print(f'[Process] Model {id} download complete.')
+    logger.info(f'[Process] Model {id} download complete.')
+
+    return pipe

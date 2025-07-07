@@ -1,15 +1,13 @@
-# python_backend/schemas.py (Updated SamplerType)
-
 from enum import Enum
-from typing import Any, Dict  # Ensure all types are imported
+from typing import Any, Dict
 
 from diffusers import (
     DDIMScheduler,
     DDPMScheduler,
     DEISMultistepScheduler,
     DPMSolverMultistepScheduler,
-    DPMSolverSDEScheduler,  # Correct class for DPM++ SDE
-    DPMSolverSinglestepScheduler,  # Correct class for DPM++ 1M / DPM++ 1S
+    DPMSolverSDEScheduler,
+    DPMSolverSinglestepScheduler,
     EulerAncestralDiscreteScheduler,
     EulerDiscreteScheduler,
     KDPM2AncestralDiscreteScheduler,
@@ -23,36 +21,26 @@ from diffusers import (
 class SamplerType(str, Enum):
     """Enum for supported sampler types."""
 
-    # Ancestral (stochastic) samplers - good for exploration
     EULER_A = 'EULER_A'
-    KDPM2_A = 'KDPM2_A'  # K-Diffusion PM2 Ancestral
-    # Deterministic samplers - good for reproducibility
+    KDPM2_A = 'KDPM2_A'
     EULER = 'EULER'
     DDIM = 'DDIM'
     LMS = 'LMS'
     PNDM = 'PNDM'
-    DPM_SOLVER_MULTISTEP = 'DPM_SOLVER_MULTISTEP'  # DPM Solver++ (2M)
-    DPM_SOLVER_MULTISTEP_KARRAS = (
-        'DPM_SOLVER_MULTISTEP_KARRAS'  # DPM Solver++ (2M) with Karras sigmas
-    )
-    DPM_SOLVER_SINGLES = (
-        'DPM_SOLVER_SINGLES'  # DPM Solver++ Single-step (deterministic)
-    )
-    DPM_SOLVER_SDE = 'DPM_SOLVER_SDE'  # Added for the non-Karras SDE variant
-    DPM_SOLVER_SDE_KARRAS = (
-        'DPM_SOLVER_SDE_KARRAS'  # DPM Solver++ SDE with Karras sigmas
-    )
-    DDPMS = 'DDPM'  # Denoising Diffusion Probabilistic Models Scheduler
-    UNIPC = 'UniPC'  # Unified Pseudo-numerical ODE Solver
-    DEIS = 'DEIS'  # Denoising Diffusion Implicit Models Scheduler
-    KDPM2 = 'KDPM2'  # K-Diffusion PM2 Discrete (deterministic)
+    DPM_SOLVER_MULTISTEP = 'DPM_SOLVER_MULTISTEP'
+    DPM_SOLVER_MULTISTEP_KARRAS = 'DPM_SOLVER_MULTISTEP_KARRAS'
+    DPM_SOLVER_SINGLES = 'DPM_SOLVER_SINGLES'
+    DPM_SOLVER_SDE = 'DPM_SOLVER_SDE'
+    DPM_SOLVER_SDE_KARRAS = 'DPM_SOLVER_SDE_KARRAS'
+    DDPMS = 'DDPM'
+    UNIPC = 'UniPC'
+    DEIS = 'DEIS'
+    KDPM2 = 'KDPM2'
 
 
 SCHEDULER_MAPPING: Dict[SamplerType, Any] = {
-    # Ancestral (stochastic) samplers
     SamplerType.EULER_A: EulerAncestralDiscreteScheduler,
     SamplerType.KDPM2_A: KDPM2AncestralDiscreteScheduler,
-    # Deterministic samplers
     SamplerType.EULER: EulerDiscreteScheduler,
     SamplerType.DDIM: DDIMScheduler,
     SamplerType.LMS: LMSDiscreteScheduler,
@@ -61,7 +49,6 @@ SCHEDULER_MAPPING: Dict[SamplerType, Any] = {
     SamplerType.UNIPC: UniPCMultistepScheduler,
     SamplerType.DEIS: DEISMultistepScheduler,
     SamplerType.KDPM2: KDPM2DiscreteScheduler,
-    # DPM-Solver variations
     SamplerType.DPM_SOLVER_MULTISTEP: DPMSolverMultistepScheduler,
     SamplerType.DPM_SOLVER_MULTISTEP_KARRAS: DPMSolverMultistepScheduler,
     SamplerType.DPM_SOLVER_SINGLES: DPMSolverSinglestepScheduler,

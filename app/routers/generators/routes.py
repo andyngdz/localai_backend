@@ -7,6 +7,7 @@ from diffusers import EulerAncestralDiscreteScheduler
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
+from app.routers.generators.services import get_available_samplers
 from app.services import model_manager
 
 from .schemas import GenerateImageRequest
@@ -167,7 +168,7 @@ async def available_samplers():
     Returns a list of available samplers for image generation.
     """
 
-    samplers = model_manager.get_available_samplers()
+    samplers = get_available_samplers()
 
     if not samplers:
         logger.warning('No available samplers found.')

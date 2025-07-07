@@ -25,7 +25,7 @@ def add_model(db: Session, model_id: str, model_dir: str):
     model = db.query(Model).filter(Model.model_id == model_id).first()
 
     if model:
-        model.model_dir = model_dir  # Update path if already exists
+        model.model_dir = model_dir
     else:
         model = Model(model_id=model_id, model_dir=model_dir)
         db.add(model)
