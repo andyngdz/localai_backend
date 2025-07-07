@@ -1,5 +1,3 @@
-# python_backend/app/database/crud.py
-
 from enum import IntEnum
 from typing import List
 

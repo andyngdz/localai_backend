@@ -1,4 +1,6 @@
 import logging
+from multiprocessing import Queue
+from typing import Optional
 
 import torch
 from diffusers import AutoPipelineForText2Image
@@ -8,7 +10,7 @@ from config import BASE_CACHE_DIR
 logger = logging.getLogger(__name__)
 
 
-def load_model_process(id: str, device: str):
+def load_model_process(id: str, device: str, done_queue: Optional[Queue] = None):
     print(f'[Process] Downloading model {id} to {device}...')
 
     pipe = AutoPipelineForText2Image.from_pretrained(
@@ -24,6 +26,8 @@ def load_model_process(id: str, device: str):
         pipe.enable_model_cpu_offload()
         pipe.enable_attention_slicing()
 
-    logger.info(f'[Process] Model {id} download complete.')
+    if done_queue is not None:
+        done_queue.put(id)
+        logger.info(f'[Process] Model {id} added to done queue.')
 
     return pipe

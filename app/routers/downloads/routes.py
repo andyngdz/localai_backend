@@ -4,20 +4,16 @@ import shutil
 from asyncio import CancelledError
 
 from aiohttp import ClientError
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from huggingface_hub import HfApi
-from sqlalchemy.orm import Session
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from app.database import get_db
-from app.database.crud import add_model
 from app.routers.websocket import SocketEvents, emit
-from app.services import get_model_dir, model_manager
-from app.services.model_manager.storage import get_model_lock_dir
+from app.services.model_manager import model_manager
+from app.services.storage import get_model_dir, get_model_lock_dir
 
 from .schemas import (
     DownloadCancelledResponse,
-    DownloadCompletedResponse,
     DownloadRequest,
     DownloadStartResponse,
     DownloadStatusResponse,
@@ -59,7 +55,7 @@ async def clean_up(id: str):
     logger.info('Cleaned up resources for id: %s', id)
 
 
-async def run_download(id: str, db: Session):
+async def run_download(id: str):
     """Run the download task for the given model ID."""
 
     try:
@@ -67,18 +63,10 @@ async def run_download(id: str, db: Session):
             SocketEvents.DOWNLOAD_START,
             DownloadStartResponse(id=id).model_dump(),
         )
-
         model_dir = get_model_dir(id)
         logger.info('Download model into folder: %s', model_dir)
-        process = model_manager.start_model_download(id)
-        process.join()
+        model_manager.start_model_download(id)
 
-        await emit(
-            SocketEvents.DOWNLOAD_COMPLETED,
-            DownloadCompletedResponse(id=id).model_dump(),
-        )
-
-        add_model(db, id, model_dir)
     except CancelledError:
         logger.warning('Download task for id %s was cancelled', id)
     finally:
@@ -91,14 +79,14 @@ async def run_download(id: str, db: Session):
     wait=wait_fixed(2),
     retry=retry_if_exception_type((TimeoutError, ClientError)),
 )
-async def init_download(request: DownloadRequest, db: Session = Depends(get_db)):
+async def init_download(request: DownloadRequest):
     """Initialize a download for the given model ID"""
 
     id = request.id
 
     logger.info('API Request: Initiating download for id: %s', id)
 
-    await run_download(id, db)
+    await run_download(id)
 
     return DownloadStatusResponse(
         id=id,

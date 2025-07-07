@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.database.crud import check_if_model_downloaded, get_all_downloaded_models
-from app.services import model_manager
+from app.services.model_manager import model_manager
 
 from .schemas import (
     LoadModelRequest,

@@ -1,5 +1,6 @@
 """Main entry point for the LocalAI Backend application."""
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -20,9 +21,11 @@ from app.routers import downloads, generators, hardware, models, socket_app, use
 async def lifespan(app: FastAPI):
     """Startup event to initialize the database."""
     from app.database import init_db
+    from app.services.model_manager import model_manager
 
     init_db()
     logging.info('Database initialized successfully.')
+    asyncio.create_task(model_manager.monitor_done_queue())
     yield
 
 

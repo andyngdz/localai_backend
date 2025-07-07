@@ -1,9 +1,17 @@
-# manager.py
+import asyncio
 import logging
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from typing import Any, Dict
 
 import torch
+from diffusers import AutoPipelineForText2Image
+
+from app.database import get_db
+from app.database.crud import add_model
+from app.routers.downloads.schemas import DownloadCompletedResponse
+from app.routers.websocket import SocketEvents, emit
+from app.services.storage import get_model_dir
+from config import BASE_CACHE_DIR
 
 from .loader import load_model_process
 from .schedulers import (
@@ -24,8 +32,34 @@ class ModelManager:
         self.pipe = None
         self.id = None
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+        self.done_queue = Queue()
         logger.info('ModelManager instance initialized.')
+
+    async def monitor_done_queue(self):
+        """Background thread to monitor the done queue for model loading completion."""
+        while True:
+            id = await asyncio.to_thread(self.done_queue.get)
+            logger.info(f'Model download completed for ID: {id}')
+            await self.model_done(id)
+
+    async def model_done(self, id: str):
+        """Handles the completion of a model download."""
+
+        processes = download_processes.get(id)
+        if processes:
+            processes.kill()
+            del download_processes[id]
+
+        [db] = get_db()
+        model_dir = get_model_dir(id)
+
+        add_model(db, id, model_dir)
+
+        await emit(
+            SocketEvents.DOWNLOAD_COMPLETED,
+            DownloadCompletedResponse(id=id).model_dump(),
+        )
+        logger.info(f'Model {id} download completed and added to database.')
 
     def clear_cuda_cache(self):
         """Clears the CUDA cache if available."""
@@ -42,13 +76,13 @@ class ModelManager:
         if load_process and load_process.is_alive():
             raise RuntimeError('A model is already downloading.')
 
-        new_process = Process(target=load_model_process, args=(id, self.device))
+        new_process = Process(
+            target=load_model_process, args=(id, self.device, self.done_queue)
+        )
         new_process.start()
         download_processes[id] = new_process
 
         logger.info(f'Started background model download: {id}')
-
-        return new_process
 
     def cancel_model_download(self, id: str):
         """Cancel the active model download and clean up cache."""
@@ -79,8 +113,18 @@ class ModelManager:
             self.unload_model()
 
         try:
-            self.pipe = load_model_process(id, self.device)
-            self.id = id
+            self.pipe = AutoPipelineForText2Image.from_pretrained(
+                id,
+                cache_dir=BASE_CACHE_DIR,
+                torch_dtype=torch.float16 if self.device == 'cuda' else torch.float32,
+                use_safetensors=True,
+            )
+
+            self.pipe.to(self.device)
+
+            if self.device == 'cuda':
+                self.pipe.enable_model_cpu_offload()
+                self.pipe.enable_attention_slicing()
 
             logger.info(f'Model {id} loaded successfully.')
 
