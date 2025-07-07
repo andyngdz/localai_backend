@@ -87,13 +87,13 @@ class ModelManager:
     def cancel_model_download(self, id: str):
         """Cancel the active model download and clean up cache."""
 
-        load_process = download_processes[id]
+        download_process = download_processes[id]
 
-        if load_process and load_process.is_alive():
+        if download_process and download_process.is_alive():
             logger.info(f'Cancelling model download: {id}')
 
-            load_process.terminate()
-            load_process.join()
+            download_process.terminate()
+            download_process.join()
         else:
             logger.info('No active model download to cancel.')
 
@@ -102,6 +102,7 @@ class ModelManager:
         Load a model synchronously into memory for inference.
         Should only be called when model is confirmed downloaded.
         """
+
         logger.info(f'Attempting to load model: {id}')
 
         if self.id == id and self.pipe is not None:
