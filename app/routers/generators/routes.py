@@ -125,18 +125,19 @@ async def start_generation_image(request: GenerateImageRequest):
         image.save(filename)
         logger.info(f'Generated image saved to: {filename}')
 
-        # 5. Return the image file as a FileResponse
         return FileResponse(
             filename, media_type='image/png', filename=os.path.basename(filename)
         )
 
     except FileNotFoundError as e:
         logger.error(f'Model directory not found: {e}')
+
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f'Model files not found: {e}'
         )
     except Exception as e:
         logger.exception(f'Failed to generate image for prompt: "{request.prompt}"')
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to generate image: {e}',
