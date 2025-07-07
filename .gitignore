@@ -33,9 +33,9 @@ pip-delete-this-directory.txt
 
 # Runtime downloaded models
 data/models/
-data/localai_generated_images/
+data/generated_images/
 .models/
-.localai_generated_images/
+.generated_images/
 
 # Caches
 .cache/

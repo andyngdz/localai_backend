@@ -1,7 +1,7 @@
 import logging
 import os
 import shutil
-from asyncio import CancelledError, Semaphore
+from asyncio import CancelledError
 
 from aiohttp import ClientError
 from fastapi import APIRouter, Depends, Query
@@ -14,7 +14,6 @@ from app.database.crud import add_model
 from app.routers.websocket import SocketEvents, emit
 from app.services import get_model_dir, model_manager
 from app.services.model_manager.storage import get_model_lock_dir
-from config import MAX_CONCURRENT_DOWNLOADS
 
 from .schemas import (
     DownloadCancelledResponse,
@@ -29,7 +28,6 @@ downloads = APIRouter(
     prefix='/downloads',
     tags=['downloads'],
 )
-semaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
 api = HfApi()
 
 

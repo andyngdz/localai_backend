@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 
 from app.routers.generators.services import get_available_samplers
 from app.services import model_manager
+from config import BASE_GENERATED_IMAGES_DIR
 
 from .schemas import GenerateImageRequest
 
@@ -134,10 +135,9 @@ async def start_generation_image(request: GenerateImageRequest):
             )
 
         # 4. Save the image to a temporary file
-        temp_dir = './.localai_generated_images'
-        os.makedirs(temp_dir, exist_ok=True)  # Ensure directory exists
+        os.makedirs(BASE_GENERATED_IMAGES_DIR, exist_ok=True)
 
-        filename = os.path.join(temp_dir, f'{uuid.uuid4().hex}.png')
+        filename = os.path.join(BASE_GENERATED_IMAGES_DIR, f'{uuid.uuid4().hex}.png')
 
         image = generated_images_list[0]
 
