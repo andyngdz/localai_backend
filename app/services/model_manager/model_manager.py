@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import logging
 from multiprocessing import Process, Queue
 from typing import Any, Dict
@@ -163,6 +164,7 @@ class ModelManager:
                 self.pipe = None
                 self.id = None
                 self.clear_cuda_cache()
+                gc.collect()
             except Exception as e:
                 logger.warning(f'Error during unload: {e}')
 
