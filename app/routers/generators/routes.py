@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
 from app.routers.generators.services import get_available_samplers
-from app.services import model_manager
+from app.services.model_manager import model_manager
 from config import BASE_GENERATED_IMAGES_DIR
 
 from .schemas import GenerateImageRequest
@@ -37,20 +37,14 @@ async def start_generation_image(request: GenerateImageRequest):
 
     if pipe is None:
         logger.warning('Attempted to generate image, but no model is loaded.')
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='No model is currently loaded. Please load a model first using /models/load.',
         )
 
     try:
-        # 1. Set the sampler dynamically for this generation
-        # This will update the pipe's scheduler to the requested one
-
-        # model_manager.set_sampler(request.sampler)
-        # logger.info(f'Sampler set to: {request.sampler.value}')
-
-        # 2. Set random seed for reproducibility if provided
-        random_seed = None  # Ensure random_seed is always defined
+        random_seed = None
 
         if request.seed != -1:
             torch.manual_seed(request.seed)
@@ -62,7 +56,6 @@ async def start_generation_image(request: GenerateImageRequest):
 
             random_seed = request.seed
         else:
-            # If seed is -1, generate a random seed for this run
             random_seed = int(torch.randint(0, 2**32 - 1, (1,)).item())
             torch.manual_seed(random_seed)
 
@@ -78,15 +71,6 @@ async def start_generation_image(request: GenerateImageRequest):
             f'batch_size={request.batch_size}, batch_count={request.batch_count}'
         )
 
-        # 3. Perform image generation
-        # The `pipe` call typically takes `num_images_per_prompt`
-        # which aligns with your `batch_size`.
-        # For `batch_count`, you would typically loop this generation
-        # or handle it at a higher level if you need multiple distinct batches.
-
-        # Hires fix is a more advanced feature (e.g., img2img on upscaled latent).
-        # For simplicity in this MVP, we'll generate directly at requested height/width.
-        # If request.hires_fix is True, you would implement a multi-step process here.
         if request.hires_fix:
             logger.warning(
                 'Hires fix requested, but not fully implemented in this MVP. Generating directly at requested resolution.'
