@@ -94,6 +94,8 @@ class ModelManager:
     def cancel_model_download(self, id: str):
         """Cancel the active model download and clean up cache."""
 
+        self.unload_model()
+
         download_process = download_processes[id]
 
         if download_process and download_process.is_alive():
@@ -117,8 +119,7 @@ class ModelManager:
 
             return dict(self.pipe.config)
 
-        if self.pipe:
-            self.unload_model()
+        self.unload_model()
 
         try:
             self.pipe = AutoPipelineForText2Image.from_pretrained(
@@ -126,6 +127,7 @@ class ModelManager:
                 cache_dir=BASE_CACHE_DIR,
                 torch_dtype=torch.float16 if self.device == 'cuda' else torch.float32,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
             )
 
             self.pipe.to(self.device)

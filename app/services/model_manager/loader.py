@@ -18,6 +18,7 @@ def load_model_process(id: str, device: str, done_queue: Optional[Queue] = None)
         cache_dir=BASE_CACHE_DIR,
         torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
         use_safetensors=True,
+        low_cpu_mem_usage=True,
     )
 
     pipe.to(device)
