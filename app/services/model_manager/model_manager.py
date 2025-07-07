@@ -63,6 +63,7 @@ class ModelManager:
 
     def clear_cuda_cache(self):
         """Clears the CUDA cache if available."""
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             logger.info('CUDA cache cleared.')
