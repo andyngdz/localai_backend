@@ -85,8 +85,12 @@ class ModelManager:
         new_process = Process(
             target=load_model_process, args=(id, self.device, self.done_queue)
         )
+
+        self.unload_model()
+
         new_process.start()
 
+        self.id = id
         download_processes[id] = new_process
 
         logger.info(f'Started background model download: {id}')
@@ -138,6 +142,8 @@ class ModelManager:
 
             logger.info(f'Model {id} loaded successfully.')
 
+            self.id = id
+
             return dict(self.pipe.config)
 
         except Exception as e:
@@ -149,7 +155,7 @@ class ModelManager:
 
     def unload_model(self):
         """Unloads the current model and frees VRAM."""
-        if self.pipe:
+        if self.pipe is not None:
             logger.info(f'Unloading model: {self.id}')
 
             try:
@@ -159,8 +165,6 @@ class ModelManager:
                 self.clear_cuda_cache()
             except Exception as e:
                 logger.warning(f'Error during unload: {e}')
-        else:
-            logger.info('No model loaded.')
 
     def set_sampler(self, sampler: SamplerType):
         """Dynamically sets the sampler for the currently loaded pipeline."""
