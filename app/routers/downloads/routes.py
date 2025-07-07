@@ -63,8 +63,11 @@ async def run_download(id: str):
             SocketEvents.DOWNLOAD_START,
             DownloadStartResponse(id=id).model_dump(),
         )
+
         model_dir = get_model_dir(id)
+
         logger.info('Download model into folder: %s', model_dir)
+
         model_manager.start_model_download(id)
 
     except CancelledError:

@@ -33,6 +33,7 @@ class ModelManager:
         self.id = None
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.done_queue = Queue()
+
         logger.info('ModelManager instance initialized.')
 
     async def monitor_done_queue(self):
@@ -46,6 +47,7 @@ class ModelManager:
         """Handles the completion of a model download."""
 
         processes = download_processes.get(id)
+
         if processes:
             processes.kill()
             del download_processes[id]
@@ -59,6 +61,7 @@ class ModelManager:
             SocketEvents.DOWNLOAD_COMPLETED,
             DownloadCompletedResponse(id=id).model_dump(),
         )
+
         logger.info(f'Model {id} download completed and added to database.')
 
     def clear_cuda_cache(self):
@@ -72,15 +75,18 @@ class ModelManager:
 
     def start_model_download(self, id: str):
         """Start downloading a model in a separate process."""
+
         load_process = download_processes[id]
 
         if load_process and load_process.is_alive():
-            raise RuntimeError('A model is already downloading.')
+            logger.info(f'Model download already in progress: {id}')
+            return
 
         new_process = Process(
             target=load_model_process, args=(id, self.device, self.done_queue)
         )
         new_process.start()
+
         download_processes[id] = new_process
 
         logger.info(f'Started background model download: {id}')
