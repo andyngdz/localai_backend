@@ -14,6 +14,7 @@ from app.routers.websocket import SocketEvents, emit
 from app.services.storage import get_model_dir
 from config import BASE_CACHE_DIR
 
+from .constants import default_sample_size
 from .loader import load_model_process
 from .schedulers import (
     SCHEDULER_MAPPING,
@@ -33,18 +34,19 @@ class ModelManager:
         self.pipe = None
         self.id = None
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.done_queue = Queue()
+        self.download_queue = Queue()
 
         logger.info('ModelManager instance initialized.')
 
-    async def monitor_done_queue(self):
+    async def monitor_download_queue(self):
         """Background thread to monitor the done queue for model loading completion."""
-        while True:
-            id = await asyncio.to_thread(self.done_queue.get)
-            logger.info(f'Model download completed for ID: {id}')
-            await self.model_done(id)
 
-    async def model_done(self, id: str):
+        while True:
+            id = await asyncio.to_thread(self.download_queue.get)
+            logger.info(f'Model download completed for ID: {id}')
+            await self.download_done(id)
+
+    async def download_done(self, id: str):
         """Handles the completion of a model download."""
 
         processes = download_processes.get(id)
@@ -84,7 +86,7 @@ class ModelManager:
             return
 
         new_process = Process(
-            target=load_model_process, args=(id, self.device, self.done_queue)
+            target=load_model_process, args=(id, self.device, self.download_queue)
         )
 
         self.unload_model()
@@ -122,6 +124,10 @@ class ModelManager:
         if self.id == id and self.pipe is not None:
             logger.info(f'Model {id} is already loaded.')
 
+            unet_config = self.pipe.unet.config
+            if unet_config is not None:
+                logger.info(f'UNet config: {unet_config}')
+
             return dict(self.pipe.config)
 
         self.unload_model()
@@ -147,11 +153,11 @@ class ModelManager:
 
             return dict(self.pipe.config)
 
-        except Exception as e:
+        except Exception as error:
             self.pipe = None
             self.id = None
 
-            logger.error(f'Failed to load model {id}: {e}', exc_info=True)
+            logger.error(f'Failed to load model {id}: {error}', exc_info=True)
             raise
 
     def unload_model(self):
@@ -167,8 +173,8 @@ class ModelManager:
                 del self.pipe
                 self.pipe = None
                 self.id = None
-            except Exception as e:
-                logger.warning(f'Error during unload: {e}')
+            except Exception as error:
+                logger.warning(f'Error during unload: {error}')
 
     def set_sampler(self, sampler: SamplerType):
         """Dynamically sets the sampler for the currently loaded pipeline."""
@@ -194,6 +200,21 @@ class ModelManager:
         self.pipe.scheduler = new_scheduler
 
         logger.info(f'Sampler set to: {sampler.value}')
+
+    def get_sample_size(self):
+        """Returns the sample size of the model based on its configuration."""
+
+        if not self.pipe:
+            raise ValueError('No model loaded. Cannot get sample size.')
+
+        unet_config = self.pipe.unet.config
+
+        if hasattr(unet_config, 'sample_size'):
+            sample_size = unet_config.sample_size
+
+            return sample_size
+        else:
+            return default_sample_size
 
 
 model_manager = ModelManager()

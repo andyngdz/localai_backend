@@ -16,9 +16,9 @@ class ModelSearchInfo(BaseModel):
     author: Optional[str] = Field(None, description='Author or org')
     likes: Optional[int] = Field(None, description='Number of likes')
     trending_score: Optional[float] = Field(None, description='Trending score')
-    downloads: int = Field(0, description='Downloads count')
+    downloads: int = Field(default=0, description='Downloads count')
     tags: list[str] = Field(default_factory=list, description='Tags')
-    is_downloaded: bool = Field(False, description='Downloaded locally?')
+    is_downloaded: bool = Field(default=False, description='Downloaded locally?')
     size_mb: Optional[float] = Field(None, description='Estimated model size (MB)')
     description: Optional[str] = Field(None, description='Model description')
 
@@ -46,6 +46,7 @@ class LoadModelResponse(BaseModel):
     config: Dict[str, Any] = Field(
         default_factory=dict, description='Model configuration details.'
     )
+    sample_size: int = Field(default=64, description='Sample size of the model.')
 
 
 class NewModelAvailableResponse(BaseModel):
@@ -68,7 +69,9 @@ class ModelAvailableResponse(BaseModel):
         ...,
         description='Unique identifier for the model (Hugging Face repo ID).',
     )
-    is_downloaded: bool = Field(False, description='Is the model downloaded locally?')
+    is_downloaded: bool = Field(
+        default=False, description='Is the model downloaded locally?'
+    )
 
 
 class ModelDownloadedResponse(BaseModel):
