@@ -10,6 +10,7 @@ from app.routers.generators.services import get_available_samplers
 from app.services.model_manager import model_manager
 from config import BASE_GENERATED_IMAGES_DIR
 
+from .constants import default_negative_prompt
 from .schemas import GenerateImageRequest
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,10 @@ async def start_generation_image(request: GenerateImageRequest):
                 'Hires fix requested, but not fully implemented in this MVP. Generating directly at requested resolution.'
             )
 
+        if not request.negative_prompt:
+            logger.info(f'Use default negative prompt: {default_negative_prompt}')
+            request.negative_prompt = default_negative_prompt
+
         model_manager.set_sampler(request.sampler)
 
         generation_output = pipe(
@@ -84,7 +89,6 @@ async def start_generation_image(request: GenerateImageRequest):
             guidance_scale=request.cfg_scale,
             height=request.height,
             width=request.width,
-            num_images_per_prompt=request.batch_size,
             generator=torch.Generator(device=pipe.device).manual_seed(
                 request.seed if request.seed != -1 else random_seed
             ),

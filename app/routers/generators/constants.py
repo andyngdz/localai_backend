@@ -1,0 +1,1 @@
+default_negative_prompt: str = 'blurry, low quality, bad anatomy, deformed, ugly, distorted, noise, grainy, watermark, text, signature, worst quality, low resolution, out of focus, jpeg artifacts, bad composition, bad perspective, unrealistic, render, cartoon, anime, 3d, illustration'
