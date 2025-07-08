@@ -1,6 +1,6 @@
 import logging
 import os
-import uuid
+from datetime import datetime
 
 import torch
 from fastapi import APIRouter, HTTPException, status
@@ -119,7 +119,8 @@ async def start_generation_image(request: GenerateImageRequest):
 
         os.makedirs(BASE_GENERATED_IMAGES_DIR, exist_ok=True)
 
-        filename = os.path.join(BASE_GENERATED_IMAGES_DIR, f'{uuid.uuid4().hex}.png')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        filename = os.path.join(BASE_GENERATED_IMAGES_DIR, f'{timestamp}.png')
 
         image = generated_images_list[0]
 
