@@ -67,8 +67,7 @@ async def start_generation_image(request: GenerateImageRequest):
         logger.info(
             f"Generating image(s) for prompt: '{request.prompt}' "
             f'with steps={request.steps}, CFG={request.cfg_scale}, '
-            f'size={request.width}x{request.height}, '
-            f'batch_size={request.batch_size}, batch_count={request.batch_count}'
+            f'size={request.width}x{request.height}'
         )
 
         if request.hires_fix:

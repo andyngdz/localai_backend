@@ -8,10 +8,6 @@ from app.services.model_manager.schedulers import SamplerType
 class GenerateImageRequest(BaseModel):
     """Request model for generating an image."""
 
-    batch_count: int = Field(
-        4, ge=1, description='Number of images to generate in a batch.'
-    )
-    batch_size: int = Field(2, ge=1, description='Number of images per batch.')
     cfg_scale: float = Field(
         7.5, ge=1, description='Classifier-Free Guidance scale (CFG scale).'
     )
