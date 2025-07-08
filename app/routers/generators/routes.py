@@ -146,7 +146,7 @@ async def start_generation_image(request: GenerateImageRequest):
 
 
 @generators.get('/available-samplers')
-async def available_samplers():
+def available_samplers():
     """
     Returns a list of available samplers for image generation.
     """
