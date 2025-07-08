@@ -76,7 +76,7 @@ async def run_download(id: str):
         logger.info('Download task for id %s completed', id)
 
 
-@downloads.post('/init', response_model=DownloadStatusResponse)
+@downloads.post('/', response_model=DownloadStatusResponse)
 @retry(
     stop=stop_after_attempt(5),
     wait=wait_fixed(2),

@@ -20,7 +20,7 @@ generators = APIRouter(
 )
 
 
-@generators.post('/start')
+@generators.post('/')
 async def start_generation_image(request: GenerateImageRequest):
     """
     Generates an image based on the provided prompt and parameters.
