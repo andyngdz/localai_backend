@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
 
     init_db()
     logging.info('Database initialized successfully.')
+    model_manager.unload_model()
     asyncio.create_task(model_manager.monitor_done_queue())
     yield
 

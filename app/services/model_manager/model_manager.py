@@ -156,6 +156,10 @@ class ModelManager:
 
     def unload_model(self):
         """Unloads the current model and frees VRAM."""
+
+        self.clear_cuda_cache()
+        gc.collect()
+
         if self.pipe is not None:
             logger.info(f'Unloading model: {self.id}')
 
@@ -163,8 +167,6 @@ class ModelManager:
                 del self.pipe
                 self.pipe = None
                 self.id = None
-                self.clear_cuda_cache()
-                gc.collect()
             except Exception as e:
                 logger.warning(f'Error during unload: {e}')
 
