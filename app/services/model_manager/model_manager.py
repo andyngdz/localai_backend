@@ -79,9 +79,13 @@ class ModelManager:
     def start_model_download(self, id: str):
         """Start downloading a model in a separate process."""
 
-        load_process = download_processes[id]
+        download_process = download_processes.get(id)
 
-        if load_process and load_process.is_alive():
+        if not download_process:
+            logger.warning(f'No download process found for ID: {id}')
+            return
+
+        if download_process.is_alive():
             logger.info(f'Model download already in progress: {id}')
             return
 
