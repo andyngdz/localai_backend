@@ -1,4 +1,4 @@
-from app.routers.styles.schemas import StyleSchema
+from app.predefined_styles.schemas import StyleSchema
 
 sai_prompt = [
     StyleSchema(

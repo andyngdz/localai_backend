@@ -1,9 +1,8 @@
 """Styles Blueprint"""
 
 from fastapi import APIRouter
-
-from .fooocus import fooocus_prompt
-from .sai import sai_prompt
+from predefined_styles.fooocus import fooocus_prompt
+from predefined_styles.sai import sai_prompt
 
 styles = APIRouter(
     prefix='/styles',
