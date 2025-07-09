@@ -82,25 +82,19 @@ class ModelManager:
 
         download_process = download_processes.get(id)
 
-        if not download_process:
-            logger.warning(f'No download process found for ID: {id}')
-            return
-
-        if download_process.is_alive():
+        if download_process and download_process.is_alive():
             logger.info(f'Model download already in progress: {id}')
             return
+                    
 
+        self.unload_model()
         new_process = Process(
             target=load_model_process, args=(id, self.device, self.download_queue)
         )
-
-        self.unload_model()
-
         new_process.start()
-
-        self.id = id
         download_processes[id] = new_process
 
+        self.id = id
         logger.info(f'Started background model download: {id}')
 
     def cancel_model_download(self, id: str):
