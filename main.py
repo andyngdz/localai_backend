@@ -1,28 +1,34 @@
 """Main entry point for the LocalAI Backend application."""
 
+import asyncio
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.routers import downloads, hardware, models, socket_app, users
+from app.routers import downloads, generators, hardware, models, socket_app, users
+from app.services.logger import StreamToLogger
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-)
+stdout_logger = logging.getLogger('STDOUT')
+stderr_logger = logging.getLogger('STDERR')
+sys.stdout = StreamToLogger(stdout_logger, logging.INFO)
+sys.stderr = StreamToLogger(stderr_logger, logging.ERROR)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup event to initialize the database."""
     from app.database import init_db
+    from app.services.model_manager import model_manager
 
     init_db()
     logging.info('Database initialized successfully.')
+    model_manager.unload_model()
+    asyncio.create_task(model_manager.monitor_download_queue())
     yield
 
 
@@ -37,6 +43,7 @@ app.include_router(users)
 app.include_router(models)
 app.include_router(downloads)
 app.include_router(hardware)
+app.include_router(generators)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],

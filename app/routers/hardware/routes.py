@@ -243,9 +243,9 @@ def get_current_select_device(db: Session = Depends(get_db)):
         device_index = get_selected_device(db)
 
         return GetCurrentDeviceIndex(device_index=device_index).model_dump()
-    except Exception as e:
-        logger.error('Error retrieving current selected device: %s', e)
+    except Exception as error:
+        logger.error('Error retrieving current selected device: %s', error)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=str(error),
         )

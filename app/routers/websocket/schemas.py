@@ -9,8 +9,7 @@ class SocketEvents(str, Enum):
     Using str as base class ensures it serializes to string in JSON.
     """
 
-    DOWNLOAD_PREPARE = 'download_prepare'
-    DOWNLOAD_PROGRESS_UPDATE = 'download_progress_update'
+    DOWNLOAD_START = 'download_start'
     DOWNLOAD_CANCELED = 'download_cancelled'
     DOWNLOAD_COMPLETED = 'download_completed'
 

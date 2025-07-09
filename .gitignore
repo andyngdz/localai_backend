@@ -9,6 +9,7 @@
 *.swp                   # Vim swap files
 *.bak                   # Backup files
 *.log                   # Log files
+logs.txt
 localai_backend.db
 
 # Build artifacts and distribution directories
@@ -32,7 +33,9 @@ pip-delete-this-directory.txt
 
 # Runtime downloaded models
 data/models/
+data/generated_images/
 .models/
+.generated_images/
 
 # Caches
 .cache/
