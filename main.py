@@ -11,7 +11,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import downloads, generators, hardware, models, socket_app, users
+from app.routers import (
+    downloads,
+    generators,
+    hardware,
+    models,
+    socket_app,
+    styles,
+    users,
+)
 from app.services.logger import StreamToLogger
 
 stdout_logger = logging.getLogger('STDOUT')
@@ -46,6 +54,7 @@ app.include_router(models)
 app.include_router(downloads)
 app.include_router(hardware)
 app.include_router(generators)
+app.include_router(styles)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
