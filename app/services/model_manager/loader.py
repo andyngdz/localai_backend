@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def load_model_process(id: str, device: str, done_queue: Optional[Queue] = None):
-    print(f'[Process] Downloading model {id} to {device}')
+    logger.info(f'[Process] Downloading model {id} to {device}')
 
     pipe = AutoPipelineForText2Image.from_pretrained(
         id,
