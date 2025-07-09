@@ -5,14 +5,12 @@ from multiprocessing import Process, Queue
 from typing import Any, Dict
 
 import torch
-from diffusers import AutoPipelineForText2Image
 
 from app.database import get_db
 from app.database.crud import add_model
 from app.routers.downloads.schemas import DownloadCompletedResponse
 from app.routers.websocket import SocketEvents, emit
 from app.services.storage import get_model_dir
-from config import BASE_CACHE_DIR
 
 from .constants import default_sample_size
 from .loader import load_model_process
@@ -76,6 +74,9 @@ class ModelManager:
         else:
             logger.warning('CUDA is not available, cannot clear cache.')
 
+        logging.info('Forcing garbage collection to free memory.')
+        gc.collect()
+
     def start_model_download(self, id: str):
         """Start downloading a model in a separate process."""
 
@@ -137,19 +138,7 @@ class ModelManager:
         self.unload_model()
 
         try:
-            self.pipe = AutoPipelineForText2Image.from_pretrained(
-                id,
-                cache_dir=BASE_CACHE_DIR,
-                torch_dtype=torch.float16 if self.device == 'cuda' else torch.float32,
-                use_safetensors=True,
-                low_cpu_mem_usage=True,
-            )
-
-            self.pipe.to(self.device)
-
-            if self.device == 'cuda':
-                self.pipe.enable_model_cpu_offload()
-                self.pipe.enable_attention_slicing()
+            self.pipe = load_model_process(id, self.device)
 
             logger.info(f'Model {id} loaded successfully.')
 
@@ -167,18 +156,16 @@ class ModelManager:
     def unload_model(self):
         """Unloads the current model and frees VRAM."""
 
-        self.clear_cuda_cache()
-        gc.collect()
-
-        if self.pipe is not None:
-            logger.info(f'Unloading model: {self.id}')
-
-            try:
+        try:
+            if self.pipe is not None:
+                logger.info(f'Unloading model: {self.id}')
                 del self.pipe
                 self.pipe = None
                 self.id = None
-            except Exception as error:
-                logger.warning(f'Error during unload: {error}')
+        except Exception as error:
+            logger.warning(f'Error during unload: {error}')
+        finally:
+            self.clear_cuda_cache()
 
     def set_sampler(self, sampler: SamplerType):
         """Dynamically sets the sampler for the currently loaded pipeline."""
