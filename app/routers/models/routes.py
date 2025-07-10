@@ -15,7 +15,6 @@ from .schemas import (
     LoadModelRequest,
     LoadModelResponse,
     ModelAvailableResponse,
-    ModelDownloadedResponse,
     ModelSearchInfo,
     ModelSearchInfoListResponse,
 )
@@ -80,7 +79,7 @@ def get_downloaded_models(db: Session = Depends(get_db)):
     try:
         models = get_all_downloaded_models(db)
 
-        return ModelDownloadedResponse(models=models).model_dump()
+        return models
     except Exception as error:
         logger.exception('Failed to fetch available models')
 
