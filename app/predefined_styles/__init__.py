@@ -1,4 +1,4 @@
-from .fooocus import fooocus_prompt
-from .sai import sai_prompt
+from .fooocus import fooocus_prompts
+from .sai import sai_prompts
 
-__all__ = ['fooocus_prompt', 'sai_prompt']
+__all__ = ['fooocus_prompts', 'sai_prompts']

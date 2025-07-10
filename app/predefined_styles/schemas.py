@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class StyleSchema(BaseModel):
+class StyleItem(BaseModel):
     """
     Schema for style prompt.
     """
