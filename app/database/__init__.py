@@ -37,7 +37,7 @@ def init_db():
 
     # Create all tables defined by Base.metadata
     Base.metadata.create_all(bind=engine)
-    logging.info('Database initialized successfully.')
+    logger.info('Database initialized successfully.')
 
 
 def get_db():
