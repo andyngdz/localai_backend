@@ -2,18 +2,21 @@ from app.predefined_styles.schemas import StyleSchema
 
 fooocus_prompt = [
     StyleSchema(
+        id='fooocus_v2',
         name='Fooocus V2',
         origin='Fooocus',
         positive='{prompt}, highly detailed, dramatic light, sharp focus, illuminated, cinematic, fine detail, polished, complex, color, pristine, attractive, celestial, symmetry, pretty, striking, extremely, coherent, cute, confident, united, passionate, professional, artistic, ambient, cheerful, intricate, magical, enchanted, magic, stunning, beautiful',
         image='styles/fooocus/v2.jpg',
     ),
     StyleSchema(
+        id='fooocus_enhance',
         name='Fooocus Enhance',
         origin='Fooocus',
         negative='"(worst quality, low quality, normal quality, lowres, low details, oversaturated, undersaturated, overexposed, underexposed, grayscale, bw, bad photo, bad photography, bad art:1.4), (watermark, signature, text font, username, error, logo, words, letters, digits, autograph, trademark, name:1.2), (blur, blurry, grainy), morbid, ugly, asymmetrical, mutated malformed, mutilated, poorly lit, bad shadow, draft, cropped, out of frame, cut off, censored, jpeg artifacts, out of focus, glitch, duplicate, (airbrushed, cartoon, anime, semi-realistic, cgi, render, blender, digital art, manga, amateur:1.3), (3D ,3D Game, 3D Game Scene, 3D Character:1.1), (bad hands, bad anatomy, bad body, bad face, bad teeth, bad arms, bad legs, deformities:1.3)',
         image='styles/fooocus/enhance.jpg',
     ),
     StyleSchema(
+        id='fooocus_sharp',
         name='Fooocus Sharp',
         origin='Fooocus',
         positive='cinematic still {prompt} . emotional, harmonious, vignette, 4k epic detailed, shot on kodak, 35mm photo, sharp focus, high budget, cinemascope, moody, epic, gorgeous, film grain, grainy',
@@ -21,6 +24,7 @@ fooocus_prompt = [
         image='styles/fooocus/sharp.jpg',
     ),
     StyleSchema(
+        id='fooocus_masterpiece',
         name='Fooocus Masterpiece',
         origin='Fooocus',
         positive='(masterpiece), (best quality), (ultra-detailed), {prompt}, illustration, disheveled hair, detailed eyes, perfect composition, moist skin, intricate details, earrings, by wlop',
@@ -28,6 +32,7 @@ fooocus_prompt = [
         image='styles/fooocus/masterpiece.jpg',
     ),
     StyleSchema(
+        id='fooocus_photograph',
         name='Fooocus Photograph',
         origin='Fooocus',
         positive='photograph {prompt}, 50mm . cinematic 4k epic detailed 4k epic detailed photograph shot on kodak detailed cinematic hbo dark moody, 35mm photo, grainy, vignette, vintage, Kodachrome, Lomography, stained, highly detailed, found footage',
@@ -35,12 +40,14 @@ fooocus_prompt = [
         image='styles/fooocus/photograph.jpg',
     ),
     StyleSchema(
+        id='fooocus_negative',
         name='Fooocus Negative',
         origin='Fooocus',
         negative='deformed, bad anatomy, disfigured, poorly drawn face, mutated, extra limb, ugly, poorly drawn hands, missing limb, floating limbs, disconnected limbs, disconnected head, malformed hands, long neck, mutated hands and fingers, bad hands, missing fingers, cropped, worst quality, low quality, mutation, poorly drawn, huge calf, bad hands, fused hand, missing hand, disappearing arms, disappearing thigh, disappearing calf, disappearing legs, missing fingers, fused fingers, abnormal eye proportion, Abnormal hands, abnormal legs, abnormal feet, abnormal fingers, drawing, painting, crayon, sketch, graphite, impressionist, noisy, blurry, soft, deformed, ugly, anime, cartoon, graphic, text, painting, crayon, graphite, abstract, glitch',
         image='styles/fooocus/negative.jpg',
     ),
     StyleSchema(
+        id='fooocus_cinematic',
         name='Fooocus Cinematic',
         origin='Fooocus',
         positive='cinematic still {prompt} . emotional, harmonious, vignette, highly detailed, high budget, bokeh, cinemascope, moody, epic, gorgeous, film grain, grainy',

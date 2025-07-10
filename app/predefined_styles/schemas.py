@@ -8,6 +8,7 @@ class StyleSchema(BaseModel):
     Schema for style prompt.
     """
 
+    id: str = Field(..., description='The unique identifier for the style')
     name: str = Field(..., description='The name of the style')
     origin: Optional[str] = Field(default=None, description='The origin of the style')
     license: Optional[str] = Field(

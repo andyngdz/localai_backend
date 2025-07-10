@@ -12,11 +12,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
+    app_socket,
     downloads,
     generators,
     hardware,
     models,
-    socket_app,
     styles,
     users,
 )
@@ -35,7 +35,6 @@ async def lifespan(app: FastAPI):
     from app.services.model_manager import model_manager
 
     init_db()
-    logging.info('Database initialized successfully.')
     model_manager.unload_model()
     asyncio.create_task(model_manager.monitor_download_queue())
     yield
@@ -48,7 +47,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.mount('/static', StaticFiles(directory='static'), name='static')
-app.mount('/ws', app=socket_app)
+app.mount('/ws', app=app_socket)
 app.include_router(users)
 app.include_router(models)
 app.include_router(downloads)
