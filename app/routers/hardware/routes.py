@@ -201,8 +201,8 @@ def get_system_gpu_info() -> GPUDriverInfo:
     return info
 
 
-@hardware.get('/status')
-def get_driver_status():
+@hardware.get('/')
+def get_hardware_status():
     """
     Returns the current GPU and driver status of the system.
     This will return the cached result of _get_system_gpu_info().
@@ -213,7 +213,7 @@ def get_driver_status():
 
 
 @hardware.get('/recheck')
-def recheck_driver_status():
+def recheck():
     """
     Forces the backend to re-evaluate and update the GPU and driver status.
     This clears the cache of _get_system_gpu_info() and then calls it again.
@@ -237,7 +237,7 @@ def select_device(request: SelectDeviceRequest, db: Session = Depends(get_db)):
 
 
 @hardware.get('/device')
-def get_current_select_device(db: Session = Depends(get_db)):
+def get_device(db: Session = Depends(get_db)):
     """Get current selected device"""
     try:
         device_index = get_selected_device(db)
