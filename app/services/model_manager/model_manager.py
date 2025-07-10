@@ -39,7 +39,7 @@ class ModelManager:
     async def monitor_download_queue(self):
         """Background thread to monitor the done queue for model loading completion."""
 
-        logger.info('Monitoring dowload tasks.')
+        logger.info('Monitoring download tasks.')
 
         while True:
             id = await asyncio.to_thread(self.download_queue.get)
