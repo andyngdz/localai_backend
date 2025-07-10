@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class AvailableSampler(BaseModel):
+class SamplerItem(BaseModel):
     """Available sampler to send to the client."""
 
     name: str = Field(..., description='User-friendly name of the sampler.')
