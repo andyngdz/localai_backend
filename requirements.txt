@@ -54,7 +54,7 @@ nvidia-nccl-cu12==2.26.2
 nvidia-nvjitlink-cu12==12.6.85
 nvidia-nvtx-cu12==12.6.77
 packaging==25.0
-pillow==11.2.1
+pillow==11.3.0
 propcache==0.3.2
 psutil==7.0.0
 pydantic==2.11.7
@@ -87,7 +87,7 @@ triton==3.3.1
 typer==0.16.0
 typing-inspection==0.4.1
 typing_extensions==4.14.0
-urllib3==2.4.0
+urllib3==2.5.0
 uvicorn==0.34.3
 uvloop==0.21.0
 waitress==3.0.2
