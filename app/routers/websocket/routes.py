@@ -2,12 +2,12 @@ import socketio
 
 from app.routers.websocket.schemas import SocketEvents
 
-socket_server = socketio.AsyncServer(
+app_socket_server = socketio.AsyncServer(
     async_mode='asgi',
     cors_allowed_origins='*',
 )
-socket_app = socketio.ASGIApp(socket_server, socketio_path='ws')
+app_socket = socketio.ASGIApp(app_socket_server, socketio_path='ws')
 
 
 async def emit(event: SocketEvents, data: dict):
-    await socket_server.emit(event, data=data)
+    await app_socket_server.emit(event, data=data)

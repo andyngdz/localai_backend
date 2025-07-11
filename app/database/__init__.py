@@ -1,6 +1,8 @@
 # python_backend/app/database/__init__.py
 
 
+import logging
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -15,6 +17,9 @@ engine = create_engine(DATABASE_URL, echo=False)
 
 # Create a SessionLocal class, which is a factory for new Session objects
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+logger = logging.getLogger(__name__)
 
 
 # Function to initialize the database schema
@@ -32,7 +37,7 @@ def init_db():
 
     # Create all tables defined by Base.metadata
     Base.metadata.create_all(bind=engine)
-    print('Database schema initialized.')
+    logger.info('Database initialized successfully.')
 
 
 def get_db():

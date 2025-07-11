@@ -6,11 +6,10 @@ import torch
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
-from app.routers.generators.services import get_available_samplers
 from app.services.model_manager import model_manager
 from config import BASE_GENERATED_IMAGES_DIR
 
-from .constants import default_negative_prompt
+from .constants import default_negative_prompt, samplers
 from .schemas import GenerateImageRequest
 
 logger = logging.getLogger(__name__)
@@ -147,16 +146,10 @@ async def start_generation_image(request: GenerateImageRequest):
         )
 
 
-@generators.get('/available-samplers')
-def available_samplers():
+@generators.get('/samplers')
+def get_all_samplers():
     """
     Returns a list of available samplers for image generation.
     """
-
-    samplers = get_available_samplers()
-
-    if not samplers:
-        logger.warning('No available samplers found.')
-        return []
 
     return samplers

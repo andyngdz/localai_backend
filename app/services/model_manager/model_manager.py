@@ -39,6 +39,8 @@ class ModelManager:
     async def monitor_download_queue(self):
         """Background thread to monitor the done queue for model loading completion."""
 
+        logger.info('Monitoring download tasks.')
+
         while True:
             id = await asyncio.to_thread(self.download_queue.get)
             logger.info(f'Model download completed for ID: {id}')
@@ -85,7 +87,6 @@ class ModelManager:
         if download_process and download_process.is_alive():
             logger.info(f'Model download already in progress: {id}')
             return
-                    
 
         self.unload_model()
         new_process = Process(
