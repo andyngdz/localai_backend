@@ -87,8 +87,11 @@ class GeneratorsService:
                 f'size={request.width}x{request.height}'
             )
             model_manager.set_sampler(request.sampler)
+
             self.apply_hires_fix(request.hires_fix)
+
             random_seed = self.get_seed(request.seed)
+
             positive_prompt, negative_prompt = styles_service.apply_styles(
                 request.prompt, request.styles
             )

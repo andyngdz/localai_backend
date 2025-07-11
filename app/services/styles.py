@@ -11,7 +11,6 @@ class StylesService:
     def __init__(self):
         self.tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-base-patch32')
         self.all_styles = list(chain.from_iterable([fooocus_styles, sai_styles]))
-        pass
 
     def truncate_clip_prompt(self, prompt: str, max_tokens: int = 77) -> str:
         clip_tokenizer = self.tokenizer(prompt)
