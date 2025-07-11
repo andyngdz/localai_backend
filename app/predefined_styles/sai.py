@@ -1,6 +1,6 @@
 from app.predefined_styles.schemas import StyleItem
 
-sai_prompts = [
+sai_styles = [
     StyleItem(
         id='sai_3d_model',
         name='SAI 3D Model',

@@ -2,9 +2,9 @@
 
 from fastapi import APIRouter
 
-from app.predefined_styles import fooocus_prompts, sai_prompts
+from app.predefined_styles import fooocus_styles, sai_styles
 
-from .schemas import StylesResponse
+from .schemas import StylesSectionResponse
 
 styles = APIRouter(
     prefix='/styles',
@@ -16,7 +16,13 @@ styles = APIRouter(
 def get_styles():
     """List all styles"""
 
-    return StylesResponse(
-        fooocus=fooocus_prompts,
-        sai=sai_prompts,
-    )
+    return [
+        StylesSectionResponse(
+            id='fooocus',
+            styles=fooocus_styles,
+        ),
+        StylesSectionResponse(
+            id='sai',
+            styles=sai_styles,
+        ),
+    ]

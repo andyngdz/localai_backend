@@ -1,6 +1,6 @@
 from app.predefined_styles.schemas import StyleItem
 
-fooocus_prompts = [
+fooocus_styles = [
     StyleItem(
         id='fooocus_v2',
         name='Fooocus V2',

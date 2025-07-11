@@ -1,12 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.predefined_styles.schemas import StyleItem
 
 
-class StylesResponse(BaseModel):
+class StylesSectionResponse(BaseModel):
     """
-    Represents the response from the styles endpoint.
+    Response model for styles section.
     """
 
-    fooocus: list[StyleItem]
-    sai: list[StyleItem]
+    id: str = Field(..., description='Unique identifier for the styles response')
+    styles: list[StyleItem] = Field(
+        default=[],
+        description='List of style',
+    )
