@@ -15,6 +15,12 @@ class StylesService:
         self.all_styles = list(chain.from_iterable([fooocus_styles, sai_styles]))
         pass
 
+    def remove_duplicates(self, prompt: str):
+        parts = [p.strip() for p in prompt.split(',')]
+        unique_parts = list(dict.fromkeys(parts))
+
+        return ', '.join(filter(None, unique_parts))
+
     def combined_positive_prompt(self, user_prompt: str, styles: list[StyleItem]):
         first_style, *rest_styles = styles
         combined_positive = []
@@ -28,7 +34,9 @@ class StylesService:
                 if cleaned:
                     combined_positive.append(cleaned)
 
-        return ', '.join(combined_positive)
+        final_combined_positive = ', '.join(combined_positive)
+
+        return self.remove_duplicates(final_combined_positive)
 
     def combined_negative_prompt(self, styles: list[StyleItem]):
         combined_negative: list[str] = []
@@ -37,7 +45,9 @@ class StylesService:
             if style.negative is not None:
                 combined_negative.append(style.negative)
 
-        return ', '.join(combined_negative)
+        final_negative_prompt = ', '.join(combined_negative)
+
+        return self.remove_duplicates(final_negative_prompt)
 
     def apply_styles(self, user_prompt: str, styles: list[str]):
         selected_styles = [
