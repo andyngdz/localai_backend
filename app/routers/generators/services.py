@@ -14,9 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class GeneratorsService:
-    def __init__(self) -> None:
-        pass
-
     def get_seed(self, seed: int):
         random_seed = None
 
@@ -95,7 +92,7 @@ class GeneratorsService:
             positive_prompt, negative_prompt = styles_service.apply_styles(
                 request.prompt, request.styles
             )
-            final_positive_prompt = positive_prompt or request.prompt
+            final_positive_prompt = positive_prompt
             final_negative_prompt = negative_prompt or default_negative_prompt
 
             logger.info(
