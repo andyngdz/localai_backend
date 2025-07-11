@@ -95,10 +95,19 @@ class GeneratorsService:
             positive_prompt, negative_prompt = styles_service.apply_styles(
                 request.prompt, request.styles
             )
+            final_positive_prompt = positive_prompt or request.prompt
+            final_negative_prompt = negative_prompt or default_negative_prompt
+
+            logger.info(
+                f'Using positive prompt after clipping: {final_positive_prompt}'
+            )
+            logger.info(
+                f'Using positive prompt after clipping: {final_negative_prompt}'
+            )
 
             generation_output = pipe(
-                prompt=positive_prompt or request.prompt,
-                negative_prompt=negative_prompt or default_negative_prompt,
+                prompt=final_positive_prompt,
+                negative_prompt=final_negative_prompt,
                 num_inference_steps=request.steps,
                 guidance_scale=request.cfg_scale,
                 height=request.height,

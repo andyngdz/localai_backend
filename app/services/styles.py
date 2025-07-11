@@ -1,6 +1,5 @@
 from itertools import chain
 
-from langchain_core.prompts import PromptTemplate
 from transformers import CLIPTokenizer
 
 from app.predefined_styles import fooocus_styles, sai_styles
@@ -54,26 +53,8 @@ class StylesService:
         combined_positive = self.combined_positive_prompt(user_prompt, selected_styles)
         combined_negative = self.combined_negative_prompt(selected_styles)
 
-        template_positive_str = 'Optimize this positive prompt: {positive}'
-        prompt_positive_template = PromptTemplate(
-            input_variables=['positive'],
-            template=template_positive_str,
-        )
-        positive_prompt = prompt_positive_template.format(
-            positive=combined_positive,
-        )
-
-        template_negative_str = 'Optimize this negative prompt: {negative}'
-        prompt_negative_template = PromptTemplate(
-            input_variables=['negative'],
-            template=template_negative_str,
-        )
-        negative_prompt = prompt_negative_template.format(
-            negative=combined_negative,
-        )
-
-        truncated_positive_prompt = self.truncate_clip_prompt(positive_prompt)
-        truncated_negative_prompt = self.truncate_clip_prompt(negative_prompt)
+        truncated_positive_prompt = self.truncate_clip_prompt(combined_positive)
+        truncated_negative_prompt = self.truncate_clip_prompt(combined_negative)
 
         return [truncated_positive_prompt, truncated_negative_prompt]
 
