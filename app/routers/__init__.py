@@ -1,7 +1,17 @@
 from .downloads import downloads
+from .generators import generators
 from .hardware import hardware
 from .models import models
+from .styles import styles
 from .users import users
-from .websocket import socket_app
+from .websocket import app_socket
 
-__all__ = ['downloads', 'hardware', 'models', 'users', 'socket_app']
+__all__ = [
+    'downloads',
+    'generators',
+    'hardware',
+    'models',
+    'app_socket',
+    'styles',
+    'users',
+]

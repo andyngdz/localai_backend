@@ -1,0 +1,4 @@
+from multiprocessing import Process
+from typing import Dict
+
+download_processes: Dict[str, Process] = {}
