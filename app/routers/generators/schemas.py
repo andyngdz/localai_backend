@@ -5,6 +5,16 @@ from pydantic import BaseModel, Field
 from app.services.model_manager.schedulers import SamplerType
 
 
+class SamplerItem(BaseModel):
+    """Available sampler to send to the client."""
+
+    name: str = Field(..., description='User-friendly name of the sampler.')
+    value: str = Field(..., description='Internal enum value for the sampler.')
+    description: Optional[str] = Field(
+        None, description="Brief description of the sampler's characteristics."
+    )
+
+
 class GenerateImageRequest(BaseModel):
     """Request model for generating an image."""
 
@@ -25,6 +35,10 @@ class GenerateImageRequest(BaseModel):
     sampler: SamplerType = Field(
         SamplerType.EULER_A,
         description='Sampler type for image generation.',
+    )
+    styles: list[str] = Field(
+        default_factory=list,
+        description='List of styles to apply to the generated image.',
     )
 
 
