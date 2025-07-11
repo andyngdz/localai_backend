@@ -4,7 +4,7 @@ from datetime import datetime
 
 import torch
 
-from app.services import model_manager
+from app.services import model_manager, styles_service
 from config import BASE_GENERATED_IMAGES_DIR
 
 from .schemas import GenerateImageRequest
@@ -16,7 +16,7 @@ class GeneratorsService:
     def __init__(self) -> None:
         pass
 
-    def get_seed(self, seed: int) -> int:
+    def get_seed(self, seed: int):
         random_seed = None
 
         if seed != -1:
@@ -45,6 +45,12 @@ class GeneratorsService:
                 'Hires fix requested, '
                 'but not fully implemented in this MVP. Generating directly at requested resolution.'
             )
+
+    def apply_styles(self, user_prompt: str, styles: list[str]):
+        if styles:
+            styles_service.apply_styles(user_prompt, styles)
+        else:
+            logger.info('No styles applied to the image generation request.')
 
     def check_nsfw_content(self, generation_output):
         if (
@@ -89,7 +95,10 @@ class GeneratorsService:
                 f'size={request.width}x{request.height}'
             )
             random_seed = self.get_seed(request.seed)
+
             self.apply_hires_fix(request.hires_fix)
+            self.apply_styles(request.prompt, request.styles)
+
             model_manager.set_sampler(request.sampler)
 
             generation_output = pipe(
