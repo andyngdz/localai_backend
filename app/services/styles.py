@@ -1,7 +1,7 @@
 from itertools import chain
 
 from langchain_core.prompts import PromptTemplate
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from transformers import CLIPTokenizer
 
 from app.predefined_styles import fooocus_styles, sai_styles
 from app.predefined_styles.schemas import StyleItem
@@ -9,17 +9,18 @@ from app.predefined_styles.schemas import StyleItem
 
 class StylesService:
     def __init__(self):
-        model_name = 'gpt2'
-        self.tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-        self.model = GPT2LMHeadModel.from_pretrained(model_name)
+        self.tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-base-patch32')
         self.all_styles = list(chain.from_iterable([fooocus_styles, sai_styles]))
         pass
 
-    def remove_duplicates(self, prompt: str):
-        parts = [p.strip() for p in prompt.split(',')]
-        unique_parts = list(dict.fromkeys(parts))
+    def truncate_clip_prompt(self, prompt: str, max_tokens: int = 77) -> str:
+        clip_tokenizer = self.tokenizer(prompt)
+        input_ids = clip_tokenizer.input_ids
 
-        return ', '.join(filter(None, unique_parts))
+        if len(input_ids) > max_tokens:
+            input_ids = input_ids[:max_tokens]
+
+        return self.tokenizer.decode(input_ids, skip_special_tokens=True)
 
     def combined_positive_prompt(self, user_prompt: str, styles: list[StyleItem]):
         first_style, *rest_styles = styles
@@ -34,9 +35,7 @@ class StylesService:
                 if cleaned:
                     combined_positive.append(cleaned)
 
-        final_combined_positive = ', '.join(combined_positive)
-
-        return self.remove_duplicates(final_combined_positive)
+        return ', '.join(combined_positive)
 
     def combined_negative_prompt(self, styles: list[StyleItem]):
         combined_negative: list[str] = []
@@ -45,9 +44,7 @@ class StylesService:
             if style.negative is not None:
                 combined_negative.append(style.negative)
 
-        final_negative_prompt = ', '.join(combined_negative)
-
-        return self.remove_duplicates(final_negative_prompt)
+        return ', '.join(combined_negative)
 
     def apply_styles(self, user_prompt: str, styles: list[str]):
         selected_styles = [
@@ -62,7 +59,7 @@ class StylesService:
             input_variables=['positive'],
             template=template_positive_str,
         )
-        final_positive_prompt = prompt_positive_template.format(
+        positive_prompt = prompt_positive_template.format(
             positive=combined_positive,
         )
 
@@ -71,11 +68,14 @@ class StylesService:
             input_variables=['negative'],
             template=template_negative_str,
         )
-        final_negative_prompt = prompt_negative_template.format(
+        negative_prompt = prompt_negative_template.format(
             negative=combined_negative,
         )
 
-        return [final_positive_prompt, final_negative_prompt]
+        truncated_positive_prompt = self.truncate_clip_prompt(positive_prompt)
+        truncated_negative_prompt = self.truncate_clip_prompt(negative_prompt)
+
+        return [truncated_positive_prompt, truncated_negative_prompt]
 
 
 styles_service = StylesService()
