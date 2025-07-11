@@ -1,3 +1,4 @@
+import re
 from itertools import chain
 
 from transformers import CLIPTokenizer
@@ -22,6 +23,9 @@ class StylesService:
         return self.tokenizer.decode(input_ids, skip_special_tokens=True)
 
     def combined_positive_prompt(self, user_prompt: str, styles: list[StyleItem]):
+        if not styles:
+            return user_prompt.strip()
+
         first_style, *rest_styles = styles
         combined_positive = []
 
@@ -30,11 +34,15 @@ class StylesService:
 
         for style in rest_styles:
             if style.positive:
-                cleaned = style.positive.replace('{prompt}', '')
+                cleaned = re.sub(r'\s*\{prompt\}[,]?\s*', ' ', style.positive).strip(
+                    ' ,'
+                )
                 if cleaned:
                     combined_positive.append(cleaned)
 
-        return ', '.join(combined_positive)
+        combined_positive_unique = list(dict.fromkeys(combined_positive))
+
+        return ', '.join(combined_positive_unique).rstrip(',').strip()
 
     def combined_negative_prompt(self, styles: list[StyleItem]):
         combined_negative: list[str] = []
@@ -43,7 +51,9 @@ class StylesService:
             if style.negative is not None:
                 combined_negative.append(style.negative)
 
-        return ', '.join(combined_negative)
+        combined_negative_unique = list(dict.fromkeys(combined_negative))
+
+        return ', '.join(combined_negative_unique).strip()
 
     def apply_styles(self, user_prompt: str, styles: list[str]):
         selected_styles = [

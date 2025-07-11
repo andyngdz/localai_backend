@@ -102,7 +102,7 @@ class GeneratorsService:
                 f'Using positive prompt after clipping: {final_positive_prompt}'
             )
             logger.info(
-                f'Using positive prompt after clipping: {final_negative_prompt}'
+                f'Using negative prompt after clipping: {final_negative_prompt}'
             )
 
             generation_output = pipe(
