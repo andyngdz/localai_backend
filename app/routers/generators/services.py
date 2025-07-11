@@ -7,6 +7,7 @@ import torch
 from app.services import model_manager, styles_service
 from config import BASE_GENERATED_IMAGES_DIR
 
+from .constants import default_negative_prompt
 from .schemas import GenerateImageRequest
 
 logger = logging.getLogger(__name__)
@@ -45,12 +46,6 @@ class GeneratorsService:
                 'Hires fix requested, '
                 'but not fully implemented in this MVP. Generating directly at requested resolution.'
             )
-
-    def apply_styles(self, user_prompt: str, styles: list[str]):
-        if styles:
-            styles_service.apply_styles(user_prompt, styles)
-        else:
-            logger.info('No styles applied to the image generation request.')
 
     def check_nsfw_content(self, generation_output):
         if (
@@ -94,16 +89,16 @@ class GeneratorsService:
                 f'with steps={request.steps}, CFG={request.cfg_scale}, '
                 f'size={request.width}x{request.height}'
             )
-            random_seed = self.get_seed(request.seed)
-
-            self.apply_hires_fix(request.hires_fix)
-            self.apply_styles(request.prompt, request.styles)
-
             model_manager.set_sampler(request.sampler)
+            self.apply_hires_fix(request.hires_fix)
+            random_seed = self.get_seed(request.seed)
+            positive_prompt, negative_prompt = styles_service.apply_styles(
+                request.prompt, request.styles
+            )
 
             generation_output = pipe(
-                prompt=request.prompt,
-                negative_prompt=request.negative_prompt,
+                prompt=positive_prompt or request.prompt,
+                negative_prompt=negative_prompt or default_negative_prompt,
                 num_inference_steps=request.steps,
                 guidance_scale=request.cfg_scale,
                 height=request.height,

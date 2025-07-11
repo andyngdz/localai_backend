@@ -6,6 +6,8 @@ from app.services.model_manager.schedulers import (
 
 from .schemas import SamplerItem
 
+default_negative_prompt = '(worst quality, low quality, lowres, blurry, jpeg artifacts, watermark, signature, text, logo), (bad hands, bad anatomy, mutated, deformed, disfigured, extra limbs, cropped, out of frame), (cartoon, anime, cgi, render, 3d, doll, toy, painting, sketch)'
+
 samplers = [
     SamplerItem(
         value=stype.value,
