@@ -1,3 +1,5 @@
+import asyncio
+import base64
 import io
 import logging
 import os
@@ -97,21 +99,31 @@ class GeneratorsService:
 
         return Image.fromarray(image_array)
 
-    async def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
+    async def send_image_to_client(self, image):
+        buffered = io.BytesIO()
+        image.save(buffered, format='PNG')
+        image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+        await emit(
+            SocketEvents.IMAGE_GENERATION_EACH_STEP,
+            {
+                'id': self.id,
+                'image_base64': image_base64,
+            },
+        )
+
+        logger.info('✅ Image sent to client: size=%s', image.size)
+
+    def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
         latents = callback_kwargs['latents']
 
         image = self.latents_to_rgb(latents[0])
 
-        with io.BytesIO() as output:
-            image.save(output, format='PNG')
-            image_bytes = output.getvalue()
-
-        await emit(
-            SocketEvents.IMAGE_GENERATION_EACH_STEP,
-            {'id': self.id, 'image_bytes': image_bytes},
-        )
-
         logger.info('Image at step %d: size=%s', step, image.size)
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.send_image_to_client(image))
+        loop.close()
 
         return callback_kwargs
 
