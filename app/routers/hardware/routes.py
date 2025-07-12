@@ -190,7 +190,7 @@ def get_system_gpu_info() -> GPUDriverInfo:
             "Ensure PyTorch is correctly installed in the backend's Python environment."
         ]
     except (subprocess.SubprocessError, OSError, AttributeError, RuntimeError) as e:
-        logger.error('Error during GPU detection: %s', exc_info=True)
+        logger.error('Error during GPU detection: %s')
         info.overall_status = GPUDriverStatusStates.UNKNOWN_ERROR
         info.message = f'An unexpected error occurred during GPU detection: {str(e)}. Running on CPU.'
         info.troubleshooting_steps = [

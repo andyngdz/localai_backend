@@ -1,5 +1,5 @@
 from .constants import default_sample_size
-from .model_loader import SupportedPipelines, model_loader
+from .model_loader import model_loader
 from .model_manager import model_manager
 from .schedulers import (
     SCHEDULER_DESCRIPTIONS,
@@ -18,5 +18,4 @@ __all__ = [
     'SCHEDULER_DESCRIPTIONS',
     'SCHEDULER_MAPPING',
     'SCHEDULER_NAMES',
-    'SupportedPipelines',
 ]

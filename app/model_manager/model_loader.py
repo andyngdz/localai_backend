@@ -1,15 +1,9 @@
 import logging
 from multiprocessing import Queue
-from typing import Optional, Union
+from typing import Optional
 
 import torch
-from diffusers import (
-    AutoPipelineForText2Image,
-    StableDiffusionImg2ImgPipeline,
-    StableDiffusionPipeline,
-    StableDiffusionXLImg2ImgPipeline,
-    StableDiffusionXLPipeline,
-)
+from diffusers import AutoPipelineForText2Image
 from sqlalchemy.orm import Session
 
 from app.database.crud import get_selected_device
@@ -18,14 +12,6 @@ from config import BASE_CACHE_DIR
 from .schemas import MaxMemoryConfig
 
 logger = logging.getLogger(__name__)
-
-
-SupportedPipelines = Union[
-    StableDiffusionPipeline,
-    StableDiffusionXLPipeline,
-    StableDiffusionImg2ImgPipeline,
-    StableDiffusionXLImg2ImgPipeline,
-]
 
 
 class ModelLoader:
@@ -44,7 +30,7 @@ class ModelLoader:
         id: str,
         db: Session,
         done_queue: Optional[Queue] = None,
-    ) -> SupportedPipelines:
+    ):
         logger.info(f'[Process] Loading model {id} to {self.device}')
 
         device_index = get_selected_device(db)
@@ -67,7 +53,7 @@ class ModelLoader:
                 low_cpu_mem_usage=True,
                 max_memory=max_memory,
                 torch_dtype=self.torch_dtype,
-                use_safetensors=True,
+                use_safetensors=False,
             )
 
         self.pipe.to(self.device)

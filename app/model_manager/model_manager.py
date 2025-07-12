@@ -146,7 +146,7 @@ class ModelManager:
             self.pipe = None
             self.id = None
 
-            logger.error(f'Failed to load model {id}: {error}', exc_info=True)
+            logger.error(f'Failed to load model {id}: {error}')
             raise
 
     def unload_model(self):

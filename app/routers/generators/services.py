@@ -4,7 +4,7 @@ from datetime import datetime
 
 import torch
 
-from app.model_manager import SupportedPipelines, model_manager
+from app.model_manager import model_manager
 from app.services import styles_service
 from config import BASE_GENERATED_IMAGES_DIR
 
@@ -71,6 +71,11 @@ class GeneratorsService:
 
         return filename
 
+    def on_step_callback(self, step, timestep, latents):
+        logger.debug(
+            f'Generation step {step}, timestep {timestep}, latents shape: {latents.shape}'
+        )
+
     def generate_image(self, request: GenerateImageRequest):
         logger.info(f'Received image generation request: {request}')
 
@@ -106,28 +111,26 @@ class GeneratorsService:
                 f'Using negative prompt after clipping: {final_negative_prompt}'
             )
 
-            if isinstance(pipe, SupportedPipelines):
-                generation_output = pipe(
-                    prompt=final_positive_prompt,
-                    negative_prompt=final_negative_prompt,
-                    num_inference_steps=request.steps,
-                    guidance_scale=request.cfg_scale,
-                    height=request.height,
-                    width=request.width,
-                    generator=torch.Generator(device=pipe.device).manual_seed(
-                        random_seed
-                    ),
-                )
+            generation_output = pipe(
+                prompt=final_positive_prompt,
+                negative_prompt=final_negative_prompt,
+                num_inference_steps=request.steps,
+                guidance_scale=request.cfg_scale,
+                height=request.height,
+                width=request.width,
+                generator=torch.Generator(device=pipe.device).manual_seed(random_seed),
+                callback_steps=1,
+                callback_on_step_end_tensor_inputs=['latents'],
+                callback=self.on_step_callback,
+            )
 
-                generated_images_list = generation_output[0]
+            generated_images_list = generation_output[0]
 
-                self.check_nsfw_content(generation_output)
+            self.check_nsfw_content(generation_output)
 
-                filename = self.save_image(generated_images_list)
+            filename = self.save_image(generated_images_list)
 
-                return filename
-            else:
-                raise ValueError(f'Unsupported pipeline type: {type(pipe).__name__}')
+            return filename
 
         except FileNotFoundError as error:
             logger.error(f'Model directory not found: {error}')
