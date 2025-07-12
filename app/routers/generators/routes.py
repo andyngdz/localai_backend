@@ -24,7 +24,7 @@ async def start_generation_image(
 ):
     """Generates an image based on the provided prompt and parameters. Returns the first generated image as a file."""
     try:
-        filename = generator_service.generate_image(request)
+        filename = generator_service.generate_image(request, db)
 
         return FileResponse(
             filename, media_type='image/png', filename=os.path.basename(filename)

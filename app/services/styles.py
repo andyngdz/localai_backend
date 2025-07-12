@@ -7,11 +7,12 @@ from app.predefined_styles import fooocus_styles, sai_styles
 from app.predefined_styles.schemas import StyleItem
 
 PROMPT_REMOVE_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
+CLIP_TOKENIZER_MODEL = 'openai/clip-vit-base-patch32'
 
 
 class StylesService:
     def __init__(self):
-        self.tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-base-patch32')
+        self.tokenizer = CLIPTokenizer.from_pretrained(CLIP_TOKENIZER_MODEL)
         self.all_styles = list(chain.from_iterable([fooocus_styles, sai_styles]))
 
     def truncate_clip_prompt(self, prompt: str, max_tokens: int = 77) -> str:
