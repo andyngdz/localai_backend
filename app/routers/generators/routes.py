@@ -1,11 +1,8 @@
 import logging
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-
-from app.database import get_db
 
 from .constants import samplers
 from .schemas import GenerateImageRequest
@@ -19,12 +16,10 @@ generators = APIRouter(
 
 
 @generators.post('/')
-async def start_generation_image(
-    request: GenerateImageRequest, db: Session = Depends(get_db)
-):
+async def start_generation_image(request: GenerateImageRequest):
     """Generates an image based on the provided prompt and parameters. Returns the first generated image as a file."""
     try:
-        filename = generator_service.generate_image(request, db)
+        filename = generator_service.generate_image(request)
 
         return FileResponse(
             filename, media_type='image/png', filename=os.path.basename(filename)

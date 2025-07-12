@@ -3,7 +3,6 @@ import os
 from datetime import datetime
 
 import torch
-from sqlalchemy.orm import Session
 
 from app.model_manager import SupportedPipelines, model_manager
 from app.services import styles_service
@@ -72,7 +71,7 @@ class GeneratorsService:
 
         return filename
 
-    def generate_image(self, request: GenerateImageRequest, db: Session):
+    def generate_image(self, request: GenerateImageRequest):
         logger.info(f'Received image generation request: {request}')
 
         pipe = model_manager.pipe
