@@ -1,5 +1,5 @@
 from .constants import default_sample_size
-from .loader import SupportedPipelines, model_loader_process
+from .loader import SupportedPipelines, model_loader
 from .model_manager import model_manager
 from .schedulers import (
     SCHEDULER_DESCRIPTIONS,
@@ -12,7 +12,7 @@ from .states import download_processes
 __all__ = [
     'default_sample_size',
     'download_processes',
-    'model_loader_process',
+    'model_loader',
     'model_manager',
     'SamplerType',
     'SCHEDULER_DESCRIPTIONS',

@@ -14,7 +14,7 @@ from app.routers.websocket import SocketEvents, emit
 from app.services.storage import get_model_dir
 
 from .constants import default_sample_size
-from .loader import model_loader_process
+from .loader import model_loader
 from .schedulers import (
     SCHEDULER_MAPPING,
     SamplerType,
@@ -30,9 +30,11 @@ class ModelManager:
     """
 
     def __init__(self):
+        [db] = get_db()
+
+        self.db = db
         self.pipe = None
         self.id = None
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.download_queue = Queue()
 
         logger.info('ModelManager instance initialized.')
@@ -56,10 +58,9 @@ class ModelManager:
             processes.kill()
             del download_processes[id]
 
-        [db] = get_db()
         model_dir = get_model_dir(id)
 
-        add_model(db, id, model_dir)
+        add_model(self.db, id, model_dir)
 
         await emit(
             SocketEvents.DOWNLOAD_COMPLETED,
@@ -91,7 +92,7 @@ class ModelManager:
 
         self.unload_model()
         new_process = Process(
-            target=model_loader_process, args=(id, self.device, self.download_queue)
+            target=model_loader.process, args=(id, self.db, self.download_queue)
         )
         new_process.start()
         download_processes[id] = new_process
@@ -134,7 +135,7 @@ class ModelManager:
         self.unload_model()
 
         try:
-            self.pipe = model_loader_process(id, self.device, db)
+            self.pipe = model_loader.process(id, self.db)
 
             logger.info(f'Model {id} loaded successfully.')
 

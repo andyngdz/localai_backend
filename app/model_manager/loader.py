@@ -28,45 +28,59 @@ SupportedPipelines = Union[
 ]
 
 
-def model_loader_process(
-    id: str,
-    device: str,
-    db: Session,
-    done_queue: Optional[Queue] = None,
-):
-    logger.info(f'[Process] Loading model {id} to {device}')
+class ModelLoader:
+    """
+    A class to handle the loading of models in a separate process.
+    This is useful for managing resources and avoiding blocking the main application.
+    """
 
-    device_index = get_selected_device(db)
-    max_memory = MaxMemoryConfig(device, device_index).to_dict()
-    logger.info(f'[Process] Setting max memory for model {id}: {max_memory}')
+    def __init__(self):
+        self.pipe = None
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.torch_dtype = torch.float16 if self.device == 'cuda' else torch.float32
 
-    try:
-        pipe: SupportedPipelines = AutoPipelineForText2Image.from_pretrained(
-            id,
-            cache_dir=BASE_CACHE_DIR,
-            torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
-            use_safetensors=True,
-            low_cpu_mem_usage=True,
-            max_memory=max_memory,
-        )
-    except EnvironmentError:
-        pipe: SupportedPipelines = AutoPipelineForText2Image.from_pretrained(
-            id,
-            cache_dir=BASE_CACHE_DIR,
-            torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
-            use_safetensors=False,
-            low_cpu_mem_usage=True,
-            max_memory=max_memory,
-        )
+    def process(
+        self,
+        id: str,
+        db: Session,
+        done_queue: Optional[Queue] = None,
+    ) -> SupportedPipelines:
+        logger.info(f'[Process] Loading model {id} to {self.device}')
 
-    pipe.to(device)
+        device_index = get_selected_device(db)
+        max_memory = MaxMemoryConfig(self.device, device_index).to_dict()
+        logger.info(f'[Process] Setting max memory for model {id}: {max_memory}')
 
-    if device == 'cuda':
-        pipe.enable_model_cpu_offload()
-        pipe.enable_attention_slicing()
+        try:
+            self.pipe = AutoPipelineForText2Image.from_pretrained(
+                id,
+                cache_dir=BASE_CACHE_DIR,
+                low_cpu_mem_usage=True,
+                max_memory=max_memory,
+                torch_dtype=self.torch_dtype,
+                use_safetensors=True,
+            )
+        except EnvironmentError:
+            self.pipe = AutoPipelineForText2Image.from_pretrained(
+                id,
+                cache_dir=BASE_CACHE_DIR,
+                low_cpu_mem_usage=True,
+                max_memory=max_memory,
+                torch_dtype=self.torch_dtype,
+                use_safetensors=True,
+            )
 
-    if done_queue is not None:
-        done_queue.put(id)
-        logger.info(f'[Process] Model {id} added to done queue.')
+        self.pipe.to(self.device)
 
-    return pipe
+        if self.device == 'cuda':
+            self.pipe.enable_model_cpu_offload()
+            self.pipe.enable_attention_slicing()
+
+        if done_queue is not None:
+            done_queue.put(id)
+            logger.info(f'[Process] Model {id} added to done queue.')
+
+        return self.pipe
+
+
+model_loader = ModelLoader()
