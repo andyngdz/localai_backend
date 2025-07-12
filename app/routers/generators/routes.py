@@ -19,7 +19,7 @@ generators = APIRouter(
 async def start_generation_image(request: ImageGenerationRequest):
     """Generates an image based on the provided prompt and parameters. Returns the first generated image as a file."""
     try:
-        filename = generator_service.generate_image(request)
+        filename = await generator_service.generate_image(request)
 
         return FileResponse(
             filename, media_type='image/png', filename=os.path.basename(filename)
@@ -29,7 +29,7 @@ async def start_generation_image(request: ImageGenerationRequest):
 
 
 @generators.get('/samplers')
-def get_all_samplers():
+async def get_all_samplers():
     """
     Returns a list of available samplers for image generation.
     """

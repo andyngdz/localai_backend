@@ -12,11 +12,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
-    app_socket,
     downloads,
     generators,
     hardware,
     models,
+    sio_app,
     styles,
     users,
 )
@@ -47,7 +47,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.mount('/static', StaticFiles(directory='static'), name='static')
-app.mount('/ws', app=app_socket)
+app.mount('/ws', app=sio_app)
 app.include_router(users)
 app.include_router(models)
 app.include_router(downloads)

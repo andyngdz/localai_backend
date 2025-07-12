@@ -1,15 +1,15 @@
 import asyncio
-import base64
-import io
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import torch
 from PIL import Image
 
 from app.model_manager import model_manager
-from app.routers.websocket import SocketEvents, emit
+from app.routers.websocket.routes import emit_from_sync
+from app.routers.websocket.schemas import SocketEvents
 from app.services import styles_service
 from config import BASE_GENERATED_IMAGES_DIR
 
@@ -99,39 +99,23 @@ class GeneratorsService:
 
         return Image.fromarray(image_array)
 
-    async def send_image_to_client(self, image):
-        buffered = io.BytesIO()
-        image.save(buffered, format='PNG')
-        image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-
-        await emit(
-            SocketEvents.IMAGE_GENERATION_EACH_STEP,
-            {
-                'id': self.id,
-                'image_base64': image_base64,
-            },
-        )
-
-        logger.info('✅ Image sent to client: size=%s', image.size)
-
     def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
-        latents = callback_kwargs['latents']
-        image = self.latents_to_rgb(latents[0])
-
-        logger.info('Image at step %d: size=%s', step, image.size)
-
         try:
-            loop = asyncio.get_event_loop()
-            loop.call_soon_threadsafe(
-                asyncio.create_task, self.send_image_to_client(image)
+            # latents = callback_kwargs['latents']
+            # image = self.latents_to_rgb(latents[0])
+
+            emit_from_sync(
+                SocketEvents.IMAGE_GENERATION_EACH_STEP,
+                {
+                    'id': self.id,
+                },
             )
-            logger.info('✅ Scheduled image send for step %d', step)
-        except RuntimeError as error:
-            logger.exception('Failed to schedule task: %s', error)
+        except Exception as e:
+            logger.error(f'Error in callback_on_step_end: {e}')
 
         return callback_kwargs
 
-    def generate_image(self, request: ImageGenerationRequest):
+    async def generate_image(self, request: ImageGenerationRequest):
         logger.info(f'Received image generation request: {request}')
 
         self.id = request.id
@@ -166,16 +150,23 @@ class GeneratorsService:
             logger.info(f'Positive prompt after clipping: {final_positive_prompt}')
             logger.info(f'Negative prompt after clipping: {final_negative_prompt}')
 
-            output = pipe(
-                prompt=final_positive_prompt,
-                negative_prompt=final_negative_prompt,
-                num_inference_steps=config.steps,
-                guidance_scale=config.cfg_scale,
-                height=config.height,
-                width=config.width,
-                generator=torch.Generator(device=pipe.device).manual_seed(random_seed),
-                callback_on_step_end=self.callback_on_step_end,
-                callback_on_step_end_tensor_inputs=['latents'],
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor()
+            output = await loop.run_in_executor(
+                executor,
+                lambda: pipe(
+                    prompt=final_positive_prompt,
+                    negative_prompt=final_negative_prompt,
+                    num_inference_steps=config.steps,
+                    guidance_scale=config.cfg_scale,
+                    height=config.height,
+                    width=config.width,
+                    generator=torch.Generator(device=pipe.device).manual_seed(
+                        random_seed
+                    ),
+                    callback_on_step_end=self.callback_on_step_end,
+                    callback_on_step_end_tensor_inputs=['latents'],
+                ),
             )
 
             images = output[0]
