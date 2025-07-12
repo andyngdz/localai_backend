@@ -13,7 +13,7 @@ from app.routers.websocket import SocketEvents, emit
 from app.services.storage import get_model_dir
 
 from .constants import default_sample_size
-from .loader import model_loader
+from .model_loader import model_loader
 from .schedulers import (
     SCHEDULER_MAPPING,
     SamplerType,

@@ -1,5 +1,5 @@
 from .constants import default_sample_size
-from .loader import SupportedPipelines, model_loader
+from .model_loader import SupportedPipelines, model_loader
 from .model_manager import model_manager
 from .schedulers import (
     SCHEDULER_DESCRIPTIONS,
