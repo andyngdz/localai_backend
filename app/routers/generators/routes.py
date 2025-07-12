@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from .constants import samplers
@@ -16,7 +16,10 @@ generators = APIRouter(
 
 
 @generators.post('/')
-async def start_generation_image(request: GenerateImageRequest):
+async def start_generation_image(
+    request: GenerateImageRequest,
+    id: str = Query(..., description='Socket ID for tracking the generation process'),
+):
     """Generates an image based on the provided prompt and parameters. Returns the first generated image as a file."""
     try:
         filename = generator_service.generate_image(request)

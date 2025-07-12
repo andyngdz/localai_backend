@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 
 import torch
+from PIL import Image
 
 from app.model_manager import model_manager
 from app.services import styles_service
@@ -71,10 +72,34 @@ class GeneratorsService:
 
         return filename
 
-    def on_step_callback(self, step, timestep, latents):
-        logger.debug(
-            f'Generation step {step}, timestep {timestep}, latents shape: {latents.shape}'
+    def latents_to_rgb(self, latents):
+        weights = (
+            (60, -60, 25, -70),
+            (60, -5, 15, -50),
+            (60, 10, -5, -35),
         )
+
+        weights_tensor = torch.t(
+            torch.tensor(weights, dtype=latents.dtype).to(latents.device)
+        )
+        biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(
+            latents.device
+        )
+        rgb_tensor = torch.einsum(
+            '...lxy,lr -> ...rxy', latents, weights_tensor
+        ) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+        image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
+
+        return Image.fromarray(image_array)
+
+    def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
+        latents = callback_kwargs['latents']
+
+        image = self.latents_to_rgb(latents[0])
+
+        logger.info('Image at step %d: size=%s', step, image.size)
+
+        return callback_kwargs
 
     def generate_image(self, request: GenerateImageRequest):
         logger.info(f'Received image generation request: {request}')
@@ -119,9 +144,8 @@ class GeneratorsService:
                 height=request.height,
                 width=request.width,
                 generator=torch.Generator(device=pipe.device).manual_seed(random_seed),
-                callback_steps=1,
+                callback_on_step_end=self.callback_on_step_end,
                 callback_on_step_end_tensor_inputs=['latents'],
-                callback=self.on_step_callback,
             )
 
             generated_images_list = generation_output[0]
