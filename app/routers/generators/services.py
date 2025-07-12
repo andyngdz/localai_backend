@@ -116,14 +116,18 @@ class GeneratorsService:
 
     def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
         latents = callback_kwargs['latents']
-
         image = self.latents_to_rgb(latents[0])
 
         logger.info('Image at step %d: size=%s', step, image.size)
 
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.send_image_to_client(image))
-        loop.close()
+        try:
+            loop = asyncio.get_event_loop()
+            loop.call_soon_threadsafe(
+                asyncio.create_task, self.send_image_to_client(image)
+            )
+            logger.info('✅ Scheduled image send for step %d', step)
+        except RuntimeError as error:
+            logger.exception('Failed to schedule task: %s', error)
 
         return callback_kwargs
 
