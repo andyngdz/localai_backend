@@ -1,3 +1,4 @@
+import io
 import logging
 import os
 from datetime import datetime
@@ -6,6 +7,7 @@ import torch
 from PIL import Image
 
 from app.model_manager import model_manager
+from app.routers.websocket import SocketEvents, emit
 from app.services import styles_service
 from config import BASE_GENERATED_IMAGES_DIR
 
@@ -95,10 +97,18 @@ class GeneratorsService:
 
         return Image.fromarray(image_array)
 
-    def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
+    async def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
         latents = callback_kwargs['latents']
 
         image = self.latents_to_rgb(latents[0])
+
+        with io.BytesIO() as output:
+            image.save(output, format='PNG')
+            image_bytes = output.getvalue()
+
+        await emit(
+            SocketEvents.IMAGE_GENERATION_EACH_STEP, {'image_bytes': image_bytes}
+        )
 
         logger.info('Image at step %d: size=%s', step, image.size)
 
