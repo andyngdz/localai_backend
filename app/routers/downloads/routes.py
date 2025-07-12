@@ -68,7 +68,7 @@ async def run_download(id: str):
 
         logger.info('Download model into folder: %s', model_dir)
 
-        model_manager.start_model_download(id)
+        model_manager.start_download(id)
 
     except CancelledError:
         logger.warning('Download task for id %s was cancelled', id)
@@ -103,7 +103,7 @@ async def cancel_download(id: str = Query(..., description='The model ID to canc
 
     logger.info('API Request: Cancelling download for id: %s', id)
 
-    model_manager.cancel_model_download(id)
+    model_manager.cancel_download(id)
     await clean_up(id)
 
     return DownloadStatusResponse(

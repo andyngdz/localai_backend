@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
     init_db()
     model_manager.unload_model()
-    asyncio.create_task(model_manager.monitor_download_queue())
+    asyncio.create_task(model_manager.monitor_download())
     yield
 
 

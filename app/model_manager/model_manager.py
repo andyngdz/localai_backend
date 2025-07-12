@@ -5,7 +5,6 @@ from multiprocessing import Process, Queue
 from typing import Any, Dict
 
 import torch
-from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.database.crud import add_model
@@ -39,7 +38,7 @@ class ModelManager:
 
         logger.info('ModelManager instance initialized.')
 
-    async def monitor_download_queue(self):
+    async def monitor_download(self):
         """Background thread to monitor the done queue for model loading completion."""
 
         logger.info('Monitoring download tasks.')
@@ -69,7 +68,7 @@ class ModelManager:
 
         logger.info(f'Model {id} download completed and added to database.')
 
-    def clear_cuda_cache(self):
+    def clear_cache(self):
         """Clears the CUDA cache if available."""
 
         if torch.cuda.is_available():
@@ -81,7 +80,7 @@ class ModelManager:
         logging.info('Forcing garbage collection to free memory.')
         gc.collect()
 
-    def start_model_download(self, id: str):
+    def start_download(self, id: str):
         """Start downloading a model in a separate process."""
 
         download_process = download_processes.get(id)
@@ -100,7 +99,7 @@ class ModelManager:
         self.id = id
         logger.info(f'Started background model download: {id}')
 
-    def cancel_model_download(self, id: str):
+    def cancel_download(self, id: str):
         """Cancel the active model download and clean up cache."""
 
         self.unload_model()
@@ -115,7 +114,7 @@ class ModelManager:
         else:
             logger.info('No active model download to cancel.')
 
-    def load_model(self, id: str, db: Session) -> Dict[str, Any]:
+    def load_model(self, id: str) -> Dict[str, Any]:
         """
         Load a model synchronously into memory for inference.
         Should only be called when model is confirmed downloaded.
@@ -162,7 +161,7 @@ class ModelManager:
         except Exception as error:
             logger.warning(f'Error during unload: {error}')
         finally:
-            self.clear_cuda_cache()
+            self.clear_cache()
 
     def set_sampler(self, sampler: SamplerType):
         """Dynamically sets the sampler for the currently loaded pipeline."""
