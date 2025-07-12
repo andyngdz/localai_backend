@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
 from .constants import samplers
@@ -28,7 +28,7 @@ async def start_generation_image(
             filename, media_type='image/png', filename=os.path.basename(filename)
         )
     except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
 @generators.get('/samplers')
