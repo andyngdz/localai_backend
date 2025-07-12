@@ -15,7 +15,7 @@ class SamplerItem(BaseModel):
     )
 
 
-class GenerateImageRequest(BaseModel):
+class GeneratorConfig(BaseModel):
     """Request model for generating an image."""
 
     cfg_scale: float = Field(
@@ -42,8 +42,8 @@ class GenerateImageRequest(BaseModel):
     )
 
 
-class GenerateImageResponse(BaseModel):
-    """Response model for image generation (you might not need this if returning FileResponse directly)."""
-
-    message: str = Field('Image generated successfully.', description='Status message.')
-    path: str = Field(..., description='Path to the generated image file.')
+class ImageGenerationRequest(BaseModel):
+    id: str = Field(..., description='Socket ID for tracking the generation process.')
+    config: GeneratorConfig = Field(
+        ..., description='Configuration for image generation.'
+    )

@@ -12,7 +12,7 @@ from app.services import styles_service
 from config import BASE_GENERATED_IMAGES_DIR
 
 from .constants import default_negative_prompt
-from .schemas import GenerateImageRequest
+from .schemas import ImageGenerationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -107,17 +107,19 @@ class GeneratorsService:
             image_bytes = output.getvalue()
 
         await emit(
-            SocketEvents.IMAGE_GENERATION_EACH_STEP, {'image_bytes': image_bytes}
+            SocketEvents.IMAGE_GENERATION_EACH_STEP,
+            {'id': self.id, 'image_bytes': image_bytes},
         )
 
         logger.info('Image at step %d: size=%s', step, image.size)
 
         return callback_kwargs
 
-    def generate_image(self, id: str, request: GenerateImageRequest):
+    def generate_image(self, request: ImageGenerationRequest):
         logger.info(f'Received image generation request: {request}')
 
-        self.id = id
+        self.id = request.id
+        config = request.config
         pipe = model_manager.pipe
 
         if pipe is None:
@@ -127,20 +129,20 @@ class GeneratorsService:
 
         try:
             logger.info(
-                f"Generating image(s) for prompt: '{request.prompt}' "
-                f'with steps={request.steps}, CFG={request.cfg_scale}, '
-                f'size={request.width}x{request.height}'
+                f"Generating image(s) for prompt: '{config.prompt}' "
+                f'with steps={config.steps}, CFG={config.cfg_scale}, '
+                f'size={config.width}x{config.height}'
             )
 
-            model_manager.set_sampler(request.sampler)
+            model_manager.set_sampler(config.sampler)
 
-            self.apply_hires_fix(request.hires_fix)
+            self.apply_hires_fix(config.hires_fix)
 
-            random_seed = self.get_seed(request.seed)
+            random_seed = self.get_seed(config.seed)
 
             positive_prompt, negative_prompt = styles_service.apply_styles(
-                request.prompt,
-                request.styles,
+                config.prompt,
+                config.styles,
             )
             final_positive_prompt = positive_prompt
             final_negative_prompt = negative_prompt or default_negative_prompt
@@ -151,10 +153,10 @@ class GeneratorsService:
             output = pipe(
                 prompt=final_positive_prompt,
                 negative_prompt=final_negative_prompt,
-                num_inference_steps=request.steps,
-                guidance_scale=request.cfg_scale,
-                height=request.height,
-                width=request.width,
+                num_inference_steps=config.steps,
+                guidance_scale=config.cfg_scale,
+                height=config.height,
+                width=config.width,
                 generator=torch.Generator(device=pipe.device).manual_seed(random_seed),
                 callback_on_step_end=self.callback_on_step_end,
                 callback_on_step_end_tensor_inputs=['latents'],
@@ -173,7 +175,7 @@ class GeneratorsService:
 
             raise ValueError(f'Model files not found: {error}')
         except Exception as error:
-            logger.exception(f'Failed to generate image for prompt: "{request.prompt}"')
+            logger.exception(f'Failed to generate image for prompt: "{config.prompt}"')
 
             raise ValueError(f'Failed to generate image: {error}')
 
