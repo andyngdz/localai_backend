@@ -1,24 +1,47 @@
 import logging
 from multiprocessing import Queue
-from typing import Optional
+from typing import Optional, Union
 
 import torch
-from diffusers import AutoPipelineForText2Image
+from diffusers import (
+    AutoPipelineForText2Image,
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionPipeline,
+    StableDiffusionXLImg2ImgPipeline,
+    StableDiffusionXLPipeline,
+)
+from sqlalchemy.orm import Session
 
+from app.database.crud import get_selected_device
 from config import BASE_CACHE_DIR
+
+from .schemas import MaxMemoryConfig
 
 logger = logging.getLogger(__name__)
 
 
-def load_model_process(id: str, device: str, done_queue: Optional[Queue] = None):
+SupportedPipelines = Union[
+    StableDiffusionPipeline,
+    StableDiffusionXLPipeline,
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionXLImg2ImgPipeline,
+]
+
+
+def model_loader_process(
+    id: str,
+    device: str,
+    db: Session,
+    done_queue: Optional[Queue] = None,
+):
     logger.info(f'[Process] Loading model {id} to {device}')
 
-    max_memory = {0: '8GB', 'cpu': '8GB'} if device == 'cuda' else {'cpu': '8GB'}
-
+    device_index = get_selected_device(db)
+    max_memory = MaxMemoryConfig(device, device_index).to_dict()
     logger.info(f'[Process] Setting max memory for model {id}: {max_memory}')
 
     try:
-        pipe = AutoPipelineForText2Image.from_pretrained(
+        pipe: SupportedPipelines = AutoPipelineForText2Image.from_pretrained(
             id,
             cache_dir=BASE_CACHE_DIR,
             torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
@@ -27,7 +50,7 @@ def load_model_process(id: str, device: str, done_queue: Optional[Queue] = None)
             max_memory=max_memory,
         )
     except EnvironmentError:
-        pipe = AutoPipelineForText2Image.from_pretrained(
+        pipe: SupportedPipelines = AutoPipelineForText2Image.from_pretrained(
             id,
             cache_dir=BASE_CACHE_DIR,
             torch_dtype=torch.float16 if device == 'cuda' else torch.float32,

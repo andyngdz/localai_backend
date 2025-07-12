@@ -5,6 +5,7 @@ from multiprocessing import Process, Queue
 from typing import Any, Dict
 
 import torch
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.database.crud import add_model
@@ -13,7 +14,7 @@ from app.routers.websocket import SocketEvents, emit
 from app.services.storage import get_model_dir
 
 from .constants import default_sample_size
-from .loader import load_model_process
+from .loader import model_loader_process
 from .schedulers import (
     SCHEDULER_MAPPING,
     SamplerType,
@@ -90,7 +91,7 @@ class ModelManager:
 
         self.unload_model()
         new_process = Process(
-            target=load_model_process, args=(id, self.device, self.download_queue)
+            target=model_loader_process, args=(id, self.device, self.download_queue)
         )
         new_process.start()
         download_processes[id] = new_process
@@ -113,7 +114,7 @@ class ModelManager:
         else:
             logger.info('No active model download to cancel.')
 
-    def load_model(self, id: str) -> Dict[str, Any]:
+    def load_model(self, id: str, db: Session) -> Dict[str, Any]:
         """
         Load a model synchronously into memory for inference.
         Should only be called when model is confirmed downloaded.
@@ -133,7 +134,7 @@ class ModelManager:
         self.unload_model()
 
         try:
-            self.pipe = load_model_process(id, self.device)
+            self.pipe = model_loader_process(id, self.device, db)
 
             logger.info(f'Model {id} loaded successfully.')
 

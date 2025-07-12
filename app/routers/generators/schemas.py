@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from app.services.model_manager.schedulers import SamplerType
+from app.model_manager import SamplerType
 
 
 class SamplerItem(BaseModel):

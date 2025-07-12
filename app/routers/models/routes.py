@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.database.crud import check_if_model_downloaded, get_all_downloaded_models
-from app.services.model_manager import model_manager
+from app.model_manager import model_manager
 
 from .schemas import (
     LoadModelRequest,
@@ -109,13 +109,13 @@ def check_if_model_already_downloaded(
 
 
 @models.post('/load', response_model=LoadModelResponse)
-def load_model(request: LoadModelRequest):
+def load_model(request: LoadModelRequest, db: Session = Depends(get_db)):
     """Load model by id"""
     id = None
 
     try:
         id = request.id
-        model_config = model_manager.load_model(id)
+        model_config = model_manager.load_model(id, db)
         sample_size = model_manager.get_sample_size()
 
         return LoadModelResponse(id=id, config=model_config, sample_size=sample_size)

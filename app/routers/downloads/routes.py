@@ -8,8 +8,8 @@ from fastapi import APIRouter, Query
 from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
+from app.model_manager import model_manager
 from app.routers.websocket import SocketEvents, emit
-from app.services.model_manager import model_manager
 from app.services.storage import get_model_dir, get_model_lock_dir
 
 from .schemas import (

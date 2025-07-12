@@ -1,4 +1,4 @@
-from app.services.model_manager.schedulers import (
+from app.model_manager import (
     SCHEDULER_DESCRIPTIONS,
     SCHEDULER_NAMES,
     SamplerType,

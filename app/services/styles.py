@@ -6,6 +6,8 @@ from transformers import CLIPTokenizer
 from app.predefined_styles import fooocus_styles, sai_styles
 from app.predefined_styles.schemas import StyleItem
 
+PROMPT_REMOVE_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
+
 
 class StylesService:
     def __init__(self):
@@ -33,9 +35,7 @@ class StylesService:
 
         for style in rest_styles:
             if style.positive:
-                cleaned = re.sub(r'\s*\{prompt\}[,]?\s*', ' ', style.positive).strip(
-                    ' ,'
-                )
+                cleaned = PROMPT_REMOVE_PATTERN.sub(' ', style.positive).strip(' ,')
                 if cleaned:
                     combined_positive.append(cleaned)
 

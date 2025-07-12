@@ -32,7 +32,7 @@ sys.stderr = StreamToLogger(stderr_logger, logging.ERROR)
 async def lifespan(app: FastAPI):
     """Startup event to initialize the database."""
     from app.database import init_db
-    from app.services.model_manager import model_manager
+    from app.model_manager import model_manager
 
     init_db()
     model_manager.unload_model()
