@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.database import database_service
+from app.model_manager import model_manager
 from app.routers import (
     downloads,
     generators,
@@ -30,8 +32,6 @@ sys.stderr = StreamToLogger(stderr_logger, logging.ERROR)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup event to initialize the database."""
-    from app.database import database_service
-    from app.model_manager import model_manager
 
     database_service.start()
     model_manager.start()

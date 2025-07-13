@@ -6,18 +6,18 @@ from typing import Any, Dict
 
 import torch
 
+from app.constants import (
+    SCHEDULER_MAPPING,
+    SamplerType,
+    default_sample_size,
+)
 from app.database import database_service
 from app.database.crud import add_model
 from app.routers.downloads.schemas import DownloadCompletedResponse
 from app.services.storage import get_model_dir
 from app.socket import SocketEvents, socket_service
 
-from .constants import default_sample_size
 from .model_loader import model_loader
-from .schedulers import (
-    SCHEDULER_MAPPING,
-    SamplerType,
-)
 from .states import download_processes
 
 logger = logging.getLogger(__name__)

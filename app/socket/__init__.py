@@ -1,3 +1,3 @@
-from .services import SocketEvents, socket_service
+from .service import SocketEvents, socket_service
 
-__all__ = ['services', 'SocketEvents']
+__all__ = ['service', 'socket_service', 'SocketEvents']

@@ -4,9 +4,10 @@ import os
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
-from .constants import samplers
+from app.constants import constant_service
+
 from .schemas import ImageGenerationRequest
-from .services import generator_service
+from .service import generator_service
 
 logger = logging.getLogger(__name__)
 generators = APIRouter(
@@ -34,4 +35,4 @@ async def get_all_samplers():
     Returns a list of available samplers for image generation.
     """
 
-    return samplers
+    return constant_service.samplers

@@ -18,7 +18,7 @@ from .schemas import ImageGenerationRequest
 logger = logging.getLogger(__name__)
 
 
-class GeneratorsService:
+class GeneratorService:
     def __init__(self):
         self.id = None
 
@@ -186,4 +186,4 @@ class GeneratorsService:
             raise ValueError(f'Failed to generate image: {error}')
 
 
-generator_service = GeneratorsService()
+generator_service = GeneratorService()
