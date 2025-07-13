@@ -1,24 +1,15 @@
-import asyncio
 import gc
 import logging
-from multiprocessing import Process, Queue
 from typing import Any, Dict
 
 import torch
-from sqlalchemy.orm import Session
 
 from app.constants import (
     SCHEDULER_MAPPING,
     SamplerType,
     default_sample_size,
 )
-from app.database.crud import add_model
-from app.services import get_model_dir
-from app.socket import SocketEvents, socket_service
-
-from .model_loader_service import model_loader_service
-from .schemas import DownloadCompletedResponse
-from .states import download_processes
+from app.model_loader import model_loader
 
 logger = logging.getLogger(__name__)
 
@@ -31,44 +22,8 @@ class ModelManagerService:
     def __init__(self):
         self.pipe = None
         self.id = None
-        self.download_queue = Queue()
 
         logger.info('ModelManager instance initialized.')
-
-    def start(self, db: Session):
-        """Starts the background task to monitor model downloads."""
-
-        logger.info('Starting model download monitoring task.')
-        self.db = db
-        asyncio.create_task(self.monitor_download())
-
-    async def monitor_download(self):
-        """Background thread to monitor the done queue for model loading completion."""
-
-        while True:
-            id = await asyncio.to_thread(self.download_queue.get)
-            logger.info(f'Model download completed for ID: {id}')
-            await self.download_done(id)
-
-    async def download_done(self, id: str):
-        """Handles the completion of a model download."""
-
-        processes = download_processes.get(id)
-
-        if processes:
-            processes.kill()
-            del download_processes[id]
-
-        model_dir = get_model_dir(id)
-
-        add_model(self.db, id, model_dir)
-
-        await socket_service.emit(
-            SocketEvents.DOWNLOAD_COMPLETED,
-            DownloadCompletedResponse(id=id).model_dump(),
-        )
-
-        logger.info(f'Model {id} download completed and added to database.')
 
     def clear_cache(self):
         """Clears the CUDA cache if available."""
@@ -81,40 +36,6 @@ class ModelManagerService:
 
         gc.collect()
         logging.info('Forcing garbage collection to free memory.')
-
-    def start_download(self, id: str):
-        """Start downloading a model in a separate process."""
-
-        download_process = download_processes.get(id)
-
-        if download_process and download_process.is_alive():
-            logger.info(f'Model download already in progress: {id}')
-            return
-
-        self.unload_model()
-        new_process = Process(
-            target=model_loader_service.process, args=(id, self.db, self.download_queue)
-        )
-        new_process.start()
-        download_processes[id] = new_process
-
-        self.id = id
-        logger.info(f'Started background model download: {id}')
-
-    def cancel_download(self, id: str):
-        """Cancel the active model download and clean up cache."""
-
-        self.unload_model()
-
-        download_process = download_processes[id]
-
-        if download_process and download_process.is_alive():
-            logger.info(f'Cancelling model download: {id}')
-
-            download_process.terminate()
-            download_process.join()
-        else:
-            logger.info('No active model download to cancel.')
 
     def load_model(self, id: str) -> Dict[str, Any]:
         """
@@ -136,7 +57,7 @@ class ModelManagerService:
         self.unload_model()
 
         try:
-            self.pipe = model_loader_service.process(id, self.db)
+            self.pipe = model_loader(id)
 
             logger.info(f'Model {id} loaded successfully.')
 

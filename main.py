@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database import database_service
 from app.database.service import SessionLocal
+from app.model_downloader import model_download_service
 from app.model_manager import model_manager_service
 from app.routers import (
     downloads,
@@ -32,11 +33,11 @@ sys.stderr = StreamToLogger(stderr_logger, logging.ERROR)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup event to initialize the database."""
+    """Startup event"""
 
     database_service.start()
     db = SessionLocal()
-    model_manager_service.start(db)
+    model_download_service.start(db)
     model_manager_service.unload_model()
 
     yield
