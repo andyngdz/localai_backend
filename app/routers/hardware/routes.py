@@ -10,7 +10,7 @@ import torch
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import database_service
 from app.database.crud import create_or_update_selected_device, get_selected_device
 
 from .schemas import (
@@ -91,10 +91,9 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
             )
             driver_version = result.stdout.strip().split('\n')[0]
             info.nvidia_driver_version = driver_version
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        except (subprocess.CalledProcessError, FileNotFoundError) as error:
             logger.warning(
-                'nvidia-smi not found or failed: %s. Cannot get detailed driver version.',
-                e,
+                f'nvidia-smi not found or failed: {error}. Cannot get detailed driver version.'
             )
             info.message += " (Could not retrieve NVIDIA driver version from nvidia-smi. Ensure it's in PATH)."
             # If CUDA is available but nvidia-smi fails, it's still "ready" but with a warning.
@@ -189,10 +188,10 @@ def get_system_gpu_info() -> GPUDriverInfo:
         info.troubleshooting_steps = [
             "Ensure PyTorch is correctly installed in the backend's Python environment."
         ]
-    except (subprocess.SubprocessError, OSError, AttributeError, RuntimeError) as e:
-        logger.error('Error during GPU detection: %s', exc_info=True)
+    except (subprocess.SubprocessError, OSError, AttributeError, RuntimeError) as error:
+        logger.error(f'Error during GPU detection: {error}')
         info.overall_status = GPUDriverStatusStates.UNKNOWN_ERROR
-        info.message = f'An unexpected error occurred during GPU detection: {str(e)}. Running on CPU.'
+        info.message = f'An unexpected error occurred during GPU detection: {str(error)}. Running on CPU.'
         info.troubleshooting_steps = [
             'Check backend logs for more details.',
             'Ensure all dependencies are correctly installed.',
@@ -227,7 +226,9 @@ def recheck():
 
 
 @hardware.post('/device')
-def select_device(request: SelectDeviceRequest, db: Session = Depends(get_db)):
+def select_device(
+    request: SelectDeviceRequest, db: Session = Depends(database_service.get_db)
+):
     """Select device"""
 
     device_index = request.device_index
@@ -237,14 +238,15 @@ def select_device(request: SelectDeviceRequest, db: Session = Depends(get_db)):
 
 
 @hardware.get('/device')
-def get_device(db: Session = Depends(get_db)):
+def get_device(db: Session = Depends(database_service.get_db)):
     """Get current selected device"""
     try:
         device_index = get_selected_device(db)
 
         return GetCurrentDeviceIndex(device_index=device_index).model_dump()
     except Exception as error:
-        logger.error('Error retrieving current selected device: %s', error)
+        logger.error(f'Error retrieving current selected device: {error}')
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(error),

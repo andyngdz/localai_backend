@@ -2,20 +2,10 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from app.services.model_manager.schedulers import SamplerType
+from app.constants import SamplerType
 
 
-class SamplerItem(BaseModel):
-    """Available sampler to send to the client."""
-
-    name: str = Field(..., description='User-friendly name of the sampler.')
-    value: str = Field(..., description='Internal enum value for the sampler.')
-    description: Optional[str] = Field(
-        None, description="Brief description of the sampler's characteristics."
-    )
-
-
-class GenerateImageRequest(BaseModel):
+class GeneratorConfig(BaseModel):
     """Request model for generating an image."""
 
     cfg_scale: float = Field(
@@ -42,8 +32,15 @@ class GenerateImageRequest(BaseModel):
     )
 
 
-class GenerateImageResponse(BaseModel):
-    """Response model for image generation (you might not need this if returning FileResponse directly)."""
+class ImageGenerationRequest(BaseModel):
+    id: str = Field(..., description='Socket ID for tracking the generation process.')
+    config: GeneratorConfig = Field(
+        ..., description='Configuration for image generation.'
+    )
 
-    message: str = Field('Image generated successfully.', description='Status message.')
-    path: str = Field(..., description='Path to the generated image file.')
+
+class ImageGenerationEachStepResponse(BaseModel):
+    id: str = Field(..., description='Socket ID for tracking the generation process.')
+    image_base64: str = Field(
+        ..., description='Base64 encoded image generated at this step.'
+    )
