@@ -10,7 +10,7 @@ import torch
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import database_service
 from app.database.crud import create_or_update_selected_device, get_selected_device
 
 from .schemas import (
@@ -227,7 +227,9 @@ def recheck():
 
 
 @hardware.post('/device')
-def select_device(request: SelectDeviceRequest, db: Session = Depends(get_db)):
+def select_device(
+    request: SelectDeviceRequest, db: Session = Depends(database_service.get_db)
+):
     """Select device"""
 
     device_index = request.device_index
@@ -237,7 +239,7 @@ def select_device(request: SelectDeviceRequest, db: Session = Depends(get_db)):
 
 
 @hardware.get('/device')
-def get_device(db: Session = Depends(get_db)):
+def get_device(db: Session = Depends(database_service.get_db)):
     """Get current selected device"""
     try:
         device_index = get_selected_device(db)

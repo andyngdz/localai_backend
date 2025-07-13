@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import database_service
 from app.database.crud import check_if_model_downloaded, get_all_downloaded_models
 from app.model_manager import model_manager
 
@@ -74,7 +74,7 @@ def get_model_info(id: str = Query(..., description='Model ID')):
 
 
 @models.get('/downloaded')
-def get_downloaded_models(db: Session = Depends(get_db)):
+def get_downloaded_models(db: Session = Depends(database_service.get_db)):
     """Get a list of downloaded models"""
     try:
         models = get_all_downloaded_models(db)
@@ -91,7 +91,8 @@ def get_downloaded_models(db: Session = Depends(get_db)):
 
 @models.get('/available')
 def check_if_model_already_downloaded(
-    id: str = Query(..., description='Model ID'), db: Session = Depends(get_db)
+    id: str = Query(..., description='Model ID'),
+    db: Session = Depends(database_service.get_db),
 ):
     """Check if model is already downloaded by id"""
 

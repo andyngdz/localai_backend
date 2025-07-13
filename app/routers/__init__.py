@@ -4,14 +4,12 @@ from .hardware import hardware
 from .models import models
 from .styles import styles
 from .users import users
-from .websocket import sio_app
 
 __all__ = [
     'downloads',
     'generators',
     'hardware',
     'models',
-    'sio_app',
     'styles',
     'users',
 ]

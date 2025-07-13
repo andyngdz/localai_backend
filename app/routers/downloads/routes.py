@@ -9,8 +9,8 @@ from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.model_manager import model_manager
-from app.routers.websocket import SocketEvents, emit
 from app.services.storage import get_model_dir, get_model_lock_dir
+from app.socket import SocketEvents, socket_service
 
 from .schemas import (
     DownloadCancelledResponse,
@@ -47,7 +47,7 @@ async def clean_up(id: str):
 
     delete_model_from_cache(id)
 
-    await emit(
+    await socket_service.emit(
         SocketEvents.DOWNLOAD_CANCELED,
         DownloadCancelledResponse(id=id).model_dump(),
     )
@@ -59,7 +59,7 @@ async def run_download(id: str):
     """Run the download task for the given model ID."""
 
     try:
-        await emit(
+        await socket_service.emit(
             SocketEvents.DOWNLOAD_START,
             DownloadStartResponse(id=id).model_dump(),
         )

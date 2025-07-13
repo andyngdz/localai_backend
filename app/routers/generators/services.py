@@ -8,9 +8,8 @@ import torch
 from PIL import Image
 
 from app.model_manager import model_manager
-from app.routers.websocket.routes import emit_from_sync
-from app.routers.websocket.schemas import SocketEvents
 from app.services import styles_service
+from app.socket import SocketEvents, socket_service
 from config import BASE_GENERATED_IMAGES_DIR
 
 from .constants import default_negative_prompt
@@ -104,7 +103,7 @@ class GeneratorsService:
             # latents = callback_kwargs['latents']
             # image = self.latents_to_rgb(latents[0])
 
-            emit_from_sync(
+            socket_service.emit_sync(
                 SocketEvents.IMAGE_GENERATION_EACH_STEP,
                 {
                     'id': self.id,

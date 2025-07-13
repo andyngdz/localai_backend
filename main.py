@@ -1,6 +1,5 @@
 """Main entry point for the LocalAI Backend application."""
 
-import asyncio
 import logging
 import os
 import sys
@@ -16,11 +15,11 @@ from app.routers import (
     generators,
     hardware,
     models,
-    sio_app,
     styles,
     users,
 )
-from app.services.logger import StreamToLogger
+from app.services import StreamToLogger
+from app.socket import socket_service
 
 stdout_logger = logging.getLogger('STDOUT')
 stderr_logger = logging.getLogger('STDERR')
@@ -31,12 +30,12 @@ sys.stderr = StreamToLogger(stderr_logger, logging.ERROR)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup event to initialize the database."""
-    from app.database import init_db
+    from app.database import database_service
     from app.model_manager import model_manager
 
-    init_db()
+    database_service.start()
+    model_manager.start()
     model_manager.unload_model()
-    asyncio.create_task(model_manager.monitor_download())
     yield
 
 
@@ -47,7 +46,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.mount('/static', StaticFiles(directory='static'), name='static')
-app.mount('/ws', app=sio_app)
+app.mount('/ws', app=socket_service.sio_app)
 app.include_router(users)
 app.include_router(models)
 app.include_router(downloads)

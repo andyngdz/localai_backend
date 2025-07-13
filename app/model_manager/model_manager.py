@@ -6,11 +6,11 @@ from typing import Any, Dict
 
 import torch
 
-from app.database import get_db
+from app.database import database_service
 from app.database.crud import add_model
 from app.routers.downloads.schemas import DownloadCompletedResponse
-from app.routers.websocket import SocketEvents, emit
 from app.services.storage import get_model_dir
+from app.socket import SocketEvents, socket_service
 
 from .constants import default_sample_size
 from .model_loader import model_loader
@@ -29,7 +29,7 @@ class ModelManager:
     """
 
     def __init__(self):
-        [db] = get_db()
+        [db] = database_service.db
 
         self.db = db
         self.pipe = None
@@ -38,10 +38,14 @@ class ModelManager:
 
         logger.info('ModelManager instance initialized.')
 
+    def start(self):
+        """Starts the background task to monitor model downloads."""
+
+        logger.info('Starting model download monitoring task.')
+        asyncio.create_task(self.monitor_download())
+
     async def monitor_download(self):
         """Background thread to monitor the done queue for model loading completion."""
-
-        logger.info('Monitoring download tasks.')
 
         while True:
             id = await asyncio.to_thread(self.download_queue.get)
@@ -61,7 +65,7 @@ class ModelManager:
 
         add_model(self.db, id, model_dir)
 
-        await emit(
+        await socket_service.emit(
             SocketEvents.DOWNLOAD_COMPLETED,
             DownloadCompletedResponse(id=id).model_dump(),
         )
@@ -77,8 +81,8 @@ class ModelManager:
         else:
             logger.warning('CUDA is not available, cannot clear cache.')
 
-        logging.info('Forcing garbage collection to free memory.')
         gc.collect()
+        logging.info('Forcing garbage collection to free memory.')
 
     def start_download(self, id: str):
         """Start downloading a model in a separate process."""
@@ -155,6 +159,7 @@ class ModelManager:
         try:
             if self.pipe is not None:
                 logger.info(f'Unloading model: {self.id}')
+
                 del self.pipe
                 self.pipe = None
                 self.id = None
