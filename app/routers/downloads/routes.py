@@ -34,11 +34,11 @@ def delete_model_from_cache(id: str):
     model_lock_dir = get_model_lock_dir(id)
 
     if os.path.exists(model_dir):
-        logger.info('Cleaning up model directory: %s', model_dir)
+        logger.info(f'Cleaning up model directory: {model_dir}')
         shutil.rmtree(model_dir)
 
     if os.path.exists(model_lock_dir):
-        logger.info('Cleaning up model lock directory: %s', model_lock_dir)
+        logger.info(f'Cleaning up model lock directory: {model_lock_dir}')
         shutil.rmtree(model_lock_dir)
 
 
@@ -52,7 +52,7 @@ async def clean_up(id: str):
         DownloadCancelledResponse(id=id).model_dump(),
     )
 
-    logger.info('Cleaned up resources for id: %s', id)
+    logger.info(f'Cleaned up resources for id: {id}')
 
 
 async def run_download(id: str):
@@ -66,14 +66,14 @@ async def run_download(id: str):
 
         model_dir = get_model_dir(id)
 
-        logger.info('Download model into folder: %s', model_dir)
+        logger.info(f'Download model into folder: {model_dir}')
 
         model_manager_service.start_download(id)
 
     except CancelledError:
-        logger.warning('Download task for id %s was cancelled', id)
+        logger.warning(f'Download task for id {id} was cancelled')
     finally:
-        logger.info('Download task for id %s completed', id)
+        logger.info(f'Download task for id {id} completed')
 
 
 @downloads.post('/')
@@ -87,7 +87,7 @@ async def init_download(request: DownloadRequest):
 
     id = request.id
 
-    logger.info('API Request: Initiating download for id: %s', id)
+    logger.info(f'API Request: Initiating download for id: {id}')
 
     await run_download(id)
 
@@ -101,7 +101,7 @@ async def init_download(request: DownloadRequest):
 async def cancel_download(id: str = Query(..., description='The model ID to cancel')):
     """Cancel the download by id"""
 
-    logger.info('API Request: Cancelling download for id: %s', id)
+    logger.info(f'API Request: Cancelling download for id: {id}')
 
     model_manager_service.cancel_download(id)
     await clean_up(id)
