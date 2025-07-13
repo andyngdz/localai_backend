@@ -80,7 +80,7 @@ class ModelDownloadService:
     def cancel_download(self, id: str):
         """Cancel the active model download and clean up cache."""
 
-        download_process = download_processes[id]
+        download_process = download_processes.get(id)
 
         if download_process and download_process.is_alive():
             logger.info(f'Cancelling model download: {id}')
