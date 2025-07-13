@@ -18,15 +18,6 @@ class DownloadRequest(BaseModel):
     )
 
 
-class DownloadCompletedResponse(BaseModel):
-    """
-    Response model for a completed download.
-    Contains the ID of the model that was downloaded.
-    """
-
-    id: str = Field(..., description='The ID of the model that was downloaded.')
-
-
 class DownloadStartResponse(BaseModel):
     """
     Response model for preparing a download.

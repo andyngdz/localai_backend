@@ -14,7 +14,7 @@ from .schemas import MaxMemoryConfig
 logger = logging.getLogger(__name__)
 
 
-class ModelLoader:
+class ModelLoaderService:
     """
     A class to handle the loading of models in a separate process.
     This is useful for managing resources and avoiding blocking the main application.
@@ -69,4 +69,4 @@ class ModelLoader:
         return self.pipe
 
 
-model_loader = ModelLoader()
+model_loader_service = ModelLoaderService()

@@ -13,17 +13,17 @@ from app.constants import (
 )
 from app.database import database_service
 from app.database.crud import add_model
-from app.routers.downloads.schemas import DownloadCompletedResponse
-from app.services.storage import get_model_dir
+from app.services import get_model_dir
 from app.socket import SocketEvents, socket_service
 
-from .model_loader import model_loader
+from .model_loader_service import model_loader_service
+from .schemas import DownloadCompletedResponse
 from .states import download_processes
 
 logger = logging.getLogger(__name__)
 
 
-class ModelManager:
+class ModelManagerService:
     """
     Manages the active diffusion pipeline and handles background loading with cancellation.
     """
@@ -95,7 +95,7 @@ class ModelManager:
 
         self.unload_model()
         new_process = Process(
-            target=model_loader.process, args=(id, self.db, self.download_queue)
+            target=model_loader_service.process, args=(id, self.db, self.download_queue)
         )
         new_process.start()
         download_processes[id] = new_process
@@ -138,7 +138,7 @@ class ModelManager:
         self.unload_model()
 
         try:
-            self.pipe = model_loader.process(id, self.db)
+            self.pipe = model_loader_service.process(id, self.db)
 
             logger.info(f'Model {id} loaded successfully.')
 
@@ -209,4 +209,4 @@ class ModelManager:
             return default_sample_size
 
 
-model_manager = ModelManager()
+model_manager_service = ModelManagerService()

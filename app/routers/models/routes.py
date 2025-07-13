@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import database_service
 from app.database.crud import check_if_model_downloaded, get_all_downloaded_models
-from app.model_manager import model_manager
+from app.model_manager import model_manager_service
 
 from .schemas import (
     LoadModelRequest,
@@ -31,7 +31,7 @@ default_pipeline_tag = 'text-to-image'
 default_sort = 'downloads'
 
 
-@models.get('/search', response_model=ModelSearchInfoListResponse)
+@models.get('/search')
 def list_models(
     model_name: Optional[str] = Query(None),
     filter: Optional[str] = Query(None),
@@ -90,7 +90,7 @@ def get_downloaded_models(db: Session = Depends(database_service.get_db)):
 
 
 @models.get('/available')
-def check_if_model_already_downloaded(
+def is_model_already_downloaded(
     id: str = Query(..., description='Model ID'),
     db: Session = Depends(database_service.get_db),
 ):
@@ -109,15 +109,16 @@ def check_if_model_already_downloaded(
         )
 
 
-@models.post('/load', response_model=LoadModelResponse)
+@models.post('/load')
 def load_model(request: LoadModelRequest):
     """Load model by id"""
     id = None
 
     try:
         id = request.id
-        model_config = model_manager.load_model(id)
-        sample_size = model_manager.get_sample_size()
+
+        model_config = model_manager_service.load_model(id)
+        sample_size = model_manager_service.get_sample_size()
 
         return LoadModelResponse(id=id, config=model_config, sample_size=sample_size)
 
@@ -144,7 +145,7 @@ def unload_model():
     """
 
     try:
-        model_manager.unload_model()
+        model_manager_service.unload_model()
     except Exception as error:
         logger.exception('Failed to unload model')
 

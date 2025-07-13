@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -7,7 +8,7 @@ from datetime import datetime
 import torch
 from PIL import Image
 
-from app.model_manager import model_manager
+from app.model_manager import model_manager_service
 from app.services import styles_service
 from app.socket import SocketEvents, socket_service
 from config import BASE_GENERATED_IMAGES_DIR
@@ -100,13 +101,15 @@ class GeneratorService:
 
     def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
         try:
-            # latents = callback_kwargs['latents']
-            # image = self.latents_to_rgb(latents[0])
+            latents = callback_kwargs['latents']
+            image = self.latents_to_rgb(latents[0])
+            image_base64 = base64.b64encode(image.tobytes()).decode('utf-8')
 
             socket_service.emit_sync(
                 SocketEvents.IMAGE_GENERATION_EACH_STEP,
                 {
                     'id': self.id,
+                    'image_base64': image_base64,
                 },
             )
         except Exception as e:
@@ -119,7 +122,7 @@ class GeneratorService:
 
         self.id = request.id
         config = request.config
-        pipe = model_manager.pipe
+        pipe = model_manager_service.pipe
 
         if pipe is None:
             logger.warning('Attempted to generate image, but no model is loaded.')
@@ -133,7 +136,7 @@ class GeneratorService:
                 f'size={config.width}x{config.height}'
             )
 
-            model_manager.set_sampler(config.sampler)
+            model_manager_service.set_sampler(config.sampler)
 
             self.apply_hires_fix(config.hires_fix)
 

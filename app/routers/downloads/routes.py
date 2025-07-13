@@ -8,8 +8,8 @@ from fastapi import APIRouter, Query
 from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from app.model_manager import model_manager
-from app.services.storage import get_model_dir, get_model_lock_dir
+from app.model_manager import model_manager_service
+from app.services import get_model_dir, get_model_lock_dir
 from app.socket import SocketEvents, socket_service
 
 from .schemas import (
@@ -68,7 +68,7 @@ async def run_download(id: str):
 
         logger.info('Download model into folder: %s', model_dir)
 
-        model_manager.start_download(id)
+        model_manager_service.start_download(id)
 
     except CancelledError:
         logger.warning('Download task for id %s was cancelled', id)
@@ -76,7 +76,7 @@ async def run_download(id: str):
         logger.info('Download task for id %s completed', id)
 
 
-@downloads.post('/', response_model=DownloadStatusResponse)
+@downloads.post('/')
 @retry(
     stop=stop_after_attempt(5),
     wait=wait_fixed(2),
@@ -97,13 +97,13 @@ async def init_download(request: DownloadRequest):
     )
 
 
-@downloads.get('/cancel', response_model=DownloadStatusResponse)
+@downloads.get('/cancel')
 async def cancel_download(id: str = Query(..., description='The model ID to cancel')):
     """Cancel the download by id"""
 
     logger.info('API Request: Cancelling download for id: %s', id)
 
-    model_manager.cancel_download(id)
+    model_manager_service.cancel_download(id)
     await clean_up(id)
 
     return DownloadStatusResponse(

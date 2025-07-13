@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.database import database_service
-from app.model_manager import model_manager
+from app.model_manager import model_manager_service
 from app.routers import (
     downloads,
     generators,
@@ -34,8 +34,8 @@ async def lifespan(app: FastAPI):
     """Startup event to initialize the database."""
 
     database_service.start()
-    model_manager.start()
-    model_manager.unload_model()
+    model_manager_service.start()
+    model_manager_service.unload_model()
     yield
 
 

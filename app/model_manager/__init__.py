@@ -1,9 +1,9 @@
-from .model_loader import model_loader
-from .model_manager import model_manager
+from .model_loader_service import model_loader_service
+from .model_manager_service import model_manager_service
 from .states import download_processes
 
 __all__ = [
     'download_processes',
-    'model_loader',
-    'model_manager',
+    'model_loader_service',
+    'model_manager_service',
 ]
