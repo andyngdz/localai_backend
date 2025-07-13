@@ -110,14 +110,17 @@ def is_model_already_downloaded(
 
 
 @models.post('/load')
-def load_model(request: LoadModelRequest):
+def load_model(
+    request: LoadModelRequest,
+    db: Session = Depends(database_service.get_db),
+):
     """Load model by id"""
     id = None
 
     try:
         id = request.id
 
-        model_config = model_manager_service.load_model(id)
+        model_config = model_manager_service.load_model(id, db)
         sample_size = model_manager_service.get_sample_size()
 
         return LoadModelResponse(id=id, config=model_config, sample_size=sample_size)
