@@ -120,7 +120,7 @@ def load_model(
     try:
         id = request.id
 
-        model_config = model_manager_service.load_model(id, db)
+        model_config = model_manager_service.load_model(id)
         sample_size = model_manager_service.get_sample_size()
 
         return LoadModelResponse(id=id, config=model_config, sample_size=sample_size)
