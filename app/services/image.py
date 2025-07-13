@@ -17,7 +17,7 @@ class ImageService:
         """
 
         buffered = io.BytesIO()
-        image.save(buffered, format='PNG')
+        image.save(buffered, format='png')
         image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
         return image_base64
