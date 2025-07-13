@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -9,7 +8,7 @@ import torch
 from PIL import Image
 
 from app.model_manager import model_manager_service
-from app.services import styles_service
+from app.services import image_service, styles_service
 from app.socket import SocketEvents, socket_service
 from config import BASE_GENERATED_IMAGES_DIR
 
@@ -102,19 +101,17 @@ class GeneratorService:
         return Image.fromarray(image_array)
 
     def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
-        latents = callback_kwargs['latents']
-
-        logger.info(
-            f'Callback on step end: pipe={pipe}  step={step}, timestep={timestep}'
-        )
+        logger.info(f'Callback on step end: step={step}, timestep={timestep}')
 
         if self.id:
+            latents = callback_kwargs['latents']
             image = self.latents_to_rgb(latents[0])
-            image_base64 = base64.b64encode(image.tobytes()).decode('utf-8')
+            image_base64 = image_service.to_base64(image)
             socket_service.emit_sync(
                 SocketEvents.IMAGE_GENERATION_EACH_STEP,
                 ImageGenerationEachStepResponse(
-                    id=self.id, image_base64=image_base64
+                    id=self.id,
+                    image_base64=image_base64,
                 ).model_dump(),
             )
 
