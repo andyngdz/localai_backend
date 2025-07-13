@@ -35,8 +35,9 @@ class ModelDownloadService:
 
         while True:
             id = await asyncio.to_thread(self.download_queue.get)
-            logger.info(f'Model download completed for ID: {id}')
-            await self.download_completed(id)
+            if id:
+                logger.info(f'Model download completed for ID: {id}')
+                await self.download_completed(id)
 
     async def download_completed(self, id: str):
         """Handles the completion of a model download."""
