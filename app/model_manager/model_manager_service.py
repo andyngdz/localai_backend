@@ -5,13 +5,13 @@ from multiprocessing import Process, Queue
 from typing import Any, Dict
 
 import torch
+from sqlalchemy.orm import Session
 
 from app.constants import (
     SCHEDULER_MAPPING,
     SamplerType,
     default_sample_size,
 )
-from app.database import database_service
 from app.database.crud import add_model
 from app.services import get_model_dir
 from app.socket import SocketEvents, socket_service
@@ -29,19 +29,17 @@ class ModelManagerService:
     """
 
     def __init__(self):
-        [db] = database_service.db
-
-        self.db = db
         self.pipe = None
         self.id = None
         self.download_queue = Queue()
 
         logger.info('ModelManager instance initialized.')
 
-    def start(self):
+    def start(self, db: Session):
         """Starts the background task to monitor model downloads."""
 
         logger.info('Starting model download monitoring task.')
+        self.db = db
         asyncio.create_task(self.monitor_download())
 
     async def monitor_download(self):

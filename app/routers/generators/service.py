@@ -70,7 +70,7 @@ class GeneratorService:
             raise ValueError('Failed to generate any image.')
 
         os.makedirs(BASE_GENERATED_IMAGES_DIR, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%Mw_%f')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         filename = os.path.join(BASE_GENERATED_IMAGES_DIR, f'{timestamp}.png')
 
         image = images[0]

@@ -15,7 +15,6 @@ engine = create_engine(DATABASE_URL, echo=False)
 # Create a SessionLocal class, which is a factory for new Session objects
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
 logger = logging.getLogger(__name__)
 
 
