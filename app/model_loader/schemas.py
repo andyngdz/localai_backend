@@ -1,7 +1,5 @@
 from typing import Dict, Union
 
-from pydantic import BaseModel, Field
-
 
 class MaxMemoryConfig:
     def __init__(
@@ -21,12 +19,3 @@ class MaxMemoryConfig:
             return {self.device_index: self.memory_size, 'cpu': self.memory_size}
         else:
             return {'cpu': self.memory_size}
-
-
-class DownloadCompletedResponse(BaseModel):
-    """
-    Response model for a completed download.
-    Contains the ID of the model that was downloaded.
-    """
-
-    id: str = Field(..., description='The ID of the model that was downloaded.')

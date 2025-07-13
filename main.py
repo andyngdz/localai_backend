@@ -12,7 +12,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database import database_service
 from app.database.service import SessionLocal
-from app.model_manager import model_download_service, model_manager_service
+from app.model_downloader import model_download_service
+from app.model_manager import model_manager_service
 from app.routers import (
     downloads,
     generators,

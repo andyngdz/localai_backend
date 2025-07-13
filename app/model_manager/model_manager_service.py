@@ -10,8 +10,7 @@ from app.constants import (
     SamplerType,
     default_sample_size,
 )
-
-from .model_loader_service import model_loader_service
+from app.model_loader import model_loader
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ class ModelManagerService:
         self.unload_model()
 
         try:
-            self.pipe = model_loader_service.process(id, db)
+            self.pipe = model_loader(id)
 
             logger.info(f'Model {id} loaded successfully.')
 

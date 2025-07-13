@@ -4,11 +4,11 @@ from multiprocessing import Process, Queue
 
 from sqlalchemy.orm import Session
 
+from app.model_loader import model_loader
 from app.database.crud import add_model
 from app.services import get_model_dir
 from app.socket import SocketEvents, socket_service
 
-from .model_loader_service import model_loader_service
 from .schemas import DownloadCompletedResponse
 from .states import download_processes
 
@@ -69,7 +69,8 @@ class ModelDownloadService:
             return
 
         new_process = Process(
-            target=model_loader_service.process, args=(id, self.db, self.download_queue)
+            target=model_loader,
+            args=(id, self.download_queue),
         )
         new_process.start()
         download_processes[id] = new_process
