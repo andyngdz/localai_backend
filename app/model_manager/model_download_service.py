@@ -21,7 +21,7 @@ class ModelDownloadService:
     def __init__(self):
         self.download_queue = Queue()
 
-        logger.info('ModelManager instance initialized.')
+        logger.info('ModelDownloadService instance initialized.')
 
     def start(self, db: Session):
         """Starts the background task to monitor model downloads."""
@@ -73,7 +73,6 @@ class ModelDownloadService:
         new_process.start()
         download_processes[id] = new_process
 
-        self.id = id
         logger.info(f'Started background model download: {id}')
 
     def cancel_download(self, id: str):
