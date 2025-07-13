@@ -37,3 +37,10 @@ class ImageGenerationRequest(BaseModel):
     config: GeneratorConfig = Field(
         ..., description='Configuration for image generation.'
     )
+
+
+class ImageGenerationEachStepResponse(BaseModel):
+    id: str = Field(..., description='Socket ID for tracking the generation process.')
+    image_base64: str = Field(
+        ..., description='Base64 encoded image generated at this step.'
+    )

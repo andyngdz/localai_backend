@@ -14,7 +14,7 @@ from app.socket import SocketEvents, socket_service
 from config import BASE_GENERATED_IMAGES_DIR
 
 from .constants import default_negative_prompt
-from .schemas import ImageGenerationRequest
+from .schemas import ImageGenerationEachStepResponse, ImageGenerationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 class GeneratorService:
     def __init__(self):
         self.id = None
+        self.loop = asyncio.get_event_loop()
+        self.executor = ThreadPoolExecutor()
 
     def get_seed(self, seed: int):
         random_seed = None
@@ -100,20 +102,21 @@ class GeneratorService:
         return Image.fromarray(image_array)
 
     def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
-        try:
-            latents = callback_kwargs['latents']
+        latents = callback_kwargs['latents']
+
+        logger.info(
+            f'Callback on step end: pipe={pipe}  step={step}, timestep={timestep}'
+        )
+
+        if self.id:
             image = self.latents_to_rgb(latents[0])
             image_base64 = base64.b64encode(image.tobytes()).decode('utf-8')
-
             socket_service.emit_sync(
                 SocketEvents.IMAGE_GENERATION_EACH_STEP,
-                {
-                    'id': self.id,
-                    'image_base64': image_base64,
-                },
+                ImageGenerationEachStepResponse(
+                    id=self.id, image_base64=image_base64
+                ).model_dump(),
             )
-        except Exception as e:
-            logger.error(f'Error in callback_on_step_end: {e}')
 
         return callback_kwargs
 
@@ -152,10 +155,8 @@ class GeneratorService:
             logger.info(f'Positive prompt after clipping: {final_positive_prompt}')
             logger.info(f'Negative prompt after clipping: {final_negative_prompt}')
 
-            loop = asyncio.get_event_loop()
-            executor = ThreadPoolExecutor()
-            output = await loop.run_in_executor(
-                executor,
+            output = await self.loop.run_in_executor(
+                self.executor,
                 lambda: pipe(
                     prompt=final_positive_prompt,
                     negative_prompt=final_negative_prompt,
