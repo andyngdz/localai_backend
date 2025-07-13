@@ -3,7 +3,6 @@ import logging
 from typing import Any, Dict
 
 import torch
-from sqlalchemy.orm import Session
 
 from app.constants import (
     SCHEDULER_MAPPING,
@@ -38,7 +37,7 @@ class ModelManagerService:
         gc.collect()
         logging.info('Forcing garbage collection to free memory.')
 
-    def load_model(self, id: str, db: Session) -> Dict[str, Any]:
+    def load_model(self, id: str) -> Dict[str, Any]:
         """
         Load a model synchronously into memory for inference.
         Should only be called when model is confirmed downloaded.
