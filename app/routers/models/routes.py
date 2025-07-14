@@ -35,7 +35,7 @@ default_sort = 'downloads'
 def list_models(
     model_name: Optional[str] = Query(None),
     filter: Optional[str] = Query(None),
-    limit: int = Query(10),
+    limit: int = Query(20),
 ):
     """List models from Hugging Face Hub."""
 
