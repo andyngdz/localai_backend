@@ -1,7 +1,7 @@
 """Models Blueprint"""
 
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from huggingface_hub import HfApi
@@ -26,16 +26,18 @@ models = APIRouter(
 )
 api = HfApi()
 
-default_limit = 50
+default_limit = 20
 default_pipeline_tag = 'text-to-image'
 default_sort = 'downloads'
 
 
 @models.get('/search')
 def list_models(
-    model_name: Optional[str] = Query(None),
-    filter: Optional[str] = Query(None),
-    limit: int = Query(20),
+    model_name: Optional[str] = Query(None, description='Model name to search for'),
+    filter: Optional[str] = Query(None, description='Filter for models'),
+    limit: int = Query(default_limit, description='Number of models to return'),
+    sort: Optional[str] = Query(default_sort, description='Sort order for models'),
+    direction: Optional[Literal[-1]] = Query(default=-1, description='Sort direction (asc/desc)')
 ):
     """List models from Hugging Face Hub."""
 
@@ -45,7 +47,8 @@ def list_models(
         limit=limit,
         model_name=model_name,
         pipeline_tag=default_pipeline_tag,
-        sort=default_sort,
+        sort=sort,
+        direction=direction,
     )
 
     models = list(hf_models_generator)
