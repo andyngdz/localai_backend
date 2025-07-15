@@ -35,7 +35,7 @@ default_sort = 'downloads'
 def list_models(
     model_name: Optional[str] = Query(None),
     filter: Optional[str] = Query(None),
-    limit: int = Query(10),
+    limit: int = Query(20),
 ):
     """List models from Hugging Face Hub."""
 
@@ -110,17 +110,14 @@ def is_model_already_downloaded(
 
 
 @models.post('/load')
-def load_model(
-    request: LoadModelRequest,
-    db: Session = Depends(database_service.get_db),
-):
+def load_model(request: LoadModelRequest):
     """Load model by id"""
     id = None
 
     try:
         id = request.id
 
-        model_config = model_manager_service.load_model(id, db)
+        model_config = model_manager_service.load_model(id)
         sample_size = model_manager_service.get_sample_size()
 
         return LoadModelResponse(id=id, config=model_config, sample_size=sample_size)
