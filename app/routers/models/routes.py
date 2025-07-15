@@ -110,10 +110,7 @@ def is_model_already_downloaded(
 
 
 @models.post('/load')
-def load_model(
-    request: LoadModelRequest,
-    db: Session = Depends(database_service.get_db),
-):
+def load_model(request: LoadModelRequest):
     """Load model by id"""
     id = None
 
