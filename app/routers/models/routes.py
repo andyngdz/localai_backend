@@ -31,7 +31,7 @@ def list_models(
     model_name: Optional[str] = Query(default=None, description='Model name to search for'),
     filter: Optional[str] = Query(None, description='Filter for models'),
     limit: int = Query(default=20, description='Number of models to return'),
-    sort: Optional[str] = Query(default='downloads', description='Sort order for models'),
+    sort: Optional[str] = Query(default='likes', description='Sort order for models'),
 ):
     """List models from Hugging Face Hub."""
 
