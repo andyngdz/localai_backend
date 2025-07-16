@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query
 from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from app.model_downloader import model_download_service
+from app.model_loader import model_loader
 from app.services import get_model_dir, get_model_lock_dir
 from app.socket import SocketEvents, socket_service
 
@@ -17,6 +17,7 @@ from .schemas import (
     DownloadRequest,
     DownloadStartResponse,
     DownloadStatusResponse,
+    DownloadCompletedResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -68,13 +69,17 @@ async def run_download(id: str):
 
         logger.info(f'Download model into folder: {model_dir}')
 
-        model_download_service.start_download(id)
+        model_loader(id)
+
+        await socket_service.emit(
+            SocketEvents.DOWNLOAD_COMPLETED,
+            DownloadCompletedResponse(id=id).model_dump(),
+        )
 
     except CancelledError:
         logger.warning(f'Download task for id {id} was cancelled')
     finally:
         logger.info(f'Download task for id {id} completed')
-
 
 @downloads.post('/')
 @retry(
@@ -103,7 +108,6 @@ async def cancel_download(id: str = Query(..., description='The model ID to canc
 
     logger.info(f'API Request: Cancelling download for id: {id}')
 
-    model_download_service.cancel_download(id)
     await clean_up(id)
 
     return DownloadStatusResponse(

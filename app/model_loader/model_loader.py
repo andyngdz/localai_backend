@@ -10,7 +10,6 @@ from app.database.service import SessionLocal
 from config import BASE_CACHE_DIR
 
 from .schemas import MaxMemoryConfig
-
 logger = logging.getLogger(__name__)
 
 def model_loader(id: str, done_queue: Optional[Queue] = None):
