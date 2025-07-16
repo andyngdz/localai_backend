@@ -12,7 +12,6 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database import database_service
 from app.database.service import SessionLocal
-from app.model_downloader import model_download_service
 from app.model_manager import model_manager_service
 from app.routers import (
     downloads,
@@ -28,8 +27,7 @@ from app.socket import socket_service
 stdout_logger = logging.getLogger('STDOUT')
 stderr_logger = logging.getLogger('STDERR')
 sys.stdout = StreamToLogger(stdout_logger, logging.INFO)
-sys.stderr = StreamToLogger(stderr_logger, logging.ERROR)
-
+sys.stderr = StreamToLogger(stderr_logger, logging.ERROR) 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,7 +35,6 @@ async def lifespan(app: FastAPI):
 
     database_service.start()
     db = SessionLocal()
-    model_download_service.start(db)
     model_manager_service.unload_model()
 
     yield
