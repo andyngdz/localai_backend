@@ -29,7 +29,7 @@ api = HfApi()
 @models.get('/search')
 def list_models(
     model_name: Optional[str] = Query(default=None, description='Model name to search for'),
-    filter: Optional[str] = Query(None, description='Filter for models'),
+    filter: Optional[str] = Query(default=None, description='Filter for models'),
     limit: int = Query(default=20, description='Number of models to return'),
     sort: Optional[str] = Query(default='likes', description='Sort order for models'),
 ):
