@@ -1,7 +1,7 @@
 """Models Blueprint"""
 
 import logging
-from typing import Literal, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from huggingface_hub import HfApi
