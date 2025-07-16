@@ -26,18 +26,12 @@ models = APIRouter(
 )
 api = HfApi()
 
-default_limit = 20
-default_pipeline_tag = 'text-to-image'
-default_sort = 'downloads'
-
-
 @models.get('/search')
 def list_models(
-    model_name: Optional[str] = Query(None, description='Model name to search for'),
+    model_name: Optional[str] = Query(default=None, description='Model name to search for'),
     filter: Optional[str] = Query(None, description='Filter for models'),
-    limit: int = Query(default_limit, description='Number of models to return'),
-    sort: Optional[str] = Query(default_sort, description='Sort order for models'),
-    direction: Optional[Literal[-1]] = Query(default=-1, description='Sort direction (asc/desc)')
+    limit: int = Query(default=20, description='Number of models to return'),
+    sort: Optional[str] = Query(default='downloads', description='Sort order for models'),
 ):
     """List models from Hugging Face Hub."""
 
@@ -46,13 +40,11 @@ def list_models(
         filter=filter,
         limit=limit,
         model_name=model_name,
-        pipeline_tag=default_pipeline_tag,
+        pipeline_tag='text-to-image',
         sort=sort,
-        direction=direction,
     )
 
     models = list(hf_models_generator)
-
     models_search_info = []
 
     for model in models:
@@ -60,7 +52,6 @@ def list_models(
         models_search_info.append(model_search_info)
 
     return ModelSearchInfoListResponse(models_search_info=models_search_info)
-
 
 @models.get('/details')
 def get_model_info(id: str = Query(..., description='Model ID')):
@@ -74,7 +65,6 @@ def get_model_info(id: str = Query(..., description='Model ID')):
     model_info = api.model_info(id, files_metadata=True)
 
     return model_info
-
 
 @models.get('/downloaded')
 def get_downloaded_models(db: Session = Depends(database_service.get_db)):
@@ -90,7 +80,6 @@ def get_downloaded_models(db: Session = Depends(database_service.get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(error),
         )
-
 
 @models.get('/available')
 def is_model_already_downloaded(
@@ -110,7 +99,6 @@ def is_model_already_downloaded(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(error),
         )
-
 
 @models.post('/load')
 def load_model(request: LoadModelRequest):
@@ -139,7 +127,6 @@ def load_model(request: LoadModelRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load model '{id}': {error}",
         )
-
 
 @models.post('/unload')
 def unload_model():
