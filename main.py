@@ -21,13 +21,7 @@ from app.routers import (
     styles,
     users,
 )
-from app.services import StreamToLogger
 from app.socket import socket_service
-
-stdout_logger = logging.getLogger('STDOUT')
-stderr_logger = logging.getLogger('STDERR')
-sys.stdout = StreamToLogger(stdout_logger, logging.INFO)
-sys.stderr = StreamToLogger(stderr_logger, logging.ERROR) 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

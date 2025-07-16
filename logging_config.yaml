@@ -5,17 +5,6 @@ formatters:
   default:
     format: '%(asctime)s|LAB|%(levelname)s - %(message)s'
 
-handlers:
-  file:
-    class: logging.FileHandler
-    filename: logs.txt
-    mode: w
-    formatter: default
-
-  console:
-    class: logging.StreamHandler
-    formatter: default
-
 loggers:
   watchfiles:
     level: WARNING
