@@ -27,8 +27,8 @@ from app.services import logger_service
 async def lifespan(app: FastAPI):
     """Startup event"""
 
-    database_service.start()
     logger_service.start()
+    database_service.start()
     db = SessionLocal()
     model_manager_service.unload_model()
 
