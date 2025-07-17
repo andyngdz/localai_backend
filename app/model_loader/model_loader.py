@@ -26,7 +26,7 @@ def model_loader(id: str):
     max_memory = MaxMemoryConfig(device, device_index).to_dict()
     logger.info(f'[Process] Setting max memory for model {id}: {max_memory}')
 
-    logger.info(f'[Process] Devide map for model {id}: balanced')
+    logger.info(f'[Process] Devide map for model {id}: {DEVICE_MAP}')
 
     try:
         pipe = AutoPipelineForText2Image.from_pretrained(
