@@ -1,8 +1,6 @@
 """Main entry point for the LocalAI Backend application."""
 
-import logging
 import os
-import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -34,7 +32,6 @@ async def lifespan(app: FastAPI):
     yield
 
     db.close()
-
 
 app = FastAPI(
     title='LocalAI Backend',

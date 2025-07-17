@@ -1,7 +1,7 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import torch
@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)
 class GeneratorService:
     def __init__(self):
         self.id = None
-        self.loop = asyncio.get_event_loop()
-        self.executor = ThreadPoolExecutor()
-
+ 
     def get_seed(self, seed: int):
         random_seed = None
 
@@ -142,6 +140,7 @@ class GeneratorService:
 
             random_seed = self.get_seed(config.seed)
 
+            # Apply styles to the prompt
             positive_prompt, negative_prompt = styles_service.apply_styles(
                 config.prompt,
                 config.styles,
@@ -152,8 +151,17 @@ class GeneratorService:
             logger.info(f'Positive prompt after clipping: {final_positive_prompt}')
             logger.info(f'Negative prompt after clipping: {final_negative_prompt}')
 
-            output = await self.loop.run_in_executor(
-                self.executor,
+            # Run the image generation in a separate thread to avoid blocking
+            # the event loop, especially for long-running tasks like image generation.
+            # This is necessary because the pipeline may not be fully async-compatible.
+            # Using ThreadPoolExecutor to run the blocking code in a separate thread.
+            logger.info('Starting image generation in a separate thread.')
+            
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor()
+
+            output = await loop.run_in_executor(
+                executor,
                 lambda: pipe(
                     prompt=final_positive_prompt,
                     negative_prompt=final_negative_prompt,

@@ -14,7 +14,8 @@ localai_backend.db
 
 # Build artifacts and distribution directories
 dist/                   # PyInstaller output (e.g., dist/app.exe or dist/app)
-build/                  # PyInstaller build cache
+build/                 # PyInstaller build cache
+*.spec
 
 # ------------------------------------------------------------------
 # PYTHON SPECIFIC IGNORES
