@@ -4,9 +4,12 @@ from diffusers import AutoPipelineForText2Image
 
 from app.database.crud import get_selected_device
 from app.database.service import SessionLocal
+from app.socket import SocketEvents, socket_service
+
 from config import BASE_CACHE_DIR
 
-from .schemas import MaxMemoryConfig
+from .schemas import MaxMemoryConfig, DownloadCompletedResponse
+
 logger = logging.getLogger(__name__)
 
 def model_loader(id: str):
@@ -47,5 +50,11 @@ def model_loader(id: str):
         pipe.enable_attention_slicing()
 
     db.close()
+
+
+    socket_service.emit_sync(
+        SocketEvents.DOWNLOAD_COMPLETED,
+        DownloadCompletedResponse(id=id).model_dump(),
+    )
 
     return pipe

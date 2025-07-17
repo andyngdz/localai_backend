@@ -17,7 +17,6 @@ class DownloadRequest(BaseModel):
         description='Optional Hugging Face API token for private models or increased rate limits.',
     )
 
-
 class DownloadStartResponse(BaseModel):
     """
     Response model for preparing a download.
@@ -25,13 +24,6 @@ class DownloadStartResponse(BaseModel):
     """
 
     id: str = Field(..., description='The ID of the model being downloaded.')
-
-
-class DownloadCancelledResponse(BaseModel):
-    """Response model for cancelling a download."""
-
-    id: str = Field(..., description='The ID of the model download to cancel.')
-
 
 class DownloadStatusResponse(BaseModel):
     """
@@ -42,11 +34,3 @@ class DownloadStatusResponse(BaseModel):
     message: Optional[str] = Field(
         None, description='A human-readable message about the download status.'
     )
-
-class DownloadCompletedResponse(BaseModel):
-    """
-    Response model for a completed download.
-    Contains the ID of the model that was downloaded.
-    """
-
-    id: str = Field(..., description='The ID of the model that was downloaded.')
