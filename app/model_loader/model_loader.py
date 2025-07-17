@@ -2,8 +2,9 @@ import logging
 import torch
 from diffusers import AutoPipelineForText2Image
 
-from app.database.crud import get_selected_device
+from app.database.crud import add_model, get_selected_device
 from app.database.service import SessionLocal
+from app.services.storage import get_model_dir
 from app.socket import SocketEvents, socket_service
 
 from config import BASE_CACHE_DIR
@@ -51,6 +52,10 @@ def model_loader(id: str):
 
     if device == 'cuda':
         pipe.enable_attention_slicing()
+
+    model_dir = get_model_dir(id)
+    
+    add_model(db, id, model_dir)
 
     db.close()
 
