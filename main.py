@@ -20,11 +20,14 @@ from app.routers import (
     users,
 )
 from app.socket import socket_service
+from app.services import logger_service
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup event"""
 
+    logger_service.start()
     database_service.start()
     db = SessionLocal()
     model_manager_service.unload_model()
@@ -32,6 +35,7 @@ async def lifespan(app: FastAPI):
     yield
 
     db.close()
+
 
 app = FastAPI(
     title='LocalAI Backend',
