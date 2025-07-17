@@ -28,6 +28,7 @@ def model_loader(id: str):
             max_memory=max_memory,
             torch_dtype=torch_dtype,
             use_safetensors=True,
+            device_map="balanced",
         )
     except EnvironmentError:
         pipe = AutoPipelineForText2Image.from_pretrained(
@@ -37,9 +38,9 @@ def model_loader(id: str):
             max_memory=max_memory,
             torch_dtype=torch_dtype,
             use_safetensors=False,
+            device_map="balanced",
         )
 
-    pipe.to(device)
 
     if device == 'cuda':
         pipe.enable_model_cpu_offload()
