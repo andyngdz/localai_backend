@@ -25,12 +25,12 @@ class GPUDeviceInfo(BaseModel):
         ...,
         description="Name of the GPU (e.g., 'NVIDIA GeForce RTX 3080', 'Apple M1 Max').",
     )
-    memory_mb: Optional[int] = Field(None, description='Total memory of the GPU in MB.')
+    memory: Optional[int] = Field(None, description='Total memory of the GPU.')
     cuda_compute_capability: Optional[str] = Field(
-        None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
+        default=None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
     )
     is_primary: bool = Field(
-        False, description='True if this is the primary/default GPU.'
+        default=False, description='True if this is the primary/default GPU.'
     )
 
 
@@ -46,33 +46,36 @@ class GPUDriverInfo(BaseModel):
     detected_gpus: List[GPUDeviceInfo] = Field(
         default_factory=list, description='List of detected GPU devices.'
     )
-    # Specifics for NVIDIA
     nvidia_driver_version: Optional[str] = Field(
-        None, description='NVIDIA driver version (if NVIDIA GPU detected).'
+        default=None, description='NVIDIA driver version (if NVIDIA GPU detected).'
     )
     cuda_runtime_version: Optional[str] = Field(
-        None,
+        default=None,
         description='CUDA runtime version detected by PyTorch/system (if NVIDIA GPU).',
     )
     # Specifics for Apple Silicon
     macos_mps_available: Optional[bool] = Field(
-        None,
+        default=None,
         description='True if Metal Performance Shaders (MPS) are available on macOS.',
     )
     # Add recommendations or links
     recommendation_link: Optional[str] = Field(
-        None,
+        default=None,
         description='A URL for recommended driver downloads or troubleshooting.',
     )
     troubleshooting_steps: Optional[List[str]] = Field(
-        None, description='Specific steps to resolve issues.'
+        default=None, description='Specific steps to resolve issues.'
     )
 
 
 class SelectDeviceRequest(BaseModel):
-    """Request for selecting a device witn index"""
+    """Request for selecting a device with index"""
 
-    device_index: int
+    device_index: int = Field(
+        ...,
+        ge=0,
+        description='Index of the device to select. -2 means not found, -1 means CPU mode.',
+    )
 
 
 class GetCurrentDeviceIndex(BaseModel):
@@ -81,4 +84,34 @@ class GetCurrentDeviceIndex(BaseModel):
     device_index: int = Field(
         ...,
         description='Index of the currently selected device. -2 means not found, -1 means CPU mode.',
+    )
+
+
+class MaxMemoryConfigRequest(BaseModel):
+    """Configuration for maximum memory usage."""
+
+    ram: float = Field(
+        ...,
+        ge=0.1,
+        le=1,
+        description='Maximum RAM memory in percent that can be used by the pipeline.',
+    )
+    gpu: float = Field(
+        ...,
+        ge=0.1,
+        le=1,
+        description='Maximum GPU memory in percent that can be used by the pipeline.',
+    )
+
+
+class MemoryResponse(BaseModel):
+    """Response containing the maximum memory configuration."""
+
+    gpu: int = Field(
+        ...,
+        description='Maximum GPU memory in bytes.',
+    )
+    ram: int = Field(
+        ...,
+        description='Maximum RAM memory in bytes.',
     )

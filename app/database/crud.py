@@ -4,18 +4,12 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from app.database.models.model import Model
-from app.database.models.user import User
+from app.database.models.config import Config
+from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY
 
 
 class DeviceSelection(IntEnum):
     NOT_FOUND = -2
-
-
-def get_selected_device(db: Session) -> int:
-    """Get selected device index from the database."""
-    user = db.query(User).first()
-
-    return user.selected_device if user else DeviceSelection.NOT_FOUND
 
 
 def add_model(db: Session, model_id: str, model_dir: str):
@@ -29,34 +23,76 @@ def add_model(db: Session, model_id: str, model_dir: str):
         db.add(model)
 
     db.commit()
-    db.refresh(model)
 
     return model
 
 
-def get_all_downloaded_models(db: Session) -> List[Model]:
+def downloaded_models(db: Session) -> List[Model]:
     """Get all models from the database."""
     models = db.query(Model).all()
 
     return models
 
 
-def check_if_model_downloaded(db: Session, model_id: str) -> bool:
+def is_model_downloaded(db: Session, model_id: str) -> bool:
     """Check if a model is downloaded (status 'completed') in the database."""
     model = db.query(Model).filter(Model.model_id == model_id).first()
 
     return model is not None
 
 
-def create_or_update_selected_device(db: Session, device_index: int):
-    """Create or update selected device"""
+def get_device_index(db: Session) -> int:
+    """Get selected device index from the database."""
+    config = db.query(Config).first()
 
-    user = db.query(User).first()
+    return config.device_index if config else DeviceSelection.NOT_FOUND
 
-    if user:
-        user.selected_device = device_index
+
+def add_device_index(db: Session, device_index: int):
+    """Add or update selected device"""
+
+    config = db.query(Config).first()
+
+    if config:
+        config.device_index = device_index
     else:
-        user = User(selected_device=device_index)
-        db.add(user)
+        config = Config(device_index=device_index)
+        db.add(config)
 
     db.commit()
+
+
+def add_max_memory(db: Session, ram: float, gpu: float):
+    """Add or update configuration in the database."""
+    config = db.query(Config).first()
+
+    if config:
+        config.ram = ram
+        config.gpu = gpu
+    else:
+        config = Config(ram=ram, gpu=gpu)
+        db.add(config)
+
+    db.commit()
+
+
+def get_gpu_max_memory(db: Session) -> float:
+    """Get GPU max memory from the database."""
+
+    config = db.query(Config).first()
+
+    if config and config.gpu is not None:
+        return config.gpu
+
+    return DEFAULT_MAX_GPU_MEMORY
+
+
+def get_ram_max_memory(db: Session) -> float:
+    """Get RAM max memory from the database."""
+
+    config = db.query(Config).first()
+
+    if config and config.ram is not None:
+        return config.ram
+
+    return DEFAULT_MAX_RAM_MEMORY

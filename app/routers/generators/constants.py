@@ -1,1 +1,1 @@
-default_negative_prompt = '(worst quality, low quality, lowres, blurry, jpeg artifacts, watermark, signature, text, logo), (bad hands, bad anatomy, mutated, deformed, disfigured, extra limbs, cropped, out of frame), (cartoon, anime, cgi, render, 3d, doll, toy, painting, sketch)'
+DEFAULT_NEGATIVE_PROMPT = '(worst quality, low quality, lowres, blurry, jpeg artifacts, watermark, signature, text, logo), (bad hands, bad anatomy, mutated, deformed, disfigured, extra limbs, cropped, out of frame), (cartoon, anime, cgi, render, 3d, doll, toy, painting, sketch)'

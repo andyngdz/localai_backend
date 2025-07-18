@@ -11,13 +11,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import database_service
-from app.database.crud import create_or_update_selected_device, get_selected_device
+from app.database.crud import add_device_index, get_device_index, add_max_memory
+from app.services.memory import MemoryService
 
 from .schemas import (
     GetCurrentDeviceIndex,
     GPUDeviceInfo,
     GPUDriverInfo,
     GPUDriverStatusStates,
+    MaxMemoryConfigRequest,
+    MemoryResponse,
     SelectDeviceRequest,
 )
 
@@ -34,7 +37,7 @@ else:
     CREATE_NO_WINDOW = 0
 
 
-def create_initial_gpu_info() -> GPUDriverInfo:
+def default_gpu_info() -> GPUDriverInfo:
     """Initializes GPUDriverInfo with default unknown status."""
     return GPUDriverInfo(
         overall_status=GPUDriverStatusStates.UNKNOWN_ERROR,
@@ -60,17 +63,21 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 
         # Get individual GPU device info
         detected_gpus = []
-        for i in range(cuda.device_count()):
-            device_name = cuda.get_device_name(i)
-            device_property = cuda.get_device_properties(i)
-            total_memory = device_property.total_memory / (1024**2)  # Convert to MB
-            compute_capability = f'{device_property.major}.{device_property.minor}'
+        device_count = cuda.device_count()
+
+        for index in range(device_count):
+            name = cuda.get_device_name(index)
+            device_property = cuda.get_device_properties(index)
+            total_memory = device_property.total_memory
+            cuda_compute_capability = f'{device_property.major}.{device_property.minor}'
+            is_primary = index == cuda.current_device()
+
             detected_gpus.append(
                 GPUDeviceInfo(
-                    name=device_name,
-                    memory_mb=int(total_memory),
-                    cuda_compute_capability=compute_capability,
-                    is_primary=(i == cuda.current_device()),
+                    name=name,
+                    memory=total_memory,
+                    cuda_compute_capability=cuda_compute_capability,
+                    is_primary=is_primary,
                 )
             )
         info.detected_gpus = detected_gpus
@@ -141,7 +148,7 @@ def get_mps_gpu_info(info: GPUDriverInfo):
     info.detected_gpus.append(
         GPUDeviceInfo(
             name=platform.machine(),  # e.g., 'arm64' for M-series
-            memory_mb=None,  # MPS doesn't expose dedicated VRAM easily
+            memory=None,  # MPS doesn't expose dedicated VRAM easily
             cuda_compute_capability=None,
             is_primary=True,
         )
@@ -156,7 +163,7 @@ def get_system_gpu_info() -> GPUDriverInfo:
     """
 
     # Initialize with default unknown status
-    info = create_initial_gpu_info()
+    info = default_gpu_info()
 
     try:
         system_os = platform.system()
@@ -201,7 +208,7 @@ def get_system_gpu_info() -> GPUDriverInfo:
 
 
 @hardware.get('/')
-def get_hardware_status():
+def get_hardware():
     """
     Returns the current GPU and driver status of the system.
     This will return the cached result of _get_system_gpu_info().
@@ -209,6 +216,28 @@ def get_hardware_status():
     driver_info = get_system_gpu_info()
 
     return driver_info
+
+
+@hardware.get('/memory')
+def get_device_memory(db: Session = Depends(database_service.get_db)):
+    """
+    Returns the maximum memory configuration for the system.
+    This will return the cached result of _get_system_gpu_info().
+    """
+    try:
+        memory_service = MemoryService(db)
+
+        return MemoryResponse(
+            gpu=memory_service.total_gpu,
+            ram=memory_service.total_ram,
+        )
+    except Exception as error:
+        logger.error(f'Error retrieving maximum memory configuration: {error}')
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
 
 
 @hardware.get('/recheck')
@@ -226,22 +255,22 @@ def recheck():
 
 
 @hardware.post('/device')
-def select_device(
+def set_device(
     request: SelectDeviceRequest, db: Session = Depends(database_service.get_db)
 ):
     """Select device"""
 
     device_index = request.device_index
-    create_or_update_selected_device(db, device_index=device_index)
+    add_device_index(db, device_index=device_index)
 
-    return {'message': 'Device selected successfully'}
+    return {'message': 'Device index set successfully.', 'device_index': device_index}
 
 
 @hardware.get('/device')
 def get_device(db: Session = Depends(database_service.get_db)):
     """Get current selected device"""
     try:
-        device_index = get_selected_device(db)
+        device_index = get_device_index(db)
 
         return GetCurrentDeviceIndex(device_index=device_index).model_dump()
     except Exception as error:
@@ -251,3 +280,19 @@ def get_device(db: Session = Depends(database_service.get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(error),
         )
+
+
+@hardware.post('/max-memory')
+def set_max_memory(
+    config: MaxMemoryConfigRequest,
+    db: Session = Depends(database_service.get_db),
+):
+    """Set maximum memory configuration."""
+
+    add_max_memory(db, ram=config.ram, gpu=config.gpu)
+
+    return {
+        'message': 'Maximum memory configuration successfully saved.',
+        'ram': config.ram,
+        'gpu': config.gpu,
+    }

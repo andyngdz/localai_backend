@@ -5,9 +5,9 @@ from typing import Any, Dict
 import torch
 
 from app.constants import (
+    DEFAULT_SAMPLE_SIZE,
     SCHEDULER_MAPPING,
     SamplerType,
-    default_sample_size,
 )
 from app.model_loader import model_loader
 
@@ -125,7 +125,7 @@ class ModelManagerService:
 
             return sample_size
         else:
-            return default_sample_size
+            return DEFAULT_SAMPLE_SIZE
 
 
 model_manager_service = ModelManagerService()
