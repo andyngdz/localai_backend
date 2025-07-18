@@ -13,8 +13,8 @@ class Config(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     device_index: Mapped[int] = mapped_column()
-    ram: Mapped[float] = mapped_column(default=default_max_ram_memory, nullable=True)
-    gpu: Mapped[float] = mapped_column(default=default_max_gpu_memory, nullable=True)
+    ram: Mapped[float] = mapped_column(default=default_max_ram_memory)
+    gpu: Mapped[float] = mapped_column(default=default_max_gpu_memory)
 
     def __repr__(self):
         return f'<Config(id={self.id}, device_index={self.device_index}, ram={self.ram}, gpu={self.gpu})>'
