@@ -1,4 +1,4 @@
-from .samplers import default_sample_size
+from .samplers import DEFAULT_SAMPLE_SIZE
 from .schedulers import (
     SCHEDULER_DESCRIPTIONS,
     SCHEDULER_MAPPING,
@@ -9,7 +9,7 @@ from .schemas import SamplerItem
 from .service import constant_service
 
 __all__ = [
-    'default_sample_size',
+    'DEFAULT_SAMPLE_SIZE',
     'SCHEDULER_DESCRIPTIONS',
     'SCHEDULER_MAPPING',
     'SCHEDULER_NAMES',

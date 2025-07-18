@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.database.crud import get_device_index, get_gpu_max_memory, get_ram_max_memory
 from app.services import MemoryService, device_service
 
+from .constants import BYTES_TO_GB
+
 
 class MaxMemoryConfig:
     def __init__(self, db: Session):
@@ -19,8 +21,8 @@ class MaxMemoryConfig:
         max_ram_memory = get_ram_max_memory(db)
 
         self.device_index = get_device_index(db)
-        self.max_ram_in_gb = (memory_service.total_ram * max_ram_memory) / (1024**3)
-        self.max_gpu_in_gb = (memory_service.total_gpu * max_gpu_memory) / (1024**3)
+        self.max_ram_in_gb = (memory_service.total_ram * max_ram_memory) / BYTES_TO_GB
+        self.max_gpu_in_gb = (memory_service.total_gpu * max_gpu_memory) / BYTES_TO_GB
 
     def to_dict(self) -> Dict[Union[int, str], str]:
         if device_service.is_cuda:

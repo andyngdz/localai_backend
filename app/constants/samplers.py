@@ -1,1 +1,1 @@
-default_sample_size: int = 64
+DEFAULT_SAMPLE_SIZE = 64

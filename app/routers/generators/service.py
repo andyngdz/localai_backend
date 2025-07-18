@@ -12,7 +12,7 @@ from app.services import image_service, styles_service
 from app.socket import SocketEvents, socket_service
 from config import BASE_GENERATED_IMAGES_DIR
 
-from .constants import default_negative_prompt
+from .constants import DEFAULT_NEGATIVE_PROMPT
 from .schemas import ImageGenerationEachStepResponse, ImageGenerationRequest
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class GeneratorService:
     def __init__(self):
         self.id = None
- 
+
     def get_seed(self, seed: int):
         random_seed = None
 
@@ -146,7 +146,7 @@ class GeneratorService:
                 config.styles,
             )
             final_positive_prompt = positive_prompt
-            final_negative_prompt = negative_prompt or default_negative_prompt
+            final_negative_prompt = negative_prompt or DEFAULT_NEGATIVE_PROMPT
 
             logger.info(f'Positive prompt after clipping: {final_positive_prompt}')
             logger.info(f'Negative prompt after clipping: {final_negative_prompt}')
@@ -156,7 +156,7 @@ class GeneratorService:
             # This is necessary because the pipeline may not be fully async-compatible.
             # Using ThreadPoolExecutor to run the blocking code in a separate thread.
             logger.info('Starting image generation in a separate thread.')
-            
+
             loop = asyncio.get_event_loop()
             executor = ThreadPoolExecutor()
 
