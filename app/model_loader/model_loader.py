@@ -8,7 +8,8 @@ from app.socket import SocketEvents, socket_service
 
 from config import BASE_CACHE_DIR
 
-from .schemas import MaxMemoryConfig, DownloadCompletedResponse
+from .schemas import DownloadCompletedResponse
+from .max_memory import MaxMemoryConfig
 
 logger = logging.getLogger(__name__)
 
