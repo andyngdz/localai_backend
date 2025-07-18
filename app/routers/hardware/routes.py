@@ -67,16 +67,16 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 
         for index in range(device_count):
             name = cuda.get_device_name(index)
-            property = cuda.get_device_properties(index)
-            total_memory = property.total_memory
-            compute_capability = f'{property.major}.{property.minor}'
+            device_property = cuda.get_device_properties(index)
+            total_memory = device_property.total_memory
+            cuda_compute_capability = f'{device_property.major}.{device_property.minor}'
             is_primary = index == cuda.current_device()
 
             detected_gpus.append(
                 GPUDeviceInfo(
                     name=name,
                     memory=total_memory,
-                    cuda_compute_capability=compute_capability,
+                    cuda_compute_capability=cuda_compute_capability,
                     is_primary=is_primary,
                 )
             )
@@ -263,6 +263,8 @@ def set_device(
     device_index = request.device_index
     add_device_index(db, device_index=device_index)
 
+    return {'message': 'Device index set successfully.', 'device_index': device_index}
+
 
 @hardware.get('/device')
 def get_device(db: Session = Depends(database_service.get_db)):
@@ -288,3 +290,9 @@ def set_max_memory(
     """Set maximum memory configuration."""
 
     add_max_memory(db, ram=config.ram, gpu=config.gpu)
+
+    return {
+        'message': 'Maximum memory configuration successfully saved.',
+        'ram': config.ram,
+        'gpu': config.gpu,
+    }

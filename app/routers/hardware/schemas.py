@@ -27,10 +27,10 @@ class GPUDeviceInfo(BaseModel):
     )
     memory: Optional[int] = Field(None, description='Total memory of the GPU.')
     cuda_compute_capability: Optional[str] = Field(
-        None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
+        default=None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
     )
     is_primary: bool = Field(
-        False, description='True if this is the primary/default GPU.'
+        default=False, description='True if this is the primary/default GPU.'
     )
 
 
