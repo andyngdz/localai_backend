@@ -8,7 +8,7 @@ from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 
 from app.database import database_service
-from app.database.crud import check_if_model_downloaded, get_all_downloaded_models
+from app.database.crud import is_model_downloaded, downloaded_models
 from app.model_manager import model_manager_service
 
 from .schemas import (
@@ -26,9 +26,12 @@ models = APIRouter(
 )
 api = HfApi()
 
+
 @models.get('/search')
 def list_models(
-    model_name: Optional[str] = Query(default=None, description='Model name to search for'),
+    model_name: Optional[str] = Query(
+        default=None, description='Model name to search for'
+    ),
     filter: Optional[str] = Query(default=None, description='Filter for models'),
     limit: int = Query(default=20, description='Number of models to return'),
     sort: Optional[str] = Query(default='likes', description='Sort order for models'),
@@ -53,6 +56,7 @@ def list_models(
 
     return ModelSearchInfoListResponse(models_search_info=models_search_info)
 
+
 @models.get('/details')
 def get_model_info(id: str = Query(..., description='Model ID')):
     """Get model info by model's id"""
@@ -66,11 +70,12 @@ def get_model_info(id: str = Query(..., description='Model ID')):
 
     return model_info
 
+
 @models.get('/downloaded')
 def get_downloaded_models(db: Session = Depends(database_service.get_db)):
     """Get a list of downloaded models"""
     try:
-        models = get_all_downloaded_models(db)
+        models = downloaded_models(db)
 
         return models
     except Exception as error:
@@ -81,6 +86,7 @@ def get_downloaded_models(db: Session = Depends(database_service.get_db)):
             detail=str(error),
         )
 
+
 @models.get('/available')
 def is_model_already_downloaded(
     id: str = Query(..., description='Model ID'),
@@ -89,7 +95,7 @@ def is_model_already_downloaded(
     """Check if model is already downloaded by id"""
 
     try:
-        is_downloaded = check_if_model_downloaded(db, id)
+        is_downloaded = is_model_downloaded(db, id)
 
         return ModelAvailableResponse(id=id, is_downloaded=is_downloaded)
     except Exception as error:
@@ -99,6 +105,7 @@ def is_model_already_downloaded(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(error),
         )
+
 
 @models.post('/load')
 def load_model(request: LoadModelRequest):
@@ -127,6 +134,7 @@ def load_model(request: LoadModelRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load model '{id}': {error}",
         )
+
 
 @models.post('/unload')
 def unload_model():

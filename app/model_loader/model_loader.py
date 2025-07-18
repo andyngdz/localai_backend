@@ -2,7 +2,7 @@ import logging
 import torch
 from diffusers import AutoPipelineForText2Image
 
-from app.database.crud import add_model, get_selected_device
+from app.database.crud import add_model, get_device_index
 from app.database.service import SessionLocal
 from app.services.storage import get_model_dir
 from app.socket import SocketEvents, socket_service
@@ -13,7 +13,8 @@ from .schemas import MaxMemoryConfig, DownloadCompletedResponse
 
 logger = logging.getLogger(__name__)
 
-DEVICE_MAP = "balanced"
+DEVICE_MAP = 'balanced'
+
 
 def model_loader(id: str):
     db = SessionLocal()
@@ -22,7 +23,7 @@ def model_loader(id: str):
     torch_dtype = torch.float16 if device == 'cuda' else torch.float32
     logger.info(f'[Process] Loading model {id} to {device}')
 
-    device_index = get_selected_device(db)
+    device_index = get_device_index(db)
     max_memory = MaxMemoryConfig(device, device_index).to_dict()
     logger.info(f'[Process] Setting max memory for model {id}: {max_memory}')
 
@@ -49,12 +50,11 @@ def model_loader(id: str):
             device_map=DEVICE_MAP,
         )
 
-
     if device == 'cuda':
         pipe.enable_attention_slicing()
 
     model_dir = get_model_dir(id)
-    
+
     add_model(db, id, model_dir)
 
     db.close()

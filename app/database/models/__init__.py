@@ -1,4 +1,4 @@
 from .model import Model
-from .user import User
+from .config import Config
 
-__all__ = ['Model', 'User']
+__all__ = ['Model', 'Config']

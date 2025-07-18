@@ -11,13 +11,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import database_service
-from app.database.crud import create_or_update_selected_device, get_selected_device
+from app.database.crud import add_device_index, get_device_index, add_max_memory
 
 from .schemas import (
     GetCurrentDeviceIndex,
     GPUDeviceInfo,
     GPUDriverInfo,
     GPUDriverStatusStates,
+    MaxMemoryConfigRequest,
     SelectDeviceRequest,
 )
 
@@ -226,22 +227,20 @@ def recheck():
 
 
 @hardware.post('/device')
-def select_device(
+def set_device(
     request: SelectDeviceRequest, db: Session = Depends(database_service.get_db)
 ):
     """Select device"""
 
     device_index = request.device_index
-    create_or_update_selected_device(db, device_index=device_index)
-
-    return {'message': 'Device selected successfully'}
+    add_device_index(db, device_index=device_index)
 
 
 @hardware.get('/device')
 def get_device(db: Session = Depends(database_service.get_db)):
     """Get current selected device"""
     try:
-        device_index = get_selected_device(db)
+        device_index = get_device_index(db)
 
         return GetCurrentDeviceIndex(device_index=device_index).model_dump()
     except Exception as error:
@@ -251,3 +250,12 @@ def get_device(db: Session = Depends(database_service.get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(error),
         )
+
+
+@hardware.post('/max-memory')
+def set_max_memory(
+    config: MaxMemoryConfigRequest, db: Session = Depends(database_service.get_db)
+):
+    """Set maximum memory configuration."""
+
+    add_max_memory(db, ram=config.ram, gpu=config.gpu)
