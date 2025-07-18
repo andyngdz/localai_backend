@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class MaxMemoryConfig:
     def __init__(
-        self, device: str, device_index: Union[int, str] = 0, memory_size: str = '8GB'
+        self, device: str, device_index: Union[int, str] = 0, memory_size: str = '10GB'
     ):
         """
         device: 'cuda' or 'cpu'
