@@ -71,7 +71,11 @@ class GPUDriverInfo(BaseModel):
 class SelectDeviceRequest(BaseModel):
     """Request for selecting a device with index"""
 
-    device_index: int
+    device_index: int = Field(
+        ...,
+        ge=0,
+        description='Index of the device to select. -2 means not found, -1 means CPU mode.',
+    )
 
 
 class GetCurrentDeviceIndex(BaseModel):
@@ -88,9 +92,13 @@ class MaxMemoryConfigRequest(BaseModel):
 
     ram: float = Field(
         ...,
+        ge=0.1,
+        le=1,
         description='Maximum RAM memory in percent that can be used by the pipeline.',
     )
     gpu: float = Field(
         ...,
+        ge=0.1,
+        le=1,
         description='Maximum GPU memory in percent that can be used by the pipeline.',
     )
