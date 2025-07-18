@@ -25,7 +25,7 @@ class GPUDeviceInfo(BaseModel):
         ...,
         description="Name of the GPU (e.g., 'NVIDIA GeForce RTX 3080', 'Apple M1 Max').",
     )
-    memory_mb: Optional[int] = Field(None, description='Total memory of the GPU in MB.')
+    memory: Optional[int] = Field(None, description='Total memory of the GPU.')
     cuda_compute_capability: Optional[str] = Field(
         None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
     )
@@ -101,4 +101,17 @@ class MaxMemoryConfigRequest(BaseModel):
         ge=0.1,
         le=1,
         description='Maximum GPU memory in percent that can be used by the pipeline.',
+    )
+
+
+class MemoryResponse(BaseModel):
+    """Response containing the maximum memory configuration."""
+
+    gpu: int = Field(
+        ...,
+        description='Maximum GPU memory in bytes.',
+    )
+    ram: int = Field(
+        ...,
+        description='Maximum RAM memory in bytes.',
     )
