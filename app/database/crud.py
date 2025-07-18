@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database.models.model import Model
 from app.database.models.config import Config
+from .constant import default_max_gpu_memory, default_max_ram_memory
 
 
 class DeviceSelection(IntEnum):
@@ -73,3 +74,25 @@ def add_max_memory(db: Session, ram: float, gpu: float):
         db.add(config)
 
     db.commit()
+
+
+def get_gpu_max_memory(db: Session) -> float:
+    """Get GPU max memory from the database."""
+
+    config = db.query(Config).first()
+
+    if config and config.gpu is not None:
+        return config.gpu
+
+    return default_max_gpu_memory
+
+
+def get_ram_max_memory(db: Session) -> float:
+    """Get RAM max memory from the database."""
+
+    config = db.query(Config).first()
+
+    if config and config.ram is not None:
+        return config.ram
+
+    return default_max_ram_memory

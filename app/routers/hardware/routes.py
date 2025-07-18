@@ -6,13 +6,13 @@ import platform
 import subprocess
 import sys
 
-import psutil
 import torch
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import database_service
 from app.database.crud import add_device_index, get_device_index, add_max_memory
+from app.services.memory import MemoryService
 
 from .schemas import (
     GetCurrentDeviceIndex,
@@ -225,13 +225,11 @@ def get_device_memory(db: Session = Depends(database_service.get_db)):
     This will return the cached result of _get_system_gpu_info().
     """
     try:
-        device_index = get_device_index(db)
-        properties = torch.cuda.get_device_properties(device_index)
-        total_ram = psutil.virtual_memory().total
+        memory_service = MemoryService(db)
 
         return MemoryResponse(
-            gpu=properties.total_memory,
-            ram=total_ram,
+            gpu=memory_service.total_gpu,
+            ram=memory_service.total_ram,
         )
     except Exception as error:
         logger.error(f'Error retrieving maximum memory configuration: {error}')
