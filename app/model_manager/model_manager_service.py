@@ -88,7 +88,7 @@ class ModelManagerService:
 
             return await loop.run_in_executor(
                 executor,
-                model_manager_service.load_model,
+                self.load_model,
                 id,
             )
         except Exception as error:
