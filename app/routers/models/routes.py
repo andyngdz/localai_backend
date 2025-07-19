@@ -108,14 +108,14 @@ def is_model_already_downloaded(
 
 
 @models.post('/load')
-def load_model(request: LoadModelRequest):
+async def load_model(request: LoadModelRequest):
     """Load model by id"""
     id = None
 
     try:
         id = request.id
 
-        model_config = model_manager_service.load_model(id)
+        model_config = await model_manager_service.load_model_async(id)
         sample_size = model_manager_service.get_sample_size()
 
         return LoadModelResponse(id=id, config=model_config, sample_size=sample_size)

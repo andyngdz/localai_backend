@@ -41,10 +41,14 @@ class LoadModelResponse(BaseModel):
         ...,
         description='Unique identifier for the model (Hugging Face repo ID).',
     )
-    config: Dict[str, Any] = Field(
-        default_factory=dict, description='Model configuration details.'
+    config: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description='Model configuration details.',
     )
-    sample_size: int = Field(default=64, description='Sample size of the model.')
+    sample_size: int = Field(
+        default=64,
+        description='Sample size of the model.',
+    )
 
 
 class NewModelAvailableResponse(BaseModel):
