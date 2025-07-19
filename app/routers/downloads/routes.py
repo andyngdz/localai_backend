@@ -5,7 +5,6 @@ from aiohttp import ClientError
 from fastapi import APIRouter
 from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
-import thread
 
 from app.model_manager.model_manager_service import model_manager_service
 from app.services import get_model_dir
