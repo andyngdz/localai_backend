@@ -1,3 +1,7 @@
-from sqlalchemy.ext.declarative import declarative_base
+from typing import Any
+from sqlalchemy import JSON
+from sqlalchemy.orm import DeclarativeBase
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    type_annotation_map = {dict[str, Any]: JSON}

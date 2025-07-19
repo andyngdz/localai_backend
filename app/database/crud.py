@@ -2,8 +2,8 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from app.database.models.model import Model
-from app.database.models.config import Config
+from app.database.models import Model, Config, History
+from app.schemas.generators import ImageGenerationRequest
 from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY, DeviceSelection
 
 
@@ -91,3 +91,18 @@ def get_ram_max_memory(db: Session) -> float:
         return config.ram
 
     return DEFAULT_MAX_RAM_MEMORY
+
+
+def add_history(db: Session, model: str, request: ImageGenerationRequest):
+    """Add a history entry to the database."""
+    config = request.config
+
+    history = History(
+        prompt=config.prompt,
+        model=model,
+        config=config.model_dump(),
+    )
+    db.add(history)
+    db.commit()
+
+    return history

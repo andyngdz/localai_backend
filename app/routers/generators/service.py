@@ -13,7 +13,10 @@ from app.socket import SocketEvents, socket_service
 from config import BASE_GENERATED_IMAGES_DIR
 
 from .constants import DEFAULT_NEGATIVE_PROMPT
-from .schemas import ImageGenerationEachStepResponse, ImageGenerationRequest
+from ...schemas.generators import (
+    ImageGenerationEachStepResponse,
+    ImageGenerationRequest,
+)
 
 logger = logging.getLogger(__name__)
 
