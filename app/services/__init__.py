@@ -4,9 +4,11 @@ from .styles import styles_service
 from .logger import logger_service
 from .memory import MemoryService
 from .device import device_service
+from .platform import platform_service
 
 __all__ = [
     'MemoryService',
+    'platform_service',
     'device_service',
     'logger_service',
     'styles_service',

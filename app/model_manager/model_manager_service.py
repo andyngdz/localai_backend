@@ -1,3 +1,5 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import gc
 import logging
 from typing import Any, Dict
@@ -71,6 +73,26 @@ class ModelManagerService:
 
             logger.error(f'Failed to load model {id}: {error}')
             raise
+
+    async def load_model_async(self, id: str):
+        """
+        Asynchronously load a model into memory for inference.
+        This method is intended to be run in a separate thread.
+        """
+
+        logger.info(f'Asynchronously loading model: {id}')
+
+        try:
+            executor = ThreadPoolExecutor()
+            loop = asyncio.get_event_loop()
+
+            return await loop.run_in_executor(
+                executor,
+                self.load_model,
+                id,
+            )
+        except Exception as error:
+            logger.error(f'Error loading model {id} asynchronously: {error}')
 
     def unload_model(self):
         """Unloads the current model and frees VRAM."""

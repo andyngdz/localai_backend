@@ -23,6 +23,7 @@ downloads = APIRouter(
 )
 api = HfApi()
 
+
 async def run_download(id: str):
     """Run the download task for the given model ID."""
 
@@ -36,12 +37,13 @@ async def run_download(id: str):
 
         logger.info(f'Download model into folder: {model_dir}')
 
-        model_manager_service.load_model(id)
+        await model_manager_service.load_model_async(id)
 
     except CancelledError:
         logger.warning(f'Download task for id {id} was cancelled')
     finally:
         logger.info(f'Download task for id {id} completed')
+
 
 @downloads.post('/')
 @retry(
@@ -60,5 +62,5 @@ async def init_download(request: DownloadRequest):
 
     return DownloadStatusResponse(
         id=id,
-        message='Download starting',
+        message='Download completed',
     )

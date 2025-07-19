@@ -14,12 +14,11 @@ HTMLParser==0.0.2
 huggingface_hub==0.33.4
 ipython==9.4.0
 ipywidgets==8.1.7
-jnius==1.1.0
+pyjnius
 js==1.0
 keyring==25.6.0
 Pillow==11.3.0
 pydantic==2.11.7
-pyodide==0.0.2
 pyOpenSSL==25.1.0
 python-socketio==5.13.0
 redis==6.2.0
@@ -31,5 +30,4 @@ thread==2.0.5
 torch==2.7.1
 transformers==4.53.2
 urllib3_secure_extra==0.1.0
-xmlrpclib==1.0.1
 zstandard==0.23.0
