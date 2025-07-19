@@ -1,15 +1,10 @@
-from enum import IntEnum
 from typing import List
 
 from sqlalchemy.orm import Session
 
 from app.database.models.model import Model
 from app.database.models.config import Config
-from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY
-
-
-class DeviceSelection(IntEnum):
-    NOT_FOUND = -2
+from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY, DeviceSelection
 
 
 def add_model(db: Session, model_id: str, model_dir: str):
