@@ -20,7 +20,7 @@ from app.routers import (
     users,
 )
 from app.socket import socket_service
-from app.services import logger_service
+from app.services import logger_service, platform_service
 
 
 @asynccontextmanager
@@ -28,7 +28,9 @@ async def lifespan(app: FastAPI):
     """Startup event"""
 
     logger_service.start()
+    platform_service.start()
     database_service.start()
+
     db = SessionLocal()
     model_manager_service.unload_model()
 
