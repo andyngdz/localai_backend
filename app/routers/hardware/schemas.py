@@ -43,7 +43,7 @@ class GPUDriverInfo(BaseModel):
     message: str = Field(
         ..., description='A user-friendly message explaining the status.'
     )
-    detected_gpus: List[GPUDeviceInfo] = Field(
+    gpus: List[GPUDeviceInfo] = Field(
         default_factory=list, description='List of detected GPU devices.'
     )
     nvidia_driver_version: Optional[str] = Field(

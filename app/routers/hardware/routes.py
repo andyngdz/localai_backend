@@ -42,7 +42,7 @@ def default_gpu_info() -> GPUDriverInfo:
     return GPUDriverInfo(
         overall_status=GPUDriverStatusStates.UNKNOWN_ERROR,
         message='Attempting to detect GPU and driver status...',
-        detected_gpus=[],
+        gpus=[],
         nvidia_driver_version=None,
         cuda_runtime_version=None,
         macos_mps_available=None,
@@ -62,7 +62,7 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
         info.cuda_runtime_version = getattr(version, 'cuda', None)
 
         # Get individual GPU device info
-        detected_gpus = []
+        gpus = []
         device_count = cuda.device_count()
 
         for index in range(device_count):
@@ -72,7 +72,7 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
             cuda_compute_capability = f'{device_property.major}.{device_property.minor}'
             is_primary = index == cuda.current_device()
 
-            detected_gpus.append(
+            gpus.append(
                 GPUDeviceInfo(
                     name=name,
                     memory=total_memory,
@@ -80,7 +80,7 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
                     is_primary=is_primary,
                 )
             )
-        info.detected_gpus = detected_gpus
+        info.gpus = gpus
 
         # Try to get NVIDIA driver version via nvidia-smi
         try:
@@ -145,7 +145,7 @@ def get_mps_gpu_info(info: GPUDriverInfo):
     info.macos_mps_available = True
     # MPS doesn't expose detailed device info like CUDA, but you can get general info
     # For simplicity, we'll just add a generic entry if MPS is available
-    info.detected_gpus.append(
+    info.gpus.append(
         GPUDeviceInfo(
             name=platform.machine(),  # e.g., 'arm64' for M-series
             memory=None,  # MPS doesn't expose dedicated VRAM easily
