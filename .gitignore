@@ -33,14 +33,10 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Runtime downloaded models
-data/models/
-data/generated_images/
-.models/
-.generated_images/
+static/generated_images
 
 # Caches
 .cache/
-data/cache/
 
 # Specific IDE-related files
 .mypy_cache/      # Mypy type checker cache
