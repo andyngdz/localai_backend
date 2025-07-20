@@ -4,13 +4,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from .base import Base
-
-# Define the database URL
-DATABASE_URL = 'sqlite:///localai_backend.db'
+from .constant import DATABASE_URL
 
 # Create the SQLAlchemy engine
 # echo=True is useful for debugging SQL queries, set to False in production
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(DATABASE_URL, echo=True)
 
 # Create a SessionLocal class, which is a factory for new Session objects
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
