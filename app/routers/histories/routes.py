@@ -26,7 +26,7 @@ async def add_new_history(
 		if model_manager_service.id is None:
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
-				detail='No model loaded. Please load a model before generating images.',
+				detail='No model loaded. Please load a model before creating a history entry.',
 			)
 
 		history = add_history(db, model_manager_service.id, request)
