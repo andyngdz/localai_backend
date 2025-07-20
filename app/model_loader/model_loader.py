@@ -10,10 +10,9 @@ from config import BASE_CACHE_DIR
 
 from .schemas import DownloadCompletedResponse
 from .max_memory import MaxMemoryConfig
+from .constants import DEVICE_MAP
 
 logger = logging.getLogger(__name__)
-
-DEVICE_MAP = 'balanced'
 
 
 def model_loader(id: str):
