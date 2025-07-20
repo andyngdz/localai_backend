@@ -1,8 +1,6 @@
 import logging
-import os
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.constants import constant_service
@@ -37,11 +35,7 @@ async def generation_image(
 
 		add_generated_image(db, history_id, path)
 
-		return FileResponse(
-			path,
-			media_type='image/png',
-			filename=os.path.basename(path),
-		)
+		return path
 
 	except ValueError as error:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))

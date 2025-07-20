@@ -14,5 +14,9 @@ class DeviceService:
 	def is_cuda(self):
 		return self.device == 'cuda'
 
+	@property
+	def is_available(self):
+		return torch.cuda.is_available()
+
 
 device_service = DeviceService()

@@ -116,10 +116,10 @@ async def load_model(request: LoadModelRequest):
 	try:
 		id = request.id
 
-		model_config = await model_manager_service.load_model_async(id)
+		config = await model_manager_service.load_model_async(id)
 		sample_size = model_manager_service.get_sample_size()
 
-		return LoadModelResponse(id=id, config=model_config, sample_size=sample_size)
+		return LoadModelResponse(id=id, config=config, sample_size=sample_size)
 
 	except FileNotFoundError as error:
 		logger.error(f'Model file not found for {id}: {error}')

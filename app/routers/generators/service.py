@@ -12,7 +12,7 @@ from app.schemas.generators import (
 	GeneratorConfig,
 	ImageGenerationEachStepResponse,
 )
-from app.services import image_service, styles_service
+from app.services import device_service, image_service, styles_service
 from app.socket import SocketEvents, socket_service
 from config import BASE_GENERATED_IMAGES_DIR
 
@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 class GeneratorService:
 	def __init__(self):
 		self.id = None
+		self.executor = ThreadPoolExecutor()
+
+	@property
+	def get_random_seed(self):
+		return int(torch.randint(0, 2**32 - 1, (1,)).item())
 
 	def get_seed(self, seed: int):
 		random_seed = None
@@ -31,17 +36,17 @@ class GeneratorService:
 		if seed != -1:
 			torch.manual_seed(seed)
 
-			if torch.cuda.is_available():
+			if device_service.is_available:
 				torch.cuda.manual_seed(seed)
 
 			logger.info(f'Using random seed: {seed}')
 
 			random_seed = seed
 		else:
-			random_seed = int(torch.randint(0, 2**32 - 1, (1,)).item())
+			random_seed = self.get_random_seed
 			torch.manual_seed(random_seed)
 
-			if torch.cuda.is_available():
+			if device_service.is_available:
 				torch.cuda.manual_seed(random_seed)
 
 			logger.info(f'Using auto-generated random seed: {random_seed}')
@@ -155,10 +160,9 @@ class GeneratorService:
 			logger.info('Starting image generation in a separate thread.')
 
 			loop = asyncio.get_event_loop()
-			executor = ThreadPoolExecutor()
 
 			output = await loop.run_in_executor(
-				executor,
+				self.executor,
 				lambda: pipe(
 					prompt=final_positive_prompt,
 					negative_prompt=final_negative_prompt,

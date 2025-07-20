@@ -2,7 +2,6 @@ import asyncio
 import gc
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict
 
 import torch
 
@@ -12,6 +11,7 @@ from app.constants import (
 	SamplerType,
 )
 from app.model_loader import model_loader
+from app.services.device import device_service
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +25,14 @@ class ModelManagerService:
 	def __init__(self):
 		self.pipe = None
 		self.id = None
+		self.executor = ThreadPoolExecutor()
 
 		logger.info('ModelManager instance initialized.')
 
 	def clear_cache(self):
 		"""Clears the CUDA cache if available."""
 
-		if torch.cuda.is_available():
+		if device_service.is_available:
 			torch.cuda.empty_cache()
 			logger.info('CUDA cache cleared.')
 		else:
@@ -40,7 +41,7 @@ class ModelManagerService:
 		gc.collect()
 		logging.info('Forcing garbage collection to free memory.')
 
-	def load_model(self, id: str) -> Dict[str, Any]:
+	def load_model(self, id: str):
 		"""
 		Load a model synchronously into memory for inference.
 		Should only be called when model is confirmed downloaded.
@@ -84,14 +85,15 @@ class ModelManagerService:
 		logger.info(f'Asynchronously loading model: {id}')
 
 		try:
-			executor = ThreadPoolExecutor()
 			loop = asyncio.get_event_loop()
 
-			return await loop.run_in_executor(
-				executor,
-				self.load_model,
+			config = await loop.run_in_executor(
+				self.executor,
+				model_manager_service.load_model,
 				id,
 			)
+
+			return config
 		except Exception as error:
 			logger.error(f'Error loading model {id} asynchronously: {error}')
 

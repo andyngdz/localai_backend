@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 def model_loader(id: str):
 	db = SessionLocal()
 
-	logger.info(f'[Process] Loading model {id} to {device_service.device}')
+	logger.info(f'Loading model {id} to {device_service.device}')
 
 	max_memory = MaxMemoryConfig(db).to_dict()
-	logger.info(f'[Process] Max memory configuration: {max_memory}')
+	logger.info(f'Max memory configuration: {max_memory}')
 
-	logger.info(f'[Process] Device map for model {id}: {DEVICE_MAP}')
+	logger.info(f'Device map for model {id}: {DEVICE_MAP}')
 
 	try:
 		pipe = AutoPipelineForText2Image.from_pretrained(
@@ -45,6 +45,9 @@ def model_loader(id: str):
 			use_safetensors=False,
 			device_map=DEVICE_MAP,
 		)
+	except Exception as error:
+		logger.error(f'Error loading model {id}: {error}')
+		raise
 
 	if device_service.is_cuda:
 		pipe.enable_attention_slicing()
