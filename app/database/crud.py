@@ -3,7 +3,7 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from app.database.models import Model, Config, History
-from app.schemas.generators import GeneratorConfig, ImageGenerationRequest
+from app.schemas.generators import GeneratorConfig
 from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY, DeviceSelection
 
 
