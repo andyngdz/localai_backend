@@ -7,7 +7,7 @@ from app.database import database_service
 from app.database.crud import add_history
 from app.model_manager import model_manager_service
 
-from app.schemas.generators import ImageGenerationRequest
+from app.schemas.generators import GeneratorConfig
 
 logger = logging.getLogger(__name__)
 histories = APIRouter(
@@ -18,7 +18,7 @@ histories = APIRouter(
 
 @histories.post('/')
 async def add_new_history(
-	request: ImageGenerationRequest,
+	config: GeneratorConfig,
 	db: Session = Depends(database_service.get_db),
 ):
 	"""Add a new history entry for the image generation request."""
@@ -29,7 +29,7 @@ async def add_new_history(
 				detail='No model loaded. Please load a model before creating a history entry.',
 			)
 
-		history = add_history(db, model_manager_service.id, request)
+		history = add_history(db, model_manager_service.id, config)
 
 		return history.id
 
