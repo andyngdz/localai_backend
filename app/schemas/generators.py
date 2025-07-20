@@ -39,4 +39,5 @@ class ImageGenerationEachStepResponse(BaseModel):
 
 class ImageGenerationResponse(BaseModel):
 	path: str = Field(..., description='Path to the generated image file.')
+	file_name: str = Field(..., description='Name of the generated image file.')
 	is_nsfw: bool = Field(False, description='Indicates if the generated image is NSFW (Not Safe For Work).')

@@ -73,17 +73,17 @@ class GeneratorService:
 			raise ValueError('Failed to generate any image.')
 
 		os.makedirs(GENERATED_IMAGES_DIR, exist_ok=True)
-		timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+		file_name = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
 
-		save_path = os.path.join(GENERATED_IMAGES_DIR, f'{timestamp}.png')
-		static_path = os.path.join(GENERATED_IMAGES_STATIC_DIR, f'{timestamp}.png')
+		save_path = os.path.join(GENERATED_IMAGES_DIR, f'{file_name}.png')
+		static_path = os.path.join(GENERATED_IMAGES_STATIC_DIR, f'{file_name}.png')
 
 		image = images[0]
 		image.save(save_path)
 
 		logger.info(f'Generated image saved to: {save_path}')
 
-		return static_path
+		return static_path, file_name
 
 	def latents_to_rgb(self, latents):
 		weights = (
@@ -180,9 +180,9 @@ class GeneratorService:
 
 			is_nsfw = self.is_nsfw(output)
 
-			path = self.save_image(images)
+			path, file_name = self.save_image(images)
 
-			return ImageGenerationResponse(path=path, is_nsfw=is_nsfw)
+			return ImageGenerationResponse(path=path, file_name=file_name, is_nsfw=is_nsfw)
 
 		except FileNotFoundError as error:
 			logger.error(f'Model directory not found: {error}')
