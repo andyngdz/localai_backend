@@ -12,38 +12,39 @@ from app.database import database_service
 from app.database.service import SessionLocal
 from app.model_manager import model_manager_service
 from app.routers import (
-    downloads,
-    generators,
-    hardware,
-    models,
-    styles,
-    users,
+	downloads,
+	generators,
+	hardware,
+	histories,
+	models,
+	styles,
+	users,
 )
-from app.socket import socket_service
 from app.services import logger_service, platform_service
+from app.socket import socket_service
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup event"""
+	"""Startup event"""
 
-    logger_service.start()
-    platform_service.start()
-    database_service.start()
+	logger_service.start()
+	platform_service.start()
+	database_service.start()
 
-    db = SessionLocal()
-    model_manager_service.unload_model()
+	db = SessionLocal()
+	model_manager_service.unload_model()
 
-    yield
+	yield
 
-    db.close()
+	db.close()
 
 
 app = FastAPI(
-    title='LocalAI Backend',
-    description='Backend for Local AI operations.',
-    version='0.1.0',
-    lifespan=lifespan,
+	title='LocalAI Backend',
+	description='Backend for Local AI operations.',
+	version='0.1.0',
+	lifespan=lifespan,
 )
 app.mount('/static', StaticFiles(directory='static'), name='static')
 app.mount('/ws', app=socket_service.sio_app)
@@ -53,23 +54,24 @@ app.include_router(downloads)
 app.include_router(hardware)
 app.include_router(generators)
 app.include_router(styles)
+app.include_router(histories)
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=['*'],
-    allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*'],
+	CORSMiddleware,
+	allow_origins=['*'],
+	allow_credentials=True,
+	allow_methods=['*'],
+	allow_headers=['*'],
 )
 
 
 @app.get('/favicon.ico')
 async def favicon():
-    static_folder = 'static'
-    favicon_path = os.path.join(static_folder, 'favicon.ico')
-    return FileResponse(favicon_path, media_type='image/vnd.microsoft.icon')
+	static_folder = 'static'
+	favicon_path = os.path.join(static_folder, 'favicon.ico')
+	return FileResponse(favicon_path, media_type='image/vnd.microsoft.icon')
 
 
 @app.get('/')
 def health_check():
-    """Health check endpoint to verify if the server is running."""
-    return {'status': 'healthy', 'message': 'LocalAI Backend is running!'}
+	"""Health check endpoint to verify if the server is running."""
+	return {'status': 'healthy', 'message': 'LocalAI Backend is running!'}

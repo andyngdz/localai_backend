@@ -1,25 +1,21 @@
 """Models Table"""
 
-from datetime import datetime
-
-from sqlalchemy import func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database.base import Base
+from app.database.base import Base, TimestampMixin
 
 
-class Model(Base):
-    """Models"""
+class Model(Base, TimestampMixin):
+	"""Models"""
 
-    __tablename__ = 'models'
+	__tablename__ = 'models'
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    model_id: Mapped[str] = mapped_column(unique=True)
-    model_dir: Mapped[str] = mapped_column(unique=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now()
-    )
+	id: Mapped[int] = mapped_column(primary_key=True, index=True)
+	model_id: Mapped[str] = mapped_column(unique=True)
+	model_dir: Mapped[str] = mapped_column(unique=True)
 
-    def __repr__(self):
-        return f"<Model(model_id='{self.model_id}', status='{self.status}', progress={self.progress})>"
+	def __repr__(self):
+		return (
+			f"<Model(model_id='{self.model_id}', model_dir='{self.model_dir}', "
+			f"created_at='{self.created_at}', updated_at='{self.updated_at}')>"
+		)

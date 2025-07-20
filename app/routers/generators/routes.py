@@ -1,38 +1,50 @@
 import logging
-import os
 
-from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.constants import constant_service
+from app.database import database_service
+from app.database.crud import add_generated_image
+from app.schemas.generators import ImageGenerationRequest
 
-from .schemas import ImageGenerationRequest
 from .service import generator_service
 
 logger = logging.getLogger(__name__)
 generators = APIRouter(
-    prefix='/generators',
-    tags=['generators'],
+	prefix='/generators',
+	tags=['generators'],
 )
 
 
 @generators.post('/')
-async def start_generation_image(request: ImageGenerationRequest):
-    """Generates an image based on the provided prompt and parameters. Returns the first generated image as a file."""
-    try:
-        filename = await generator_service.generate_image(request)
+async def generation_image(
+	request: ImageGenerationRequest,
+	db: Session = Depends(database_service.get_db),
+):
+	"""
+	Generates an image based on the provided prompt and parameters.
+	Returns the first generated image as a file.
+	"""
+	try:
+		id = request.id
+		config = request.config
+		history_id = request.history_id
 
-        return FileResponse(
-            filename, media_type='image/png', filename=os.path.basename(filename)
-        )
-    except ValueError as error:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+		response = await generator_service.generate_image(id, config)
+
+		add_generated_image(db, history_id, response.path)
+
+		return response
+
+	except ValueError as error:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
 @generators.get('/samplers')
-async def get_all_samplers():
-    """
-    Returns a list of available samplers for image generation.
-    """
+async def all_samplers():
+	"""
+	Returns a list of available samplers for image generation.
+	"""
 
-    return constant_service.samplers
+	return constant_service.samplers
