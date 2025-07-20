@@ -33,7 +33,7 @@ class GeneratorConfig(BaseModel):
 
 
 class ImageGenerationRequest(BaseModel):
-	history_id: str = Field(
+	history_id: int = Field(
 		..., description='History ID for tracking the generation process.'
 	)
 	id: str = Field(..., description='Socket ID for tracking the generation process.')

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.constants import constant_service
 from app.database import database_service
+from app.database.crud import add_generated_image
 from app.schemas.generators import ImageGenerationRequest
 
 from .service import generator_service
@@ -20,19 +21,26 @@ generators = APIRouter(
 
 @generators.post('/')
 async def generation_image(
-	request: ImageGenerationRequest, db: Session = Depends(database_service.get_db)
+	request: ImageGenerationRequest,
+	db: Session = Depends(database_service.get_db),
 ):
 	"""
 	Generates an image based on the provided prompt and parameters.
 	Returns the first generated image as a file.
 	"""
 	try:
-		filename = await generator_service.generate_image(request)
+		id = request.id
+		config = request.config
+		history_id = request.history_id
+
+		path = await generator_service.generate_image(id, config)
+
+		add_generated_image(db, history_id, path)
 
 		return FileResponse(
-			filename,
+			path,
 			media_type='image/png',
-			filename=os.path.basename(filename),
+			filename=os.path.basename(path),
 		)
 
 	except ValueError as error:

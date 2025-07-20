@@ -25,6 +25,7 @@ exclude = [
 ]
 
 indent-width = 2
+builtins = ["_"]
 
 [format]
 quote-style = "single"

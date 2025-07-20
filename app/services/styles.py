@@ -24,15 +24,15 @@ class StylesService:
 
 		return self.tokenizer.decode(input_ids, skip_special_tokens=True)
 
-	def combined_positive_prompt(self, user_prompt: str, styles: list[StyleItem]):
+	def combined_positive_prompt(self, prompt: str, styles: list[StyleItem]):
 		if not styles:
-			return user_prompt.strip()
+			return prompt.strip()
 
 		first_style, *rest_styles = styles
 		combined_positive = []
 
 		if first_style.positive:
-			combined_positive.append(first_style.positive.format(prompt=user_prompt))
+			combined_positive.append(first_style.positive.format(prompt=prompt))
 
 		for style in rest_styles:
 			if style.positive:
@@ -55,12 +55,12 @@ class StylesService:
 
 		return ', '.join(combined_negative_unique).strip()
 
-	def apply_styles(self, user_prompt: str, styles: list[str]):
+	def apply_styles(self, prompt: str, styles: list[str]):
 		selected_styles = [
 			style_item for style_item in self.all_styles if style_item.id in styles
 		]
 
-		combined_positive = self.combined_positive_prompt(user_prompt, selected_styles)
+		combined_positive = self.combined_positive_prompt(prompt, selected_styles)
 		combined_negative = self.combined_negative_prompt(selected_styles)
 
 		truncated_positive_prompt = self.truncate_clip_prompt(combined_positive)

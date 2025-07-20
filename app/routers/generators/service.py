@@ -1,22 +1,22 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import torch
 from PIL import Image
 
 from app.model_manager import model_manager_service
+from app.schemas.generators import (
+	GeneratorConfig,
+	ImageGenerationEachStepResponse,
+)
 from app.services import image_service, styles_service
 from app.socket import SocketEvents, socket_service
 from config import BASE_GENERATED_IMAGES_DIR
 
 from .constants import DEFAULT_NEGATIVE_PROMPT
-from ...schemas.generators import (
-	ImageGenerationEachStepResponse,
-	ImageGenerationRequest,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +72,14 @@ class GeneratorService:
 
 		os.makedirs(BASE_GENERATED_IMAGES_DIR, exist_ok=True)
 		timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-		filename = os.path.join(BASE_GENERATED_IMAGES_DIR, f'{timestamp}.png')
+		path = os.path.join(BASE_GENERATED_IMAGES_DIR, f'{timestamp}.png')
 
 		image = images[0]
-		image.save(filename)
+		image.save(path)
 
-		logger.info(f'Generated image saved to: {filename}')
+		logger.info(f'Generated image saved to: {path}')
 
-		return filename
+		return path
 
 	def latents_to_rgb(self, latents):
 		weights = (
@@ -118,11 +118,10 @@ class GeneratorService:
 
 		return callback_kwargs
 
-	async def generate_image(self, request: ImageGenerationRequest):
-		logger.info(f'Received image generation request: {request}')
+	async def generate_image(self, id: str, config: GeneratorConfig):
+		logger.info(f'Received image generation request: {config}')
 
-		self.id = request.id
-		config = request.config
+		self.id = id
 		pipe = model_manager_service.pipe
 
 		if pipe is None:
@@ -182,9 +181,9 @@ class GeneratorService:
 
 			self.check_nsfw_content(output)
 
-			filename = self.save_image(images)
+			path = self.save_image(images)
 
-			return filename
+			return path
 
 		except FileNotFoundError as error:
 			logger.error(f'Model directory not found: {error}')

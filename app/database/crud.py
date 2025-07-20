@@ -2,8 +2,9 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from app.database.models import Model, Config, History
+from app.database.models import Config, GeneratedImage, History, Model
 from app.schemas.generators import GeneratorConfig
+
 from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY, DeviceSelection
 
 
@@ -56,6 +57,8 @@ def add_device_index(db: Session, device_index: int):
 
 	db.commit()
 
+	return config
+
 
 def add_max_memory(db: Session, ram: float, gpu: float):
 	"""Add or update configuration in the database."""
@@ -69,6 +72,8 @@ def add_max_memory(db: Session, ram: float, gpu: float):
 		db.add(config)
 
 	db.commit()
+
+	return config
 
 
 def get_gpu_max_memory(db: Session) -> float:
@@ -105,3 +110,13 @@ def add_history(db: Session, model: str, config: GeneratorConfig):
 	db.commit()
 
 	return history
+
+
+def add_generated_image(db: Session, history_id: int, path: str):
+	"""Add a generated image to the history entry."""
+	generated_image = GeneratedImage(history_id=history_id, path=path)
+
+	db.add(generated_image)
+	db.commit()
+
+	return generated_image
