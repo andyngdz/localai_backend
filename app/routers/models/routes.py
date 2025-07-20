@@ -8,7 +8,7 @@ from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 
 from app.database import database_service
-from app.database.crud import is_model_downloaded, downloaded_models
+from app.database.crud import downloaded_models, is_model_downloaded
 from app.model_manager import model_manager_service
 
 from .schemas import (

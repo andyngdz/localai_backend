@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.database import database_service
 from app.database.crud import add_history
 from app.model_manager import model_manager_service
-
 from app.schemas.generators import GeneratorConfig
 
 logger = logging.getLogger(__name__)
