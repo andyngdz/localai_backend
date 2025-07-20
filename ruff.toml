@@ -24,7 +24,6 @@ exclude = [
   ".pyenv"
 ]
 
-indent-width = 2
 builtins = ["_"]
 line-length = 120
 
