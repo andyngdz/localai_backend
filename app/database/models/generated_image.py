@@ -12,7 +12,7 @@ class GeneratedImage(Base, TimestampMixin):
 	__tablename__ = 'generated_images'
 
 	id: Mapped[int] = mapped_column(primary_key=True, index=True)
-	history_id: Mapped[str] = mapped_column(ForeignKey('histories.id'))
+	history_id: Mapped[int] = mapped_column(ForeignKey('histories.id'))
 	path: Mapped[str] = mapped_column()
 
 	def __repr__(self):
