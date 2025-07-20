@@ -8,7 +8,7 @@ from .constant import DATABASE_URL
 
 # Create the SQLAlchemy engine
 # echo=True is useful for debugging SQL queries, set to False in production
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 
 # Create a SessionLocal class, which is a factory for new Session objects
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
