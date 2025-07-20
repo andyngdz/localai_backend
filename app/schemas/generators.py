@@ -35,3 +35,8 @@ class ImageGenerationRequest(BaseModel):
 class ImageGenerationEachStepResponse(BaseModel):
 	id: str = Field(..., description='Socket ID for tracking the generation process.')
 	image_base64: str = Field(..., description='Base64 encoded image generated at this step.')
+
+
+class ImageGenerationResponse(BaseModel):
+	path: str = Field(..., description='Path to the generated image file.')
+	is_nsfw: bool = Field(False, description='Indicates if the generated image is NSFW (Not Safe For Work).')

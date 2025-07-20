@@ -1,6 +1,6 @@
 import os
 
-from config import BASE_CACHE_DIR, BASE_CACHE_LOCK_DIR
+from config import CACHE_DIR, CACHE_LOCK_DIR
 
 
 def get_model_dir(id: str) -> str:
@@ -15,7 +15,7 @@ def get_model_dir(id: str) -> str:
 	"""
 	name_serialized = id.replace('/', '--')
 
-	dir = os.path.join(BASE_CACHE_DIR, f'models--{name_serialized}')
+	dir = os.path.join(CACHE_DIR, f'models--{name_serialized}')
 
 	return dir
 
@@ -33,6 +33,6 @@ def get_model_lock_dir(id: str) -> str:
 	"""
 	name_serialized = id.replace('/', '--')
 
-	dir = os.path.join(BASE_CACHE_LOCK_DIR, f'models--{name_serialized}')
+	dir = os.path.join(CACHE_LOCK_DIR, f'models--{name_serialized}')
 
 	return dir

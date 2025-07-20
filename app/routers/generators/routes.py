@@ -31,11 +31,11 @@ async def generation_image(
 		config = request.config
 		history_id = request.history_id
 
-		path = await generator_service.generate_image(id, config)
+		response = await generator_service.generate_image(id, config)
 
-		add_generated_image(db, history_id, path)
+		add_generated_image(db, history_id, response.path)
 
-		return path
+		return response
 
 	except ValueError as error:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))

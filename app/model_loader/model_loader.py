@@ -6,7 +6,7 @@ from app.database.crud import add_model
 from app.database.service import SessionLocal
 from app.services import device_service, get_model_dir
 from app.socket import SocketEvents, socket_service
-from config import BASE_CACHE_DIR
+from config import CACHE_DIR
 
 from .constants import DEVICE_MAP
 from .max_memory import MaxMemoryConfig
@@ -28,7 +28,7 @@ def model_loader(id: str):
 	try:
 		pipe = AutoPipelineForText2Image.from_pretrained(
 			id,
-			cache_dir=BASE_CACHE_DIR,
+			cache_dir=CACHE_DIR,
 			low_cpu_mem_usage=True,
 			max_memory=max_memory,
 			torch_dtype=device_service.torch_dtype,
@@ -38,7 +38,7 @@ def model_loader(id: str):
 	except EnvironmentError:
 		pipe = AutoPipelineForText2Image.from_pretrained(
 			id,
-			cache_dir=BASE_CACHE_DIR,
+			cache_dir=CACHE_DIR,
 			low_cpu_mem_usage=True,
 			max_memory=max_memory,
 			torch_dtype=device_service.torch_dtype,
