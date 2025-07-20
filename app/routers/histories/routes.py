@@ -21,7 +21,7 @@ async def add_new_history(
     request: ImageGenerationRequest,
     db: Session = Depends(database_service.get_db),
 ):
-    """Generates an image based on the provided prompt and parameters. Returns the first generated image as a file."""
+    """Add a new history entry for the image generation request."""
     try:
         if model_manager_service.id is None:
             raise HTTPException(
