@@ -18,6 +18,7 @@ from app.routers import (
     models,
     styles,
     users,
+    histories,
 )
 from app.socket import socket_service
 from app.services import logger_service, platform_service
@@ -53,6 +54,7 @@ app.include_router(downloads)
 app.include_router(hardware)
 app.include_router(generators)
 app.include_router(styles)
+app.include_router(histories)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
