@@ -4,4 +4,4 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    type_annotation_map = {dict[str, Any]: JSON}
+	type_annotation_map = {dict[str, Any]: JSON}

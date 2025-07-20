@@ -7,12 +7,12 @@ from .device import device_service
 from .platform import platform_service
 
 __all__ = [
-    'MemoryService',
-    'platform_service',
-    'device_service',
-    'logger_service',
-    'styles_service',
-    'image_service',
-    'get_model_dir',
-    'get_model_lock_dir',
+	'MemoryService',
+	'platform_service',
+	'device_service',
+	'logger_service',
+	'styles_service',
+	'image_service',
+	'get_model_dir',
+	'get_model_lock_dir',
 ]

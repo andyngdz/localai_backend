@@ -11,27 +11,27 @@ from app.schemas.generators import ImageGenerationRequest
 
 logger = logging.getLogger(__name__)
 histories = APIRouter(
-    prefix='/histories',
-    tags=['histories'],
+	prefix='/histories',
+	tags=['histories'],
 )
 
 
 @histories.post('/')
 async def add_new_history(
-    request: ImageGenerationRequest,
-    db: Session = Depends(database_service.get_db),
+	request: ImageGenerationRequest,
+	db: Session = Depends(database_service.get_db),
 ):
-    """Add a new history entry for the image generation request."""
-    try:
-        if model_manager_service.id is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='No model loaded. Please load a model before generating images.',
-            )
+	"""Add a new history entry for the image generation request."""
+	try:
+		if model_manager_service.id is None:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail='No model loaded. Please load a model before generating images.',
+			)
 
-        history = add_history(db, model_manager_service.id, request)
+		history = add_history(db, model_manager_service.id, request)
 
-        return history.id
+		return history.id
 
-    except ValueError as error:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+	except ValueError as error:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
