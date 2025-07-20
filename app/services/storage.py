@@ -8,10 +8,10 @@ def get_model_dir(id: str) -> str:
 	Get the directory path for a model based on its ID.
 
 	Args:
-	    id (str): The ID of the model.
+		id (str): The ID of the model.
 
 	Returns:
-	    str: The directory path where the model is stored.
+		str: The directory path where the model is stored.
 	"""
 	name_serialized = id.replace('/', '--')
 
@@ -25,11 +25,11 @@ def get_model_lock_dir(id: str) -> str:
 	Get the full path for a model file based on its ID and filename.
 
 	Args:
-	    id (str): The ID of the model.
-	    filename (str): The name of the file within the model directory.
+		id (str): The ID of the model.
+		filename (str): The name of the file within the model directory.
 
 	Returns:
-	    str: The full path to the model file.
+		str: The full path to the model file.
 	"""
 	name_serialized = id.replace('/', '--')
 

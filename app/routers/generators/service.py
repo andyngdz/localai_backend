@@ -51,8 +51,7 @@ class GeneratorService:
 	def apply_hires_fix(self, hires_fix: bool):
 		if hires_fix:
 			logger.warning(
-				'Hires fix requested, '
-				'but not fully implemented in this MVP. Generating directly at requested resolution.'
+				'Hires fix requested, but not fully implemented in this MVP. Generating directly at requested resolution.'
 			)
 
 	def check_nsfw_content(self, output):
@@ -88,15 +87,11 @@ class GeneratorService:
 			(60, 10, -5, -35),
 		)
 
-		weights_tensor = torch.t(
-			torch.tensor(weights, dtype=latents.dtype).to(latents.device)
+		weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
+		biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
+		rgb_tensor = torch.einsum('...lxy,lr -> ...rxy', latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
+			-1
 		)
-		biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(
-			latents.device
-		)
-		rgb_tensor = torch.einsum(
-			'...lxy,lr -> ...rxy', latents, weights_tensor
-		) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
 		image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
 		return Image.fromarray(image_array)

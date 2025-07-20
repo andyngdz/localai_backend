@@ -16,4 +16,7 @@ class GeneratedImage(Base, TimestampMixin):
 	path: Mapped[str] = mapped_column()
 
 	def __repr__(self):
-		return f"<GeneratedImage(history_id='{self.history_id}', path='{self.path}', created_at='{self.created_at}', updated_at='{self.updated_at}')>"
+		return (
+			f"<GeneratedImage(history_id='{self.history_id}', path='{self.path}', "
+			f"created_at='{self.created_at}', updated_at='{self.updated_at}')>"
+		)

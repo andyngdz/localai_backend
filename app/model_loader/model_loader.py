@@ -1,16 +1,16 @@
 import logging
+
 from diffusers import AutoPipelineForText2Image
 
 from app.database.crud import add_model
 from app.database.service import SessionLocal
 from app.services import device_service, get_model_dir
 from app.socket import SocketEvents, socket_service
-
 from config import BASE_CACHE_DIR
 
-from .schemas import DownloadCompletedResponse
-from .max_memory import MaxMemoryConfig
 from .constants import DEVICE_MAP
+from .max_memory import MaxMemoryConfig
+from .schemas import DownloadCompletedResponse
 
 logger = logging.getLogger(__name__)
 

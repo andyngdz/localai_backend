@@ -16,13 +16,9 @@ PLACEHOLDER_IMAGE_PATH = 'static/empty.png'
 def get_user_avatar(user_id: str):
 	"""Proxy and serve the Hugging Face user avatar"""
 	try:
-		response = requests.get(
-			f'https://huggingface.co/api/users/{user_id}/avatar', timeout=5
-		)
+		response = requests.get(f'https://huggingface.co/api/users/{user_id}/avatar', timeout=5)
 		if response.status_code == 404:
-			response = requests.get(
-				f'https://huggingface.co/api/organizations/{user_id}/avatar', timeout=5
-			)
+			response = requests.get(f'https://huggingface.co/api/organizations/{user_id}/avatar', timeout=5)
 
 		response.raise_for_status()
 

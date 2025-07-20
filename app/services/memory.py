@@ -1,6 +1,7 @@
 import psutil
-from sqlalchemy.orm import Session
 import torch
+from sqlalchemy.orm import Session
+
 from app.database.crud import get_device_index
 
 

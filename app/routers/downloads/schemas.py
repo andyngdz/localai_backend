@@ -33,6 +33,4 @@ class DownloadStatusResponse(BaseModel):
 	"""
 
 	id: str = Field(..., description='The ID of the model being downloaded.')
-	message: Optional[str] = Field(
-		..., description='A human-readable message about the download status.'
-	)
+	message: Optional[str] = Field(..., description='A human-readable message about the download status.')

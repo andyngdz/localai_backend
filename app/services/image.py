@@ -10,10 +10,10 @@ class ImageService:
 		Convert a PIL Image to a base64 encoded string.
 
 		Args:
-		    image (Image): The PIL Image to convert.
+			image (Image): The PIL Image to convert.
 
 		Returns:
-		    str: Base64 encoded string of the image.
+			str: Base64 encoded string of the image.
 		"""
 
 		buffered = io.BytesIO()

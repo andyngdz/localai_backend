@@ -11,9 +11,7 @@ class GPUDriverStatusStates(str, Enum):
 
 	READY = 'ready'  # GPU detected, drivers compatible, ready for AI acceleration
 	NO_GPU = 'no_gpu'  # No compatible GPU detected
-	DRIVER_ISSUE = (
-		'driver_issue'  # GPU detected, but drivers are missing/outdated/problematic
-	)
+	DRIVER_ISSUE = 'driver_issue'  # GPU detected, but drivers are missing/outdated/problematic
 	INCOMPATIBLE_CUDA = 'incompatible_cuda'  # GPU/drivers fine, but CUDA version incompatible with backend's PyTorch
 	UNKNOWN_ERROR = 'unknown_error'  # An unexpected error occurred during detection
 
@@ -29,23 +27,15 @@ class GPUDeviceInfo(BaseModel):
 	cuda_compute_capability: Optional[str] = Field(
 		default=None, description="CUDA compute capability (e.g., '8.6') if NVIDIA GPU."
 	)
-	is_primary: bool = Field(
-		default=False, description='True if this is the primary/default GPU.'
-	)
+	is_primary: bool = Field(default=False, description='True if this is the primary/default GPU.')
 
 
 class GPUDriverInfo(BaseModel):
 	"""Comprehensive information about the system's GPU and driver setup."""
 
-	overall_status: GPUDriverStatusStates = Field(
-		..., description='Overall status of GPU/driver setup.'
-	)
-	message: str = Field(
-		..., description='A user-friendly message explaining the status.'
-	)
-	gpus: List[GPUDeviceInfo] = Field(
-		default_factory=list, description='List of detected GPU devices.'
-	)
+	overall_status: GPUDriverStatusStates = Field(..., description='Overall status of GPU/driver setup.')
+	message: str = Field(..., description='A user-friendly message explaining the status.')
+	gpus: List[GPUDeviceInfo] = Field(default_factory=list, description='List of detected GPU devices.')
 	nvidia_driver_version: Optional[str] = Field(
 		default=None, description='NVIDIA driver version (if NVIDIA GPU detected).'
 	)
@@ -63,9 +53,7 @@ class GPUDriverInfo(BaseModel):
 		default=None,
 		description='A URL for recommended driver downloads or troubleshooting.',
 	)
-	troubleshooting_steps: Optional[List[str]] = Field(
-		default=None, description='Specific steps to resolve issues.'
-	)
+	troubleshooting_steps: Optional[List[str]] = Field(default=None, description='Specific steps to resolve issues.')
 
 
 class SelectDeviceRequest(BaseModel):

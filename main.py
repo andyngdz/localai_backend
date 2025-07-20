@@ -15,13 +15,13 @@ from app.routers import (
 	downloads,
 	generators,
 	hardware,
+	histories,
 	models,
 	styles,
 	users,
-	histories,
 )
-from app.socket import socket_service
 from app.services import logger_service, platform_service
+from app.socket import socket_service
 
 
 @asynccontextmanager

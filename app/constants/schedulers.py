@@ -57,21 +57,30 @@ SCHEDULER_MAPPING: Dict[SamplerType, Any] = {
 }
 
 SCHEDULER_DESCRIPTIONS: Dict[SamplerType, str] = {
-	SamplerType.EULER_A: 'Fast, exploratory, slightly non-deterministic. Good for quick iterations.',
-	SamplerType.KDPM2_A: 'Ancestral K-Diffusion sampler, good for exploration with a different feel.',
+	SamplerType.EULER_A: ('Fast, exploratory, slightly non-deterministic. Good for quick iterations.'),
+	SamplerType.KDPM2_A: ('Ancestral K-Diffusion sampler, good for exploration with a different feel.'),
 	SamplerType.EULER: 'Fast, deterministic. Simple and effective.',
 	SamplerType.DDIM: 'Deterministic, stable, and widely used.',
 	SamplerType.LMS: 'Deterministic, often produces smooth results.',
-	SamplerType.PNDM: 'Deterministic, good balance of speed and quality, often default for older models.',
-	SamplerType.DDPMS: 'The original DDPM scheduler, very stable but typically requires many steps.',
-	SamplerType.UNIPC: 'Unified Pseudo-numerical ODE solver, known for good quality at fewer steps.',
+	SamplerType.PNDM: ('Deterministic, good balance of speed and quality, often default for older models.'),
+	SamplerType.DDPMS: ('The original DDPM scheduler, very stable but typically requires many steps.'),
+	SamplerType.UNIPC: ('Unified Pseudo-numerical ODE solver, known for good quality at fewer steps.'),
 	SamplerType.DEIS: 'Deterministic, known for efficiency and quality.',
 	SamplerType.KDPM2: 'Deterministic K-Diffusion sampler.',
-	SamplerType.DPM_SOLVER_MULTISTEP: 'High quality, deterministic, good general-purpose sampler (e.g., DPM++ 2M).',
-	SamplerType.DPM_SOLVER_MULTISTEP_KARRAS: 'Similar to DPM++ 2M, but with Karras noise schedule for potentially better quality and detail.',
-	SamplerType.DPM_SOLVER_SINGLES: 'Single-step deterministic DPM-Solver. Fast but might require more steps for quality.',
-	SamplerType.DPM_SOLVER_SDE: 'DPM Solver++ Stochastic Differential Equation (SDE) solver. Can produce very high-quality and detailed results, good for creative variations.',
-	SamplerType.DPM_SOLVER_SDE_KARRAS: 'DPM++ SDE with Karras noise schedule. A stochastic sampler for high-quality, detailed results.',
+	SamplerType.DPM_SOLVER_MULTISTEP: ('High quality, deterministic, good general-purpose sampler (e.g., DPM++ 2M).'),
+	SamplerType.DPM_SOLVER_MULTISTEP_KARRAS: (
+		'Similar to DPM++ 2M, but with Karras noise schedule for potentially better quality and detail.'
+	),
+	SamplerType.DPM_SOLVER_SINGLES: (
+		'Single-step deterministic DPM-Solver. Fast but might require more steps for quality.'
+	),
+	SamplerType.DPM_SOLVER_SDE: (
+		'DPM Solver++ Stochastic Differential Equation (SDE) solver. Can produce '
+		'very high-quality and detailed results, good for creative variations.'
+	),
+	SamplerType.DPM_SOLVER_SDE_KARRAS: (
+		'DPM++ SDE with Karras noise schedule. A stochastic sampler for high-quality, detailed results.'
+	),
 }
 
 SCHEDULER_NAMES: Dict[SamplerType, str] = {

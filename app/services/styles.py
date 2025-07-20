@@ -56,9 +56,7 @@ class StylesService:
 		return ', '.join(combined_negative_unique).strip()
 
 	def apply_styles(self, prompt: str, styles: list[str]):
-		selected_styles = [
-			style_item for style_item in self.all_styles if style_item.id in styles
-		]
+		selected_styles = [style_item for style_item in self.all_styles if style_item.id in styles]
 
 		combined_positive = self.combined_positive_prompt(prompt, selected_styles)
 		combined_negative = self.combined_negative_prompt(selected_styles)

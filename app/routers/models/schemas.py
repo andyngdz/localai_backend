@@ -71,9 +71,7 @@ class ModelAvailableResponse(BaseModel):
 		...,
 		description='Unique identifier for the model (Hugging Face repo ID).',
 	)
-	is_downloaded: bool = Field(
-		default=False, description='Is the model downloaded locally?'
-	)
+	is_downloaded: bool = Field(default=False, description='Is the model downloaded locally?')
 
 
 class LoadModelRequest(BaseModel):

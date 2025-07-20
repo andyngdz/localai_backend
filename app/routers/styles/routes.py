@@ -31,6 +31,4 @@ def get_styles():
 
 @styles.get('/prompt')
 def get_prompt_styles(user_prompt: str):
-	return styles_service.apply_styles(
-		user_prompt, ['fooocus_v2', 'fooocus_enhance', 'fooocus_sharp']
-	)
+	return styles_service.apply_styles(user_prompt, ['fooocus_v2', 'fooocus_enhance', 'fooocus_sharp'])

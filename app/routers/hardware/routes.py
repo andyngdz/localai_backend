@@ -99,9 +99,7 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 			driver_version = result.stdout.strip().split('\n')[0]
 			info.nvidia_driver_version = driver_version
 		except (subprocess.CalledProcessError, FileNotFoundError) as error:
-			logger.warning(
-				f'nvidia-smi not found or failed: {error}. Cannot get detailed driver version.'
-			)
+			logger.warning(f'nvidia-smi not found or failed: {error}. Cannot get detailed driver version.')
 			info.message += " (Could not retrieve NVIDIA driver version from nvidia-smi. Ensure it's in PATH)."
 			# If CUDA is available but nvidia-smi fails, it's still "ready" but with a warning.
 			# If it's a driver issue, torch.cuda.is_available() would likely be False.
@@ -109,9 +107,7 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 		# No NVIDIA GPU or CUDA issues
 		info.overall_status = GPUDriverStatusStates.NO_GPU
 		info.message = 'No NVIDIA GPU detected or CUDA is not available. Running on CPU.'
-		info.recommendation_link = (
-			'https://www.nvidia.com/drivers'  # Generic NVIDIA driver link
-		)
+		info.recommendation_link = 'https://www.nvidia.com/drivers'  # Generic NVIDIA driver link
 		info.troubleshooting_steps = [
 			'Ensure you have an NVIDIA GPU.',
 			'Download and install the latest NVIDIA drivers for your system.',
@@ -128,10 +124,10 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 			)
 			# If nvidia-smi runs but torch.cuda.is_available() is false, it's likely a driver/CUDA setup issue
 			info.overall_status = GPUDriverStatusStates.DRIVER_ISSUE
-			info.message = 'NVIDIA GPU detected, but CUDA is not available or drivers are incompatible. Please update your drivers.'
-			info.troubleshooting_steps.insert(
-				0, 'Check NVIDIA Control Panel/Settings for driver status.'
+			info.message = (
+				'NVIDIA GPU detected, but CUDA is not available or drivers are incompatible. Please update your drivers.'
 			)
+			info.troubleshooting_steps.insert(0, 'Check NVIDIA Control Panel/Settings for driver status.')
 		except (subprocess.CalledProcessError, FileNotFoundError):
 			# nvidia-smi also not found, so likely no NVIDIA GPU or severe path issue
 			pass
@@ -180,7 +176,8 @@ def get_system_gpu_info() -> GPUDriverInfo:
 				info.troubleshooting_steps = [
 					'Ensure you are running on an Apple Silicon Mac (M1, M2, etc.).',
 					'Update macOS to the latest version.',
-					'Verify PyTorch is installed with MPS support (e.g., pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu for CPU or specific MPS build).',
+					'Verify PyTorch is installed with MPS support (e.g., pip install torch torchvision torchaudio --index-url '
+					'https://download.pytorch.org/whl/cpu for CPU or specific MPS build).',
 				]
 		else:
 			# Other OS / Unknown
@@ -190,9 +187,7 @@ def get_system_gpu_info() -> GPUDriverInfo:
 	except ImportError:
 		info.overall_status = GPUDriverStatusStates.UNKNOWN_ERROR
 		info.message = 'PyTorch is not installed or not accessible in the backend environment. Cannot detect GPU.'
-		info.troubleshooting_steps = [
-			"Ensure PyTorch is correctly installed in the backend's Python environment."
-		]
+		info.troubleshooting_steps = ["Ensure PyTorch is correctly installed in the backend's Python environment."]
 	except (subprocess.SubprocessError, OSError, AttributeError, RuntimeError) as error:
 		logger.error(f'Error during GPU detection: {error}')
 		info.overall_status = GPUDriverStatusStates.UNKNOWN_ERROR
@@ -253,9 +248,7 @@ def recheck():
 
 
 @hardware.post('/device')
-def set_device(
-	request: SelectDeviceRequest, db: Session = Depends(database_service.get_db)
-):
+def set_device(request: SelectDeviceRequest, db: Session = Depends(database_service.get_db)):
 	"""Select device"""
 
 	device_index = request.device_index

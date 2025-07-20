@@ -1,7 +1,7 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import gc
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
 
 import torch
@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 class ModelManagerService:
 	"""
-	Manages the active diffusion pipeline and handles background loading with cancellation.
+	Manages the active diffusion pipeline and handles background loading with
+	cancellation.
 	"""
 
 	def __init__(self):

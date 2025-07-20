@@ -11,7 +11,10 @@ sai_styles = [
 	StyleItem(
 		id='sai_3d_render',
 		name='SAI Analog Film',
-		positive='analog film photo {prompt} . faded film, desaturated, 35mm photo, grainy, vignette, vintage, Kodachrome, Lomography, stained, highly detailed, found footage',
+		positive=(
+			'analog film photo {prompt} . faded film, desaturated, 35mm photo, grainy, vignette, vintage, '
+			'Kodachrome, Lomography, stained, highly detailed, found footage'
+		),
 		negative='painting, drawing, illustration, glitch, deformed, mutated, cross-eyed, ugly, disfigured',
 		image='styles/sai/analog_film.jpg',
 	),
@@ -25,8 +28,13 @@ sai_styles = [
 	StyleItem(
 		id='sai_cinematic',
 		name='SAI Cinematic',
-		positive='cinematic film still {prompt} . shallow depth of field, vignette, highly detailed, high budget, bokeh, cinemascope, moody, epic, gorgeous, film grain, grainy',
-		negative='anime, cartoon, graphic, text, painting, crayon, graphite, abstract, glitch, deformed, mutated, ugly, disfigured',
+		positive=(
+			'cinematic film still {prompt} . shallow depth of field, vignette, highly detailed, high budget, '
+			'bokeh, cinemascope, moody, epic, gorgeous, film grain, grainy'
+		),
+		negative=(
+			'anime, cartoon, graphic, text, painting, crayon, graphite, abstract, glitch, deformed, mutated, ugly, disfigured'
+		),
 		image='styles/sai/cinematic.jpg',
 	),
 	StyleItem(
@@ -60,8 +68,15 @@ sai_styles = [
 	StyleItem(
 		id='sai_fantasy_art',
 		name='SAI Fantasy Art',
-		positive='ethereal fantasy concept art of {prompt} . magnificent, celestial, ethereal, painterly, epic, majestic, magical, fantasy art, cover art, dreamy',
-		negative='photographic, realistic, realism, 35mm film, dslr, cropped, frame, text, deformed, glitch, noise, noisy, off-center, deformed, cross-eyed, closed eyes, bad anatomy, ugly, disfigured, sloppy, duplicate, mutated, black and white',
+		positive=(
+			'ethereal fantasy concept art of {prompt} . magnificent, celestial, ethereal, painterly, epic, majestic, '
+			'magical, fantasy art, cover art, dreamy'
+		),
+		negative=(
+			'photographic, realistic, realism, 35mm film, dslr, cropped, frame, text, deformed, glitch, noise, noisy, '
+			'off-center, deformed, cross-eyed, closed eyes, bad anatomy, ugly, disfigured, sloppy, duplicate, mutated, '
+			'black and white'
+		),
 		image='styles/sai/fantasy_art.jpg',
 	),
 	StyleItem(
@@ -75,27 +90,40 @@ sai_styles = [
 		id='sai_line_art',
 		name='SAI Line Art',
 		positive='line art drawing {prompt} . professional, sleek, modern, minimalist, graphic, line art, vector graphics',
-		negative='anime, photorealistic, 35mm film, deformed, glitch, blurry, noisy, off-center, deformed, cross-eyed, closed eyes, bad anatomy, ugly, disfigured, mutated, realism, realistic, impressionism, expressionism, oil, acrylic',
+		negative=(
+			'anime, photorealistic, 35mm film, deformed, glitch, blurry, noisy, off-center, deformed, cross-eyed, '
+			'closed eyes, bad anatomy, ugly, disfigured, mutated, realism, realistic, impressionism, expressionism, '
+			'oil, acrylic'
+		),
 		image='styles/sai/line_art.jpg',
 	),
 	StyleItem(
 		id='sai_lowpoly',
 		name='SAI Lowpoly',
-		positive='low-poly style {prompt} . low-poly game art, polygon mesh, jagged, blocky, wireframe edges, centered composition',
+		positive=(
+			'low-poly style {prompt} . low-poly game art, polygon mesh, jagged, blocky, wireframe edges, centered composition'
+		),
 		negative='noisy, sloppy, messy, grainy, highly detailed, ultra textured, photo',
 		image='styles/sai/lowpoly.jpg',
 	),
 	StyleItem(
 		id='sai_neonpunk',
 		name='SAI Neonpunk',
-		positive='neonpunk style {prompt} . cyberpunk, vaporwave, neon, vibes, vibrant, stunningly beautiful, crisp, detailed, sleek, ultramodern, magenta highlights, dark purple shadows, high contrast, cinematic, ultra detailed, intricate, professional',
+		positive=(
+			'neonpunk style {prompt} . cyberpunk, vaporwave, neon, vibes, vibrant, stunningly beautiful, crisp, detailed, '
+			'sleek, ultramodern, magenta highlights, dark purple shadows, high contrast, cinematic, ultra detailed, '
+			'intricate, professional'
+		),
 		negative='painting, drawing, illustration, glitch, deformed, mutated, cross-eyed, ugly, disfigured',
 		image='styles/sai/neonpunk.jpg',
 	),
 	StyleItem(
 		id='sai_origami',
 		name='SAI Origami',
-		positive='origami style {prompt} . paper art, pleated paper, folded, origami art, pleats, cut and fold, centered composition',
+		positive=(
+			'origami style {prompt} . paper art, pleated paper, folded, origami art, pleats, cut and fold, '
+			'centered composition'
+		),
 		negative='noisy, sloppy, messy, grainy, highly detailed, ultra textured, photo',
 		image='styles/sai/origami.jpg',
 	),

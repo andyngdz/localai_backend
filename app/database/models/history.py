@@ -18,4 +18,8 @@ class History(Base, TimestampMixin):
 	config: Mapped[dict[str, Any]] = mapped_column()
 
 	def __repr__(self):
-		return f"<History(prompt='{self.prompt}', model='{self.model}', config='{self.config}', created_at='{self.created_at}', updated_at='{self.updated_at}')>"
+		return (
+			f"<History(prompt='{self.prompt}', model='{self.model}', "
+			f"config='{self.config}', created_at='{self.created_at}', "
+			f"updated_at='{self.updated_at}')>"
+		)

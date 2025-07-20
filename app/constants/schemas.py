@@ -8,6 +8,4 @@ class SamplerItem(BaseModel):
 
 	name: str = Field(..., description='User-friendly name of the sampler.')
 	value: str = Field(..., description='Internal enum value for the sampler.')
-	description: Optional[str] = Field(
-		None, description="Brief description of the sampler's characteristics."
-	)
+	description: Optional[str] = Field(None, description="Brief description of the sampler's characteristics.")

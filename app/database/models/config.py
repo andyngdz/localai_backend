@@ -17,4 +17,8 @@ class Config(Base, TimestampMixin):
 	gpu: Mapped[float] = mapped_column(default=DEFAULT_MAX_GPU_MEMORY)
 
 	def __repr__(self):
-		return f'<Config(id={self.id}, device_index={self.device_index}, ram={self.ram}, gpu={self.gpu}, created_at={self.created_at}, updated_at={self.updated_at})>'
+		return (
+			f'<Config(id={self.id}, device_index={self.device_index}, '
+			f'ram={self.ram}, gpu={self.gpu}, '
+			f'created_at={self.created_at}, updated_at={self.updated_at})>'
+		)
