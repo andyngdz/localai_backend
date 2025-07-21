@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from app.predefined_styles.schemas import StyleItem
 
 
-class StylesSectionResponse(BaseModel):
+class StyleSectionResponse(BaseModel):
 	"""
 	Response model for styles section.
 	"""

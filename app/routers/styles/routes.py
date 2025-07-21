@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from app.predefined_styles import fooocus_styles, sai_styles
 from app.services import styles_service
 
-from .schemas import StylesSectionResponse
+from .schemas import StyleSectionResponse
 
 styles = APIRouter(
 	prefix='/styles',
@@ -18,11 +18,11 @@ def get_styles():
 	"""List all styles"""
 
 	return [
-		StylesSectionResponse(
+		StyleSectionResponse(
 			id='fooocus',
 			styles=fooocus_styles,
 		),
-		StylesSectionResponse(
+		StyleSectionResponse(
 			id='sai',
 			styles=sai_styles,
 		),
