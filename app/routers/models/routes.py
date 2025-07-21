@@ -137,7 +137,7 @@ async def load_model(request: LoadModelRequest):
 		)
 
 
-@models.post('/unload')
+@models.get('/unload')
 def unload_model():
 	"""
 	Unloads the current model from memory.
