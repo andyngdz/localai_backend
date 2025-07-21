@@ -31,3 +31,6 @@ torch==2.7.1
 transformers==4.53.2
 urllib3_secure_extra==0.1.0
 zstandard==0.23.0
+uvicorn==0.35.0
+psutil==7.0.0
+accelerate==1.9.0
