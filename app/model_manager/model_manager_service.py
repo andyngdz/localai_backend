@@ -29,8 +29,12 @@ class ModelManagerService:
 
 		logger.info('ModelManager instance initialized.')
 
-	def clear_cache(self):
+	def release_resources(self):
 		"""Clears the CUDA cache if available."""
+
+		del self.pipe
+		self.pipe = None
+		self.id = None
 
 		if device_service.is_available:
 			torch.cuda.empty_cache()
@@ -58,9 +62,8 @@ class ModelManagerService:
 
 			return dict(self.pipe.config)
 
-		self.unload_model()
-
 		try:
+			self.unload_model()
 			self.pipe = model_loader(id)
 
 			logger.info(f'Model {id} loaded successfully.')
@@ -70,9 +73,7 @@ class ModelManagerService:
 			return dict(self.pipe.config)
 
 		except Exception as error:
-			self.pipe = None
-			self.id = None
-
+			self.unload_model()
 			logger.error(f'Failed to load model {id}: {error}')
 			raise
 
@@ -103,14 +104,9 @@ class ModelManagerService:
 		try:
 			if self.pipe is not None:
 				logger.info(f'Unloading model: {self.id}')
-
-				del self.pipe
-				self.pipe = None
-				self.id = None
+				self.release_resources()
 		except Exception as error:
 			logger.warning(f'Error during unload: {error}')
-		finally:
-			self.clear_cache()
 
 	def set_sampler(self, sampler: SamplerType):
 		"""Dynamically sets the sampler for the currently loaded pipeline."""
