@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import database_service
-from app.database.crud import add_history
+from app.database.crud import add_history, get_histories
 from app.model_manager import model_manager_service
 from app.schemas.generators import GeneratorConfig
 
@@ -16,7 +16,7 @@ histories = APIRouter(
 
 
 @histories.post('/')
-async def add_new_history(
+async def new_history(
 	config: GeneratorConfig,
 	db: Session = Depends(database_service.get_db),
 ):
@@ -34,3 +34,15 @@ async def add_new_history(
 
 	except ValueError as error:
 		return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+
+
+@histories.get('/')
+async def all_histories(db: Session = Depends(database_service.get_db)):
+	"""Get all histories."""
+	try:
+		histories = get_histories(db)
+
+		return histories
+	except Exception as e:
+		logger.error(f'Error fetching histories: {e}')
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not fetch histories')

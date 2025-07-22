@@ -112,6 +112,13 @@ def add_history(db: Session, model: str, config: GeneratorConfig):
 	return history
 
 
+def get_histories(db: Session):
+	"""Get all histories from the database."""
+	histories = db.query(History).all()
+
+	return histories
+
+
 def add_generated_image(db: Session, history_id: int, path: str):
 	"""Add a generated image to the history entry."""
 	generated_image = GeneratedImage(history_id=history_id, path=path)
