@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database.models import Config, GeneratedImage, History, Model
 from app.schemas.generators import GeneratorConfig
@@ -113,8 +113,8 @@ def add_history(db: Session, model: str, config: GeneratorConfig):
 
 
 def get_histories(db: Session):
-	"""Get all histories from the database."""
-	histories = db.query(History).all()
+	"""Get all histories, and generated_images belongs to it from the database."""
+	histories = db.query(History).options(selectinload(History.generated_images)).all()
 
 	return histories
 
