@@ -113,7 +113,7 @@ def add_history(db: Session, model: str, config: GeneratorConfig):
 
 
 def get_histories(db: Session):
-	"""Get all histories, and generated_images belongs to it from the database."""
+	"""Get all histories and their associated generated images from the database."""
 	histories = db.query(History).options(selectinload(History.generated_images)).all()
 
 	return histories
