@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database.models import Config, GeneratedImage, History, Model
 from app.schemas.generators import GeneratorConfig
@@ -110,6 +110,13 @@ def add_history(db: Session, model: str, config: GeneratorConfig):
 	db.commit()
 
 	return history
+
+
+def get_histories(db: Session):
+	"""Get all histories and their associated generated images from the database."""
+	histories = db.query(History).options(selectinload(History.generated_images)).all()
+
+	return histories
 
 
 def add_generated_image(db: Session, history_id: int, path: str):
