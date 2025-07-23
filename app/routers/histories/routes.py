@@ -16,7 +16,7 @@ histories = APIRouter(
 
 
 @histories.post('/')
-async def new_history(
+async def add_new_history(
 	config: GeneratorConfig,
 	db: Session = Depends(database_service.get_db),
 ):
