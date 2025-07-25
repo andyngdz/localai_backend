@@ -133,7 +133,7 @@ def delete_history_entry(db: Session, history_id: int):
 			if not history:
 				raise ValueError(f'History entry with id {history_id} does not exist.')
 
-			delete_images = list(db.query(GeneratedImage).filter(GeneratedImage.history_id == history.id).all())
+			delete_images = db.query(GeneratedImage).filter(GeneratedImage.history_id == history.id).all()
 
 			db.delete(history)
 			db.commit()
