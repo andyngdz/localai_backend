@@ -134,15 +134,15 @@ def delete_history_entry(db: Session, history_id: int):
 				raise ValueError(f'History entry with id {history_id} does not exist.')
 
 			delete_images = list(db.query(GeneratedImage).filter(GeneratedImage.history_id == history.id).all())
+
 			db.delete(history)
-			db.commit()
 
 			for image in delete_images:
-				path_to_delete = os.path.join(image.path)
+				path = image.path
 
-				if os.path.exists(path_to_delete):
-					logger.info(f'Deleting image file: {path_to_delete}')
-					os.remove(path_to_delete)
+				if os.path.exists(path):
+					logger.info(f'Deleting image file: {path}')
+					os.remove(path)
 
 		except Exception as error:
 			db.rollback()
