@@ -34,7 +34,7 @@ async def add_new_history(
 		return history.id
 
 	except ValueError as error:
-		return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
 @histories.get('/')
@@ -57,4 +57,4 @@ async def delete_history(history_id: int, db: Session = Depends(database_service
 
 		return JSONResponse(content=f'History entry deleted successfully {history_id}')
 	except ValueError as error:
-		return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
