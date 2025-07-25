@@ -8,18 +8,19 @@ from app.constants import SamplerType
 class GeneratorConfig(BaseModel):
 	"""Request model for generating an image."""
 
-	cfg_scale: float = Field(7.5, ge=1, description='Classifier-Free Guidance scale (CFG scale).')
-	height: int = Field(512, ge=64, description='Height of the generated image.')
-	width: int = Field(512, ge=64, description='Width of the generated image.')
-	hires_fix: bool = Field(False, description='Enable high-resolution fix.')
-	negative_prompt: Optional[str] = Field(
-		..., max_length=1000, description='Negative prompt to avoid certain features.'
-	)
+	width: int = Field(default=512, ge=64, description='Width of the generated image.')
+	height: int = Field(default=512, ge=64, description='Height of the generated image.')
+	hires_fix: bool = Field(default=False, description='Enable high-resolution fix.')
+	number_of_images: int = Field(default=1, ge=1, description='Number of images to generate.')
 	prompt: str = Field(..., max_length=1000, description='The text prompt for image generation.')
-	steps: int = Field(24, ge=1, description='Number of inference steps.')
-	seed: int = Field(-1, description='Random seed for reproducibility.')
+	negative_prompt: Optional[str] = Field(
+		default=None, max_length=1000, description='Negative prompt to avoid certain features.'
+	)
+	cfg_scale: float = Field(default=7.5, ge=1, description='Classifier-Free Guidance scale (CFG scale).')
+	steps: int = Field(default=24, ge=1, description='Number of inference steps.')
+	seed: int = Field(default=-1, description='Random seed for reproducibility.')
 	sampler: SamplerType = Field(
-		SamplerType.EULER_A,
+		default=SamplerType.EULER_A,
 		description='Sampler type for image generation.',
 	)
 	styles: list[str] = Field(
