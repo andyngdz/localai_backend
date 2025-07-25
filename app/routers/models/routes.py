@@ -4,6 +4,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse
 from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 
@@ -145,6 +146,8 @@ def unload_model():
 
 	try:
 		model_manager_service.unload_model()
+
+		return JSONResponse(content='Model unloaded successfully')
 	except Exception as error:
 		logger.exception('Failed to unload model')
 

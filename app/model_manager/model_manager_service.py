@@ -104,6 +104,7 @@ class ModelManagerService:
 		try:
 			if self.pipe is not None:
 				logger.info(f'Unloading model: {self.id}')
+				
 				self.release_resources()
 		except Exception as error:
 			logger.warning(f'Error during unload: {error}')
