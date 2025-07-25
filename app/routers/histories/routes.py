@@ -1,13 +1,13 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import database_service
 from app.database.crud import add_history, delete_history_entry, get_histories
 from app.model_manager import model_manager_service
 from app.schemas.generators import GeneratorConfig
+from app.schemas.responses import JSONResponseMessage
 
 logger = logging.getLogger(__name__)
 histories = APIRouter(
@@ -55,6 +55,6 @@ async def delete_history(history_id: int, db: Session = Depends(database_service
 	try:
 		delete_history_entry(db, history_id)
 
-		return JSONResponse(content=f'History entry deleted successfully {history_id}')
+		return JSONResponseMessage(message=f'History entry deleted successfully {history_id}')
 	except ValueError as error:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
