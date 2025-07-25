@@ -16,7 +16,7 @@ class History(Base, TimestampMixin):
 	prompt: Mapped[str] = mapped_column()
 	model: Mapped[str] = mapped_column()
 	config: Mapped[dict[str, Any]] = mapped_column()
-	generated_images = relationship('GeneratedImage', back_populates='history')
+	generated_images = relationship('GeneratedImage', back_populates='history', cascade='all, delete-orphan')
 
 	def __repr__(self):
 		return (

@@ -1,3 +1,5 @@
+import os
+from logging import getLogger
 from typing import List
 
 from sqlalchemy.orm import Session, selectinload
@@ -6,6 +8,8 @@ from app.database.models import Config, GeneratedImage, History, Model
 from app.schemas.generators import GeneratorConfig
 
 from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY, DeviceSelection
+
+logger = getLogger(__name__)
 
 
 def add_model(db: Session, model_id: str, model_dir: str):
@@ -117,6 +121,36 @@ def get_histories(db: Session):
 	histories = db.query(History).options(selectinload(History.generated_images)).all()
 
 	return histories
+
+
+def delete_history_entry(db: Session, history_id: int):
+	"""Delete a history entry and its associated generated images."""
+
+	with db.begin():
+		try:
+			history = db.query(History).filter(History.id == history_id).first()
+
+			if not history:
+				raise ValueError(f'History entry with id {history_id} does not exist.')
+
+			delete_images = db.query(GeneratedImage).filter(GeneratedImage.history_id == history.id).all()
+
+			db.delete(history)
+			db.commit()
+
+			logger.info(f'Deleted history entry with id: {history_id}')
+
+			for image in delete_images:
+				path = image.path
+
+				if os.path.exists(path):
+					logger.info(f'Deleting image file: {path}')
+					os.remove(path)
+
+		except Exception as error:
+			raise ValueError(f'Error deleting history entry: {str(error)}')
+
+	return history_id
 
 
 def add_generated_image(db: Session, history_id: int, path: str):

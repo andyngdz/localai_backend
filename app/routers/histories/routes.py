@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import database_service
-from app.database.crud import add_history, get_histories
+from app.database.crud import add_history, delete_history_entry, get_histories
 from app.model_manager import model_manager_service
 from app.schemas.generators import GeneratorConfig
+from app.schemas.responses import JSONResponseMessage
 
 logger = logging.getLogger(__name__)
 histories = APIRouter(
@@ -33,7 +34,7 @@ async def add_new_history(
 		return history.id
 
 	except ValueError as error:
-		return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
 @histories.get('/')
@@ -46,3 +47,14 @@ async def all_histories(db: Session = Depends(database_service.get_db)):
 	except Exception as e:
 		logger.error(f'Error fetching histories: {e}')
 		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not fetch histories')
+
+
+@histories.delete('/{history_id}')
+async def delete_history(history_id: int, db: Session = Depends(database_service.get_db)):
+	"""Delete a history entry."""
+	try:
+		delete_history_entry(db, history_id)
+
+		return JSONResponseMessage(message=f'History entry deleted successfully {history_id}')
+	except ValueError as error:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
