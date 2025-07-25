@@ -148,7 +148,6 @@ def delete_history_entry(db: Session, history_id: int):
 					os.remove(path)
 
 		except Exception as error:
-			db.rollback()
 			raise ValueError(f'Error deleting history entry: {str(error)}')
 
 	return history_id
