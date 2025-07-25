@@ -57,7 +57,8 @@ class GeneratorService:
 	def apply_hires_fix(self, hires_fix: bool):
 		if hires_fix:
 			logger.warning(
-				'Hires fix requested, but not fully implemented in this MVP. Generating directly at requested resolution.'
+				'Hires fix requested, but not fully implemented in this MVP. '
+				'Generating directly at requested resolution.'
 			)
 
 	def is_nsfw(self, output):
@@ -104,21 +105,27 @@ class GeneratorService:
 	def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
 		logger.info(f'Callback on step end: step={step}, timestep={timestep}')
 
-		if self.id:
-			latents = callback_kwargs['latents']
-			image = self.latents_to_rgb(latents[0])
+		latents = callback_kwargs['latents']
+
+		for index, latent in enumerate(latents):
+			image = self.latents_to_rgb(latent)
 			image_base64 = image_service.to_base64(image)
+
+			logger.info(f'Generated image for step {step}, index {index}')
+
 			socket_service.emit_sync(
 				SocketEvents.IMAGE_GENERATION_EACH_STEP,
 				ImageGenerationEachStepResponse(
-					id=self.id,
 					image_base64=image_base64,
+					index=index,
+					step=step,
+					timestep=timestep,
 				).model_dump(),
 			)
 
 		return callback_kwargs
 
-	async def generate_image(self, id: str, config: GeneratorConfig):
+	async def generate_image(self, config: GeneratorConfig):
 		logger.info(f'Received image generation request: {config}')
 
 		self.id = id

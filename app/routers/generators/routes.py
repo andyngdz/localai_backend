@@ -27,11 +27,10 @@ async def generation_image(
 	Returns the first generated image as a file.
 	"""
 	try:
-		id = request.id
 		config = request.config
 		history_id = request.history_id
 
-		response = await generator_service.generate_image(id, config)
+		response = await generator_service.generate_image(config)
 
 		add_generated_image(db, history_id, response.path)
 

@@ -31,12 +31,13 @@ class GeneratorConfig(BaseModel):
 
 class ImageGenerationRequest(BaseModel):
 	history_id: int = Field(..., description='History ID for tracking the generation process.')
-	id: str = Field(..., description='Socket ID for tracking the generation process.')
 	config: GeneratorConfig = Field(..., description='Configuration for image generation.')
 
 
 class ImageGenerationEachStepResponse(BaseModel):
-	id: str = Field(..., description='Socket ID for tracking the generation process.')
+	index: int = Field(..., description='Index of the step in the generation process.')
+	step: int = Field(..., description='Current step number in the generation process.')
+	timestep: int = Field(..., description='Current timestep in the generation process.')
 	image_base64: str = Field(..., description='Base64 encoded image generated at this step.')
 
 
