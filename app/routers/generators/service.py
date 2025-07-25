@@ -94,9 +94,9 @@ class GeneratorService:
 
 		weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
 		biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
-		rgb_tensor = torch.einsum('...lxy,lr -> ...rxy', latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
+		rgb_tensor = torch.einsum('...lxy,lr -> ...rxy', latents, weights_tensor) + biases_tensor.unsqueeze(
 			-1
-		)
+		).unsqueeze(-1)
 		image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
 		return Image.fromarray(image_array)
@@ -171,6 +171,7 @@ class GeneratorService:
 					height=config.height,
 					width=config.width,
 					generator=torch.Generator(device=pipe.device).manual_seed(random_seed),
+					num_images_per_prompt=config.number_of_images,
 					callback_on_step_end=self.callback_on_step_end,
 					callback_on_step_end_tensor_inputs=['latents'],
 				),
