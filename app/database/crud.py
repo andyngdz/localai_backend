@@ -136,6 +136,9 @@ def delete_history_entry(db: Session, history_id: int):
 			delete_images = list(db.query(GeneratedImage).filter(GeneratedImage.history_id == history.id).all())
 
 			db.delete(history)
+			db.commit()
+
+			logger.info(f'Deleted history entry with id: {history_id}')
 
 			for image in delete_images:
 				path = image.path
