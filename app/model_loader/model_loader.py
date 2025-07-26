@@ -50,6 +50,7 @@ def model_loader(id: str):
 		raise
 
 	if device_service.is_cuda:
+		pipe.enable_model_cpu_offload()
 		pipe.enable_attention_slicing()
 
 	model_dir = storage_service.get_model_dir(id)
@@ -59,7 +60,7 @@ def model_loader(id: str):
 	db.close()
 
 	socket_service.emit_sync(
-		SocketEvents.DOWNLOAD_COMPLETED,
+		SocketEvents.MODEL_LOAD_COMPLETED,
 		DownloadCompletedResponse(id=id).model_dump(),
 	)
 
