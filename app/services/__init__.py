@@ -3,7 +3,7 @@ from .image import image_service
 from .logger import logger_service
 from .memory import MemoryService
 from .platform import platform_service
-from .storage import get_model_dir, get_model_lock_dir
+from .storage import storage_service
 from .styles import styles_service
 
 __all__ = [
@@ -13,6 +13,5 @@ __all__ = [
 	'logger_service',
 	'styles_service',
 	'image_service',
-	'get_model_dir',
-	'get_model_lock_dir',
+	'storage_service',
 ]

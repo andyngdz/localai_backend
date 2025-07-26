@@ -10,7 +10,7 @@ class SocketEvents(str, Enum):
 	"""
 
 	DOWNLOAD_START = 'download_start'
-	DOWNLOAD_COMPLETED = 'download_completed'
+	MODEL_LOAD_COMPLETED = 'model_load_completed'
 	IMAGE_GENERATION_EACH_STEP = 'image_generation_each_step'
 
 

@@ -20,7 +20,7 @@ from app.routers import (
 	styles,
 	users,
 )
-from app.services import logger_service, platform_service
+from app.services import logger_service, platform_service, storage_service
 from app.socket import socket_service
 
 
@@ -28,9 +28,10 @@ from app.socket import socket_service
 async def lifespan(app: FastAPI):
 	"""Startup event"""
 
-	logger_service.start()
-	platform_service.start()
-	database_service.start()
+	logger_service.init()
+	storage_service.init()
+	platform_service.init()
+	database_service.init()
 
 	db = SessionLocal()
 	model_manager_service.unload_model()
@@ -41,8 +42,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-	title='LocalAI Backend',
 	description='Backend for Local AI operations.',
+	title='LocalAI Backend',
 	version='0.1.0',
 	lifespan=lifespan,
 )

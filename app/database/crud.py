@@ -153,11 +153,10 @@ def delete_history_entry(db: Session, history_id: int):
 	return history_id
 
 
-def add_generated_image(db: Session, history_id: int, path: str):
+def add_generated_image(db: Session, history_id: int, paths: list[str]):
 	"""Add a generated image to the history entry."""
-	generated_image = GeneratedImage(history_id=history_id, path=path)
+	for path in paths:
+		generated_image = GeneratedImage(history_id=history_id, path=path)
+		db.add(generated_image)
 
-	db.add(generated_image)
 	db.commit()
-
-	return generated_image

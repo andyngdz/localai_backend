@@ -7,7 +7,7 @@ from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.model_manager import model_manager_service
-from app.services import get_model_dir
+from app.services import storage_service
 from app.socket import SocketEvents, socket_service
 
 from .schemas import (
@@ -33,7 +33,7 @@ async def run_download(id: str):
 			DownloadStartResponse(id=id).model_dump(),
 		)
 
-		model_dir = get_model_dir(id)
+		model_dir = storage_service.get_model_dir(id)
 
 		logger.info(f'Download model into folder: {model_dir}')
 

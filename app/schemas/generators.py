@@ -31,16 +31,30 @@ class GeneratorConfig(BaseModel):
 
 class ImageGenerationRequest(BaseModel):
 	history_id: int = Field(..., description='History ID for tracking the generation process.')
-	id: str = Field(..., description='Socket ID for tracking the generation process.')
 	config: GeneratorConfig = Field(..., description='Configuration for image generation.')
 
 
 class ImageGenerationEachStepResponse(BaseModel):
-	id: str = Field(..., description='Socket ID for tracking the generation process.')
+	index: int = Field(..., description='Index of the step in the generation process.')
+	step: int = Field(..., description='Current step number in the generation process.')
+	timestep: int = Field(..., description='Current timestep in the generation process.')
 	image_base64: str = Field(..., description='Base64 encoded image generated at this step.')
 
 
-class ImageGenerationResponse(BaseModel):
+class ImageGenerationItem(BaseModel):
 	path: str = Field(..., description='Path to the generated image file.')
 	file_name: str = Field(..., description='Name of the generated image file.')
+
+
+class ImageGenerationResponse(BaseModel):
+	@property
+	def paths(self):
+		"""Returns the paths from generated images."""
+
+		return [image.path for image in self.items]
+
+	items: list[ImageGenerationItem] = Field(
+		default_factory=list,
+		description='List of images with their paths and file names.',
+	)
 	is_nsfw: bool = Field(False, description='Indicates if the generated image is NSFW (Not Safe For Work).')

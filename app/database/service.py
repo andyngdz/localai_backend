@@ -26,7 +26,7 @@ class DatabaseService:
 	def db(self):
 		return self.get_db()
 
-	def start(self):
+	def init(self):
 		"""
 		Initializes the database schema by creating tables.
 		This should be called only once, typically on application startup.
@@ -34,7 +34,7 @@ class DatabaseService:
 
 		# Create all tables defined by Base.metadata
 		Base.metadata.create_all(bind=engine)
-		logger.info('Database initialized successfully.')
+		logger.info('Database service initialized successfully.')
 
 	def get_db(self):
 		"""
