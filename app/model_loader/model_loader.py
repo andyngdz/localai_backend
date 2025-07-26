@@ -8,7 +8,6 @@ from app.services import device_service, storage_service
 from app.socket import SocketEvents, socket_service
 from config import CACHE_DIR
 
-from .constants import DEVICE_MAP
 from .max_memory import MaxMemoryConfig
 from .schemas import DownloadCompletedResponse
 
@@ -23,8 +22,6 @@ def model_loader(id: str):
 	max_memory = MaxMemoryConfig(db).to_dict()
 	logger.info(f'Max memory configuration: {max_memory}')
 
-	logger.info(f'Device map for model {id}: {DEVICE_MAP}')
-
 	try:
 		pipe = AutoPipelineForText2Image.from_pretrained(
 			id,
@@ -33,7 +30,6 @@ def model_loader(id: str):
 			max_memory=max_memory,
 			torch_dtype=device_service.torch_dtype,
 			use_safetensors=True,
-			device_map=DEVICE_MAP,
 		)
 	except EnvironmentError:
 		pipe = AutoPipelineForText2Image.from_pretrained(
@@ -43,7 +39,6 @@ def model_loader(id: str):
 			max_memory=max_memory,
 			torch_dtype=device_service.torch_dtype,
 			use_safetensors=False,
-			device_map=DEVICE_MAP,
 		)
 	except Exception as error:
 		logger.error(f'Error loading model {id}: {error}')
