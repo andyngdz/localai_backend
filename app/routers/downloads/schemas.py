@@ -13,7 +13,7 @@ class DownloadRequest(BaseModel):
 		description='The Hugging Face repository ID of the model to download.',
 	)
 	hf_token: Optional[str] = Field(
-		None,
+		default=None,
 		description='Optional Hugging Face API token for private models or increased rate limits.',
 	)
 
@@ -27,7 +27,7 @@ class DownloadStartResponse(BaseModel):
 	id: str = Field(..., description='The ID of the model being downloaded.')
 
 
-class DownloadStatusResponse(BaseModel):
+class DownloadResponse(BaseModel):
 	"""
 	Response schema for the status of a model download.
 	"""

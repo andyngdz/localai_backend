@@ -12,8 +12,8 @@ from app.socket import SocketEvents, socket_service
 
 from .schemas import (
 	DownloadRequest,
+	DownloadResponse,
 	DownloadStartResponse,
-	DownloadStatusResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ async def init_download(request: DownloadRequest):
 
 	await run_download(id)
 
-	return DownloadStatusResponse(
+	return DownloadResponse(
 		id=id,
 		message='Download completed',
 	)
