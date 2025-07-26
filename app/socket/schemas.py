@@ -11,7 +11,7 @@ class SocketEvents(str, Enum):
 
 	DOWNLOAD_START = 'download_start'
 	MODEL_LOAD_COMPLETED = 'model_load_completed'
-	IMAGE_GENERATION_EACH_STEP = 'image_generation_each_step'
+	IMAGE_GENERATION_STEP_END = 'image_generation_step_end'
 
 
 class SocketResponse(BaseModel):
