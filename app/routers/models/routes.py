@@ -90,7 +90,7 @@ def get_downloaded_models(db: Session = Depends(database_service.get_db)):
 
 
 @models.get('/available')
-def is_model_already_downloaded(
+def is_model_available(
 	id: str = Query(..., description='Model ID'),
 	db: Session = Depends(database_service.get_db),
 ):

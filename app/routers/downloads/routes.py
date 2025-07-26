@@ -11,9 +11,9 @@ from app.services import storage_service
 from app.socket import SocketEvents, socket_service
 
 from .schemas import (
-	DownloadRequest,
-	DownloadStartResponse,
-	DownloadStatusResponse,
+	DownloadModelRequest,
+	DownloadModelResponse,
+	DownloadModelStartResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,13 +24,13 @@ downloads = APIRouter(
 api = HfApi()
 
 
-async def run_download(id: str):
+async def start_downloading(id: str):
 	"""Run the download task for the given model ID."""
 
 	try:
 		await socket_service.emit(
 			SocketEvents.DOWNLOAD_START,
-			DownloadStartResponse(id=id).model_dump(),
+			DownloadModelStartResponse(id=id).model_dump(),
 		)
 
 		model_dir = storage_service.get_model_dir(id)
@@ -51,16 +51,16 @@ async def run_download(id: str):
 	wait=wait_fixed(2),
 	retry=retry_if_exception_type((TimeoutError, ClientError)),
 )
-async def init_download(request: DownloadRequest):
+async def download(request: DownloadModelRequest):
 	"""Initialize a download for the given model ID"""
 
 	id = request.id
 
 	logger.info(f'API Request: Initiating download for id: {id}')
 
-	await run_download(id)
+	await start_downloading(id)
 
-	return DownloadStatusResponse(
+	return DownloadModelResponse(
 		id=id,
 		message='Download completed',
 	)

@@ -9,7 +9,7 @@ from app.socket import SocketEvents, socket_service
 from config import CACHE_DIR
 
 from .max_memory import MaxMemoryConfig
-from .schemas import DownloadCompletedResponse
+from .schemas import ModelLoadCompletedResponse
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def model_loader(id: str):
 
 	socket_service.emit_sync(
 		SocketEvents.MODEL_LOAD_COMPLETED,
-		DownloadCompletedResponse(id=id).model_dump(),
+		ModelLoadCompletedResponse(id=id).model_dump(),
 	)
 
 	return pipe

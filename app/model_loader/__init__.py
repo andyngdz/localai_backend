@@ -1,9 +1,9 @@
 from .max_memory import MaxMemoryConfig
 from .model_loader import model_loader
-from .schemas import DownloadCompletedResponse
+from .schemas import ModelLoadCompletedResponse
 
 __all__ = [
 	'model_loader',
-	'DownloadCompletedResponse',
+	'ModelLoadCompletedResponse',
 	'MaxMemoryConfig',
 ]

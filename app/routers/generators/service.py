@@ -10,9 +10,9 @@ from PIL import Image
 from app.model_manager import model_manager_service
 from app.schemas.generators import (
 	GeneratorConfig,
-	ImageGenerationEachStepResponse,
 	ImageGenerationItem,
 	ImageGenerationResponse,
+	ImageGenerationStepEndResponse,
 )
 from app.services import device_service, image_service, styles_service
 from app.socket import SocketEvents, socket_service
@@ -103,8 +103,8 @@ class GeneratorService:
 
 		return Image.fromarray(image_array)
 
-	def callback_on_step_end(self, pipe, step, timestep, callback_kwargs):
-		logger.info(f'Callback on step end: step={step}, timestep={timestep}')
+	def callback_on_step_end(self, pipe, current_step, timestep, callback_kwargs):
+		logger.info(f'Callback on step end: current_step={current_step}, timestep={timestep}')
 
 		latents = callback_kwargs['latents']
 
@@ -112,14 +112,14 @@ class GeneratorService:
 			image = self.latents_to_rgb(latent)
 			image_base64 = image_service.to_base64(image)
 
-			logger.info(f'Generated image for step {step}, index {index}')
+			logger.info(f'Generated image for current_step {current_step}, index {index}')
 
 			socket_service.emit_sync(
-				SocketEvents.IMAGE_GENERATION_EACH_STEP,
-				ImageGenerationEachStepResponse(
+				SocketEvents.IMAGE_GENERATION_STEP_END,
+				ImageGenerationStepEndResponse(
+					current_step=current_step,
 					image_base64=image_base64,
 					index=index,
-					step=step,
 					timestep=timestep,
 				).model_dump(),
 			)
