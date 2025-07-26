@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class DownloadRequest(BaseModel):
+class DownloadModelRequest(BaseModel):
 	"""Request model for downloading"""
 
 	id: str = Field(
@@ -18,7 +18,7 @@ class DownloadRequest(BaseModel):
 	)
 
 
-class DownloadStartResponse(BaseModel):
+class DownloadModelStartResponse(BaseModel):
 	"""
 	Response model for preparing a download.
 	Contains the list of files to be downloaded.
@@ -27,7 +27,7 @@ class DownloadStartResponse(BaseModel):
 	id: str = Field(..., description='The ID of the model being downloaded.')
 
 
-class DownloadResponse(BaseModel):
+class DownloadModelResponse(BaseModel):
 	"""
 	Response schema for the status of a model download.
 	"""
