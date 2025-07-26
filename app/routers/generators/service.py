@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 class GeneratorService:
 	def __init__(self):
-		self.id = None
 		self.executor = ThreadPoolExecutor()
 
 	@property
@@ -130,7 +129,6 @@ class GeneratorService:
 	async def generate_image(self, config: GeneratorConfig):
 		logger.info(f'Received image generation request: {config}')
 
-		self.id = id
 		pipe = model_manager_service.pipe
 
 		if pipe is None:
@@ -202,6 +200,12 @@ class GeneratorService:
 		except FileNotFoundError as error:
 			logger.error(f'Model directory not found: {error}')
 			raise ValueError(f'Model files not found: {error}')
+		except torch.cuda.OutOfMemoryError as error:
+			logger.error(f'Out of memory error during image generation: {error}')
+			raise ValueError(
+				'Out of memory error during image generation. '
+				'Please try again with fewer images or a smaller resolution.'
+			)
 		except Exception as error:
 			logger.exception(f'Failed to generate image for prompt: "{config.prompt}"')
 			raise ValueError(f'Failed to generate image: {error}')
