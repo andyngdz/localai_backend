@@ -8,8 +8,8 @@ logger = getLogger(__name__)
 class PlatformService:
 	"""Service to handle platform-specific operations."""
 
-	def start(self):
-		"""Start the platform service."""
+	def init(self):
+		"""Initialize the platform service."""
 
 		if sys.platform == 'win32':
 			try:
