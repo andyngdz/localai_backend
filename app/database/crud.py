@@ -5,7 +5,7 @@ from typing import List
 from sqlalchemy.orm import Session, selectinload
 
 from app.database.models import Config, GeneratedImage, History, Model
-from app.schemas.generators import GeneratorConfig
+from app.schemas.generators import GeneratorConfig, ImageGenerationItem
 
 from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY, DeviceSelection
 
@@ -153,10 +153,14 @@ def delete_history_entry(db: Session, history_id: int):
 	return history_id
 
 
-def add_generated_image(db: Session, history_id: int, paths: list[str]):
+def add_generated_image(db: Session, history_id: int, items: list[ImageGenerationItem]):
 	"""Add a generated image to the history entry."""
-	for path in paths:
-		generated_image = GeneratedImage(history_id=history_id, path=path)
+	for item in items:
+		generated_image = GeneratedImage(
+			history_id=history_id,
+			path=item.path,
+			file_name=item.file_name,
+		)
 		db.add(generated_image)
 
 	db.commit()

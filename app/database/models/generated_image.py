@@ -14,6 +14,7 @@ class GeneratedImage(Base, TimestampMixin):
 	id: Mapped[int] = mapped_column(primary_key=True, index=True)
 	history_id: Mapped[int] = mapped_column(ForeignKey('histories.id'))
 	path: Mapped[str] = mapped_column()
+	file_name: Mapped[str] = mapped_column()
 	history = relationship('History', back_populates='generated_images')
 
 	def __repr__(self):
