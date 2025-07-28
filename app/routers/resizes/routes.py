@@ -1,4 +1,4 @@
-"""Models Blueprint"""
+"""Image Resizing Router"""
 
 import logging
 import os

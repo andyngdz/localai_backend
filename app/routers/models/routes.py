@@ -1,4 +1,4 @@
-"""Models Blueprint"""
+"""Models Router"""
 
 import logging
 from typing import Optional

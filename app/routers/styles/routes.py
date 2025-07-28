@@ -1,4 +1,4 @@
-"""Styles Blueprint"""
+"""Styles Router"""
 
 from fastapi import APIRouter
 

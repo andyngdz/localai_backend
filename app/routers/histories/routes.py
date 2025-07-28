@@ -1,3 +1,5 @@
+"""Image Generation History Router"""
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
