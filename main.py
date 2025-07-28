@@ -17,11 +17,13 @@ from app.routers import (
 	hardware,
 	histories,
 	models,
+	resizes,
 	styles,
 	users,
 )
 from app.services import logger_service, platform_service, storage_service
 from app.socket import socket_service
+from config import STATIC_FOLDER
 
 
 @asynccontextmanager
@@ -56,6 +58,7 @@ app.include_router(hardware)
 app.include_router(generators)
 app.include_router(styles)
 app.include_router(histories)
+app.include_router(resizes)
 app.add_middleware(
 	CORSMiddleware,
 	allow_origins=['*'],
@@ -67,7 +70,7 @@ app.add_middleware(
 
 @app.get('/favicon.ico')
 async def favicon():
-	static_folder = 'static'
+	static_folder = STATIC_FOLDER
 	favicon_path = os.path.join(static_folder, 'favicon.ico')
 	return FileResponse(favicon_path, media_type='image/vnd.microsoft.icon')
 

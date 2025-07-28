@@ -16,7 +16,7 @@ from app.schemas.generators import (
 )
 from app.services import device_service, image_service, styles_service
 from app.socket import SocketEvents, socket_service
-from config import GENERATED_IMAGES_DIR, GENERATED_IMAGES_STATIC_DIR
+from config import GENERATED_IMAGES_FOLDER, GENERATED_IMAGES_STATIC_FOLDER
 
 from .constants import DEFAULT_NEGATIVE_PROMPT
 
@@ -80,8 +80,8 @@ class GeneratorService:
 			raise ValueError('Failed to generate any image.')
 
 		file_name = self.generate_file_name()
-		save_path = os.path.join(GENERATED_IMAGES_DIR, f'{file_name}.png')
-		static_path = os.path.join(GENERATED_IMAGES_STATIC_DIR, f'{file_name}.png')
+		save_path = os.path.join(GENERATED_IMAGES_FOLDER, f'{file_name}.png')
+		static_path = os.path.join(GENERATED_IMAGES_STATIC_FOLDER, f'{file_name}.png')
 
 		image.save(save_path)
 
