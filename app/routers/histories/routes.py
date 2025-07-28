@@ -44,8 +44,9 @@ async def all_histories(db: Session = Depends(database_service.get_db)):
 		histories = get_histories(db)
 
 		return histories
-	except Exception as e:
-		logger.error(f'Error fetching histories: {e}')
+	except ValueError as error:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+	except Exception:
 		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not fetch histories')
 
 

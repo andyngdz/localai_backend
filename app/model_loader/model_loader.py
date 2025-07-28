@@ -1,9 +1,12 @@
 import logging
 
 from diffusers import AutoPipelineForText2Image
+from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
+from transformers import CLIPImageProcessor
 
 from app.database.crud import add_model
 from app.database.service import SessionLocal
+from app.model_loader.constants import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
 from app.services import device_service, storage_service
 from app.socket import SocketEvents, socket_service
 from config import CACHE_DIR
@@ -22,6 +25,9 @@ def model_loader(id: str):
 	max_memory = MaxMemoryConfig(db).to_dict()
 	logger.info(f'Max memory configuration: {max_memory}')
 
+	feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
+	safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
+
 	try:
 		pipe = AutoPipelineForText2Image.from_pretrained(
 			id,
@@ -30,6 +36,8 @@ def model_loader(id: str):
 			max_memory=max_memory,
 			torch_dtype=device_service.torch_dtype,
 			use_safetensors=True,
+			safety_checker=safety_checker_instance,
+			feature_extractor=feature_extractor,
 		)
 	except EnvironmentError:
 		pipe = AutoPipelineForText2Image.from_pretrained(
@@ -39,6 +47,8 @@ def model_loader(id: str):
 			max_memory=max_memory,
 			torch_dtype=device_service.torch_dtype,
 			use_safetensors=False,
+			safety_checker=safety_checker_instance,
+			feature_extractor=feature_extractor,
 		)
 	except Exception as error:
 		logger.error(f'Error loading model {id}: {error}')
