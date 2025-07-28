@@ -6,6 +6,7 @@ from transformers import CLIPImageProcessor
 
 from app.database.crud import add_model
 from app.database.service import SessionLocal
+from app.model_loader.constants import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
 from app.services import device_service, storage_service
 from app.socket import SocketEvents, socket_service
 from config import CACHE_DIR
@@ -24,10 +25,8 @@ def model_loader(id: str):
 	max_memory = MaxMemoryConfig(db).to_dict()
 	logger.info(f'Max memory configuration: {max_memory}')
 
-	feature_extractor = CLIPImageProcessor.from_pretrained('openai/clip-vit-base-patch32')
-	safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(
-		'CompVis/stable-diffusion-safety-checker',
-	)
+	feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
+	safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
 
 	try:
 		pipe = AutoPipelineForText2Image.from_pretrained(
