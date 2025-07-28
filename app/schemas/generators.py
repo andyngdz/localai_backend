@@ -47,12 +47,6 @@ class ImageGenerationItem(BaseModel):
 
 
 class ImageGenerationResponse(BaseModel):
-	@property
-	def paths(self):
-		"""Returns the paths from generated images."""
-
-		return [image.path for image in self.items]
-
 	items: list[ImageGenerationItem] = Field(
 		default_factory=list,
 		description='List of images with their paths and file names.',

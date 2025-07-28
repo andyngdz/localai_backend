@@ -32,8 +32,7 @@ async def generation_image(
 
 		response = await generator_service.generate_image(config)
 
-		add_generated_image(db, history_id, response.paths)
-
+		add_generated_image(db, history_id, response.items)
 		return response
 
 	except ValueError as error:
