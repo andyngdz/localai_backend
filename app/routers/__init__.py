@@ -3,6 +3,7 @@ from .generators import generators
 from .hardware import hardware
 from .histories import histories
 from .models import models
+from .resizes import resizes
 from .styles import styles
 from .users import users
 
@@ -14,4 +15,5 @@ __all__ = [
 	'models',
 	'styles',
 	'users',
+	'resizes',
 ]

@@ -1,4 +1,4 @@
-"""Blueprint for handling drivers in the application."""
+"""Hardware Router"""
 
 import functools
 import logging

@@ -1,4 +1,4 @@
-"""Users Blueprint"""
+"""Users Router"""
 
 import requests
 from fastapi import APIRouter

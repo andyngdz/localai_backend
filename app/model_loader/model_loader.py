@@ -9,7 +9,7 @@ from app.database.service import SessionLocal
 from app.model_loader.constants import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
 from app.services import device_service, storage_service
 from app.socket import SocketEvents, socket_service
-from config import CACHE_DIR
+from config import CACHE_FOLDER
 
 from .max_memory import MaxMemoryConfig
 from .schemas import ModelLoadCompletedResponse
@@ -31,7 +31,7 @@ def model_loader(id: str):
 	try:
 		pipe = AutoPipelineForText2Image.from_pretrained(
 			id,
-			cache_dir=CACHE_DIR,
+			cache_dir=CACHE_FOLDER,
 			low_cpu_mem_usage=True,
 			max_memory=max_memory,
 			torch_dtype=device_service.torch_dtype,
@@ -42,7 +42,7 @@ def model_loader(id: str):
 	except EnvironmentError:
 		pipe = AutoPipelineForText2Image.from_pretrained(
 			id,
-			cache_dir=CACHE_DIR,
+			cache_dir=CACHE_FOLDER,
 			low_cpu_mem_usage=True,
 			max_memory=max_memory,
 			torch_dtype=device_service.torch_dtype,
