@@ -19,7 +19,11 @@ resizes = APIRouter(
 
 
 @resizes.get('/image')
-async def get_resized_image(file_path: str = Query(...), width: int = Query(..., ge=1), height: int = Query(..., ge=1)):
+async def resized_image(
+	file_path: str = Query(description='Path to the image file'),
+	width: int = Query(..., ge=1, description='Width to resize the image to'),
+	height: int = Query(..., ge=1, description='Height to resize the image to'),
+):
 	"""Serves images from the 'static' folder with resizing based on query parameters."""
 	image_path = os.path.join(STATIC_FOLDER, file_path)
 
