@@ -51,4 +51,6 @@ class ImageGenerationResponse(BaseModel):
 		default_factory=list,
 		description='List of images with their paths and file names.',
 	)
-	is_nsfw: bool = Field(False, description='Indicates if the generated image is NSFW (Not Safe For Work).')
+	nsfw_content_detected: list[bool] = Field(
+		default_factory=list, description='Indicates if the generated image is NSFW (Not Safe For Work).'
+	)

@@ -61,12 +61,14 @@ class GeneratorService:
 				'Generating directly at requested resolution.'
 			)
 
-	def is_nsfw(self, output):
+	def is_nsfw_content_detected(self, output) -> list[bool]:
+		logger.info(f'Checking for NSFW content in the generated images: {output.get("nsfw_content_detected")}')
+
 		if output.get('nsfw_content_detected'):
 			logger.warning('NSFW content detected')
-			return True
+			return output.get('nsfw_content_detected')
 
-		return False
+		return [False] * len(output.get('images', []))
 
 	def generate_file_name(self):
 		"""Generate a unique file name based on the current timestamp."""
@@ -185,7 +187,7 @@ class GeneratorService:
 
 			logger.info(f'Image generation completed successfully: {output}')
 
-			is_nsfw = self.is_nsfw(output)
+			nsfw_content_detected = self.is_nsfw_content_detected(output)
 
 			generated_image = output.get('images', [])
 			items: list[ImageGenerationItem] = []
@@ -195,7 +197,10 @@ class GeneratorService:
 					path, file_name = self.save_image(image)
 					items.append(ImageGenerationItem(path=path, file_name=file_name))
 
-			return ImageGenerationResponse(items=items, is_nsfw=is_nsfw)
+			return ImageGenerationResponse(
+				items=items,
+				nsfw_content_detected=nsfw_content_detected,
+			)
 
 		except FileNotFoundError as error:
 			logger.error(f'Model directory not found: {error}')

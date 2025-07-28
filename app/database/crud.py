@@ -5,7 +5,7 @@ from typing import List
 from sqlalchemy.orm import Session, selectinload
 
 from app.database.models import Config, GeneratedImage, History, Model
-from app.schemas.generators import GeneratorConfig, ImageGenerationItem
+from app.schemas.generators import GeneratorConfig, ImageGenerationResponse
 
 from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY, DeviceSelection
 
@@ -153,14 +153,21 @@ def delete_history_entry(db: Session, history_id: int):
 	return history_id
 
 
-def add_generated_image(db: Session, history_id: int, items: list[ImageGenerationItem]):
+def add_generated_image(db: Session, history_id: int, response: ImageGenerationResponse):
 	"""Add a generated image to the history entry."""
-	for item in items:
+	items = response.items
+	nsfw_content_detected = response.nsfw_content_detected
+
+	for index, item in enumerate(items):
+		is_nsfw = nsfw_content_detected[index]
+
 		generated_image = GeneratedImage(
 			history_id=history_id,
 			path=item.path,
 			file_name=item.file_name,
+			is_nsfw=is_nsfw,
 		)
+
 		db.add(generated_image)
 
 	db.commit()
