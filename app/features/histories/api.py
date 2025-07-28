@@ -59,5 +59,5 @@ async def delete_history(history_id: int, db: Session = Depends(database_service
 		delete_history_entry(db, history_id)
 
 		return JSONResponseMessage(message=f'History entry deleted successfully {history_id}')
-	except ValueError as error:
+	except Exception as error:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
