@@ -30,5 +30,11 @@ class MaxMemoryConfig:
 				self.device_index: f'{self.max_gpu_in_gb}GB',
 				'cpu': f'{self.max_ram_in_gb}GB',
 			}
+		elif device_service.is_mps:
+			# For MPS, we specify memory for the 'mps' device
+			return {
+				'mps': f'{self.max_gpu_in_gb}GB',
+				'cpu': f'{self.max_ram_in_gb}GB',
+			}
 		else:
 			return {'cpu': f'{self.max_ram_in_gb}GB'}

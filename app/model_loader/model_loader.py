@@ -54,9 +54,18 @@ def model_loader(id: str):
 		logger.error(f'Error loading model {id}: {error}')
 		raise
 
+	# Apply device-specific optimizations
 	if device_service.is_cuda:
 		pipe.enable_model_cpu_offload()
 		pipe.enable_attention_slicing()
+	elif device_service.is_mps:
+		# For MPS, we can enable attention slicing but not model CPU offload
+		# as it's not supported/needed on Apple Silicon
+		pipe.enable_attention_slicing()
+		logger.info('Applied MPS optimizations: attention slicing enabled')
+
+	# Move pipeline to the appropriate device
+	pipe = pipe.to(device_service.device)
 
 	model_dir = storage_service.get_model_dir(id)
 

@@ -3,13 +3,25 @@ import torch
 from sqlalchemy.orm import Session
 
 from app.database.crud import get_device_index
+from app.services.device import device_service
 
 
 class MemoryService:
 	def __init__(self, db: Session):
 		device_index = get_device_index(db)
-		properties = torch.cuda.get_device_properties(device_index)
 		total_ram = psutil.virtual_memory().total
 
 		self.total_ram = total_ram
-		self.total_gpu = properties.total_memory
+
+		# Get GPU memory based on device type
+		if device_service.is_cuda:
+			properties = torch.cuda.get_device_properties(device_index)
+			self.total_gpu = properties.total_memory
+		elif device_service.is_mps:
+			# For MPS, we'll use a conservative estimate of available memory
+			# Apple Silicon Macs share memory between CPU and GPU
+			# Use 80% of system RAM as available GPU memory estimate
+			self.total_gpu = int(total_ram * 0.8)
+		else:
+			# CPU-only, no dedicated GPU memory
+			self.total_gpu = 0
