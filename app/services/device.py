@@ -15,7 +15,8 @@ class DeviceService:
 			self.torch_dtype = torch.float16
 		elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
 			self.device = 'mps'
-			self.torch_dtype = torch.float16
+			# Use float32 for MPS to avoid numerical instability issues that cause NaN values
+			self.torch_dtype = torch.float32
 		else:
 			self.device = 'cpu'
 			self.torch_dtype = torch.float32
