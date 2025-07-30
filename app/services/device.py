@@ -10,14 +10,20 @@ class DeviceService:
 
 	def __init__(self):
 		# Priority: CUDA > MPS > CPU
-		if self.is_cuda:
-			self.device = 'cuda'
-			self.torch_dtype = torch.float16
-		elif self.is_mps:
-			self.device = 'mps'
-			# Use float32 for MPS to avoid numerical instability issues that cause NaN values
-			self.torch_dtype = torch.float32
-		else:
+		try:
+			if torch.cuda.is_available():
+				self.device = 'cuda'
+				self.torch_dtype = torch.float16
+			elif torch.backends.mps.is_available():
+				self.device = 'mps'
+				# Use float32 for MPS to avoid numerical instability issues that cause NaN values
+				self.torch_dtype = torch.float32
+			else:
+				self.device = 'cpu'
+				self.torch_dtype = torch.float32
+		except Exception as error:
+			# Fallback to CPU if there are any issues with device detection
+			print(f'Warning: Device detection failed, falling back to CPU: {error}')
 			self.device = 'cpu'
 			self.torch_dtype = torch.float32
 
