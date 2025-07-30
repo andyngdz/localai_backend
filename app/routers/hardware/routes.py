@@ -260,10 +260,10 @@ def get_device(db: Session = Depends(database_service.get_db)):
 def set_max_memory(config: MaxMemoryConfigRequest, db: Session = Depends(database_service.get_db)):
 	"""Set maximum memory configuration."""
 
-	add_max_memory(db, ram=config.ram, gpu=config.gpu)
+	add_max_memory(db, ram_scale_factor=config.ram_scale_factor, gpu_scale_factor=config.gpu_scale_factor)
 
 	return {
-		'message': 'Maximum memory configuration successfully saved.',
-		'ram': config.ram,
-		'gpu': config.gpu,
+		'message': 'Maximum memory scale factor configuration successfully saved.',
+		'ram_scale_factor': config.ram_scale_factor,
+		'gpu_scale_factor': config.gpu_scale_factor,
 	}

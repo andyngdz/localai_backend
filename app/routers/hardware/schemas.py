@@ -79,13 +79,13 @@ class GetCurrentDeviceIndex(BaseModel):
 class MaxMemoryConfigRequest(BaseModel):
 	"""Configuration for maximum memory usage."""
 
-	ram: float = Field(
+	ram_scale_factor: float = Field(
 		...,
 		ge=0.1,
 		le=1,
 		description='Maximum RAM memory in percent that can be used by the pipeline.',
 	)
-	gpu: float = Field(
+	gpu_scale_factor: float = Field(
 		...,
 		ge=0.1,
 		le=1,
