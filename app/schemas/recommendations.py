@@ -1,0 +1,54 @@
+"""Model Recommendation Schemas"""
+
+from typing import List
+
+from pydantic import BaseModel
+
+
+class ModelRecommendationItem(BaseModel):
+	"""Model for individual model recommendation item"""
+
+	id: str
+	name: str
+	description: str
+	memory_requirement_gb: int
+	model_size: str
+	tags: List[str]
+	is_recommended: bool
+
+
+class ModelRecommendationSection(BaseModel):
+	"""Model for recommendation section containing multiple models"""
+
+	id: str
+	name: str
+	description: str
+	is_recommended: bool
+	models: List[ModelRecommendationItem]
+
+
+class ModelRecommendationResponse(BaseModel):
+	"""Model for complete recommendation response"""
+
+	sections: List[ModelRecommendationSection]
+	default_recommend_section: str
+	default_selected_model: str
+
+
+class DeviceCapabilities(BaseModel):
+	"""Model for device hardware capabilities"""
+
+	max_ram_gb: float
+	max_gpu_gb: float
+	is_cuda: bool
+	is_mps: bool
+	device_index: int
+
+
+class SectionConfig(BaseModel):
+	"""Model for section configuration"""
+
+	name: str
+	description: str
+	models: List[ModelRecommendationItem]
+	min_gpu_gb: float
