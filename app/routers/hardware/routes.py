@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.database import database_service
 from app.database.crud import add_device_index, add_max_memory, get_device_index
+from app.services import device_service
 from app.services.memory import MemoryService
 
 from .schemas import (
@@ -40,37 +41,34 @@ else:
 def default_gpu_info() -> GPUDriverInfo:
 	"""Initializes GPUDriverInfo with default unknown status."""
 	return GPUDriverInfo(
-		overall_status=GPUDriverStatusStates.UNKNOWN_ERROR,
-		message='Attempting to detect GPU and driver status...',
 		gpus=[],
-		nvidia_driver_version=None,
-		cuda_runtime_version=None,
-		macos_mps_available=None,
-		recommendation_link=None,
-		troubleshooting_steps=None,
+		is_cuda=device_service.is_cuda,
+		message='Attempting to detect GPU and driver status...',
+		overall_status=GPUDriverStatusStates.UNKNOWN_ERROR,
 	)
 
 
 def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
-	# NVIDIA GPU Detection
-	cuda = torch.cuda
-
-	if cuda.is_available():
+	if device_service.is_cuda:
 		info.overall_status = GPUDriverStatusStates.READY
 		info.message = 'NVIDIA GPU detected and ready for acceleration.'
 		version = getattr(torch, 'version', None)
 		info.cuda_runtime_version = getattr(version, 'cuda', None)
 
-		# Get individual GPU device info
 		gpus = []
-		device_count = cuda.device_count()
+		device_count = device_service.device_count
 
 		for index in range(device_count):
-			name = cuda.get_device_name(index)
-			device_property = cuda.get_device_properties(index)
+			name = device_service.get_device_name(index)
+			device_property = device_service.get_device_properties(index)
+
+			if device_property is None:
+				logger.warning(f'Could not retrieve properties for device index {index}. Skipping.')
+				continue
+
 			total_memory = device_property.total_memory
 			cuda_compute_capability = f'{device_property.major}.{device_property.minor}'
-			is_primary = index == cuda.current_device()
+			is_primary = index == device_service.current_device
 
 			gpus.append(
 				GPUDeviceInfo(
@@ -80,11 +78,10 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 					is_primary=is_primary,
 				)
 			)
+
 		info.gpus = gpus
 
-		# Try to get NVIDIA driver version via nvidia-smi
 		try:
-			# Capture stdout and stderr
 			result = subprocess.run(
 				[
 					'nvidia-smi',
@@ -101,19 +98,15 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 		except (subprocess.CalledProcessError, FileNotFoundError) as error:
 			logger.warning(f'nvidia-smi not found or failed: {error}. Cannot get detailed driver version.')
 			info.message += " (Could not retrieve NVIDIA driver version from nvidia-smi. Ensure it's in PATH)."
-			# If CUDA is available but nvidia-smi fails, it's still "ready" but with a warning.
-			# If it's a driver issue, torch.cuda.is_available() would likely be False.
 	else:
-		# No NVIDIA GPU or CUDA issues
 		info.overall_status = GPUDriverStatusStates.NO_GPU
 		info.message = 'No NVIDIA GPU detected or CUDA is not available. Running on CPU.'
-		info.recommendation_link = 'https://www.nvidia.com/drivers'  # Generic NVIDIA driver link
+		info.recommendation_link = 'https://www.nvidia.com/drivers'
 		info.troubleshooting_steps = [
 			'Ensure you have an NVIDIA GPU.',
 			'Download and install the latest NVIDIA drivers for your system.',
 			'Verify PyTorch is installed with CUDA support (e.g., pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118).',
 		]
-		# Check if nvidia-smi exists but reports no GPUs or errors
 		try:
 			subprocess.run(
 				['nvidia-smi'],
@@ -122,7 +115,6 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 				check=True,
 				creationflags=(CREATE_NO_WINDOW if system_os == 'Windows' else 0),
 			)
-			# If nvidia-smi runs but torch.cuda.is_available() is false, it's likely a driver/CUDA setup issue
 			info.overall_status = GPUDriverStatusStates.DRIVER_ISSUE
 			info.message = (
 				'NVIDIA GPU detected, but CUDA is not available or drivers are incompatible. Please update your '
@@ -130,7 +122,6 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 			)
 			info.troubleshooting_steps.insert(0, 'Check NVIDIA Control Panel/Settings for driver status.')
 		except (subprocess.CalledProcessError, FileNotFoundError):
-			# nvidia-smi also not found, so likely no NVIDIA GPU or severe path issue
 			pass
 
 
@@ -138,16 +129,7 @@ def get_mps_gpu_info(info: GPUDriverInfo):
 	info.overall_status = GPUDriverStatusStates.READY
 	info.message = 'Apple Silicon (MPS) GPU detected and ready for acceleration.'
 	info.macos_mps_available = True
-	# MPS doesn't expose detailed device info like CUDA, but you can get general info
-	# For simplicity, we'll just add a generic entry if MPS is available
-	info.gpus.append(
-		GPUDeviceInfo(
-			name=platform.machine(),  # e.g., 'arm64' for M-series
-			memory=None,  # MPS doesn't expose dedicated VRAM easily
-			cuda_compute_capability=None,
-			is_primary=True,
-		)
-	)
+	info.gpus.append(GPUDeviceInfo(name=platform.machine(), is_primary=True))
 
 
 @functools.cache
@@ -157,7 +139,6 @@ def get_system_gpu_info() -> GPUDriverInfo:
 	This function will be called by the endpoints.
 	"""
 
-	# Initialize with default unknown status
 	info = default_gpu_info()
 
 	try:
@@ -166,8 +147,7 @@ def get_system_gpu_info() -> GPUDriverInfo:
 
 		if system_os in ('Windows', 'Linux'):
 			get_nvidia_gpu_info(system_os, info)
-		elif system_os == 'Darwin':  # macOS
-			# Apple Silicon (MPS) Detection
+		elif system_os == 'Darwin':
 			if hasattr(backends, 'mps') and backends.mps.is_available():
 				get_mps_gpu_info(info)
 			else:
@@ -184,7 +164,6 @@ def get_system_gpu_info() -> GPUDriverInfo:
 					'https://download.pytorch.org/whl/cpu for CPU or specific MPS build).',
 				]
 		else:
-			# Other OS / Unknown
 			info.overall_status = GPUDriverStatusStates.NO_GPU
 			info.message = f"Unsupported operating system '{system_os}' or no compatible GPU detected. Running on CPU."
 
@@ -278,16 +257,13 @@ def get_device(db: Session = Depends(database_service.get_db)):
 
 
 @hardware.post('/max-memory')
-def set_max_memory(
-	config: MaxMemoryConfigRequest,
-	db: Session = Depends(database_service.get_db),
-):
+def set_max_memory(config: MaxMemoryConfigRequest, db: Session = Depends(database_service.get_db)):
 	"""Set maximum memory configuration."""
 
-	add_max_memory(db, ram=config.ram, gpu=config.gpu)
+	add_max_memory(db, ram_scale_factor=config.ram_scale_factor, gpu_scale_factor=config.gpu_scale_factor)
 
 	return {
-		'message': 'Maximum memory configuration successfully saved.',
-		'ram': config.ram,
-		'gpu': config.gpu,
+		'message': 'Maximum memory scale factor configuration successfully saved.',
+		'ram_scale_factor': config.ram_scale_factor,
+		'gpu_scale_factor': config.gpu_scale_factor,
 	}

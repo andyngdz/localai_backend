@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.database.models import Config, GeneratedImage, History, Model
 from app.schemas.generators import GeneratorConfig, ImageGenerationResponse
 
-from .constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY, DeviceSelection
+from .constant import DEFAULT_MAX_GPU_SCALE_FACTOR, DEFAULT_MAX_RAM_SCALE_FACTOR, DeviceSelection
 
 logger = getLogger(__name__)
 
@@ -64,15 +64,15 @@ def add_device_index(db: Session, device_index: int):
 	return config
 
 
-def add_max_memory(db: Session, ram: float, gpu: float):
+def add_max_memory(db: Session, ram_scale_factor: float, gpu_scale_factor: float):
 	"""Add or update configuration in the database."""
 	config = db.query(Config).first()
 
 	if config:
-		config.ram = ram
-		config.gpu = gpu
+		config.ram_scale_factor = ram_scale_factor
+		config.gpu_scale_factor = gpu_scale_factor
 	else:
-		config = Config(ram=ram, gpu=gpu)
+		config = Config(ram_scale_factor=ram_scale_factor, gpu_scale_factor=gpu_scale_factor)
 		db.add(config)
 
 	db.commit()
@@ -80,26 +80,26 @@ def add_max_memory(db: Session, ram: float, gpu: float):
 	return config
 
 
-def get_gpu_max_memory(db: Session) -> float:
-	"""Get GPU max memory from the database."""
+def get_gpu_scale_factor(db: Session) -> float:
+	"""Get GPU max factor from the database."""
 
 	config = db.query(Config).first()
 
-	if config and config.gpu is not None:
-		return config.gpu
+	if config and config.gpu_scale_factor is not None:
+		return config.gpu_scale_factor
 
-	return DEFAULT_MAX_GPU_MEMORY
+	return DEFAULT_MAX_GPU_SCALE_FACTOR
 
 
-def get_ram_max_memory(db: Session) -> float:
-	"""Get RAM max memory from the database."""
+def get_ram_scale_factor(db: Session) -> float:
+	"""Get RAM max factor from the database."""
 
 	config = db.query(Config).first()
 
-	if config and config.ram is not None:
-		return config.ram
+	if config and config.ram_scale_factor is not None:
+		return config.gpu_scale_factor
 
-	return DEFAULT_MAX_RAM_MEMORY
+	return DEFAULT_MAX_RAM_SCALE_FACTOR
 
 
 def add_history(db: Session, model: str, config: GeneratorConfig):

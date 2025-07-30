@@ -3,7 +3,7 @@
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, TimestampMixin
-from app.database.constant import DEFAULT_MAX_GPU_MEMORY, DEFAULT_MAX_RAM_MEMORY
+from app.database.constant import DEFAULT_MAX_GPU_SCALE_FACTOR, DEFAULT_MAX_RAM_SCALE_FACTOR
 
 
 class Config(Base, TimestampMixin):
@@ -13,12 +13,12 @@ class Config(Base, TimestampMixin):
 
 	id: Mapped[int] = mapped_column(primary_key=True, index=True)
 	device_index: Mapped[int] = mapped_column()
-	ram: Mapped[float] = mapped_column(default=DEFAULT_MAX_RAM_MEMORY)
-	gpu: Mapped[float] = mapped_column(default=DEFAULT_MAX_GPU_MEMORY)
+	ram_scale_factor: Mapped[float] = mapped_column(default=DEFAULT_MAX_RAM_SCALE_FACTOR)
+	gpu_scale_factor: Mapped[float] = mapped_column(default=DEFAULT_MAX_GPU_SCALE_FACTOR)
 
 	def __repr__(self):
 		return (
 			f'<Config(id={self.id}, device_index={self.device_index}, '
-			f'ram={self.ram}, gpu={self.gpu}, '
+			f'ram_scale_factor={self.ram_scale_factor}, gpu_scale_factor={self.gpu_scale_factor}, '
 			f'created_at={self.created_at}, updated_at={self.updated_at})>'
 		)

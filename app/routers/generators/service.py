@@ -35,22 +35,19 @@ class GeneratorService:
 		random_seed = None
 
 		if seed != -1:
-			torch.manual_seed(seed)
-
-			if device_service.is_available:
-				torch.cuda.manual_seed(seed)
-
-			logger.info(f'Using random seed: {seed}')
-
 			random_seed = seed
+			torch.manual_seed(seed)
+			logger.info(f'Using random seed: {seed}')
 		else:
 			random_seed = self.get_random_seed
 			torch.manual_seed(random_seed)
-
-			if device_service.is_available:
-				torch.cuda.manual_seed(random_seed)
-
 			logger.info(f'Using auto-generated random seed: {random_seed}')
+
+		if device_service.is_available:
+			if device_service.is_cuda:
+				torch.cuda.manual_seed(random_seed)
+			elif device_service.is_mps:
+				torch.mps.manual_seed(random_seed)
 
 		return random_seed
 

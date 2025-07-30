@@ -30,17 +30,21 @@ class ModelManagerService:
 		logger.info('ModelManager instance initialized.')
 
 	def release_resources(self):
-		"""Clears the CUDA cache if available."""
+		"""Clears the GPU cache if available."""
 
 		del self.pipe
 		self.pipe = None
 		self.id = None
 
 		if device_service.is_available:
-			torch.cuda.empty_cache()
-			logger.info('CUDA cache cleared.')
+			if device_service.is_cuda:
+				torch.cuda.empty_cache()
+				logger.info('CUDA cache cleared.')
+			elif device_service.is_mps:
+				torch.mps.empty_cache()
+				logger.info('MPS cache cleared.')
 		else:
-			logger.warning('CUDA is not available, cannot clear cache.')
+			logger.warning('GPU acceleration is not available, cannot clear cache.')
 
 		gc.collect()
 		logging.info('Forcing garbage collection to free memory.')
@@ -104,7 +108,7 @@ class ModelManagerService:
 		try:
 			if self.pipe is not None:
 				logger.info(f'Unloading model: {self.id}')
-				
+
 				self.release_resources()
 		except Exception as error:
 			logger.warning(f'Error during unload: {error}')
