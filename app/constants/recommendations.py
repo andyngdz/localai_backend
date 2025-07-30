@@ -2,7 +2,7 @@
 
 from typing import Dict
 
-from app.schemas.recommendations import ModelRecommendationItem, SectionConfig
+from app.schemas.recommendations import ModelRecommendationItem, RecommendationSectionType, SectionConfig
 
 # High Performance Models
 HIGH_PERFORMANCE_MODELS = [
@@ -72,19 +72,19 @@ LIGHTWEIGHT_MODELS = [
 
 # Section Configurations
 SECTION_CONFIGS: Dict[str, SectionConfig] = {
-	'high-performance': SectionConfig(
+	RecommendationSectionType.HIGH_PERFORMANCE: SectionConfig(
 		name='High Performance',
 		description='Advanced models for powerful hardware',
 		models=HIGH_PERFORMANCE_MODELS,
 		min_gpu_gb=8,
 	),
-	'standard': SectionConfig(
+	RecommendationSectionType.STANDARD: SectionConfig(
 		name='Standard',
 		description='Balanced performance and quality models',
 		models=STANDARD_MODELS,
 		min_gpu_gb=4,
 	),
-	'lightweight': SectionConfig(
+	RecommendationSectionType.LIGHTWEIGHT: SectionConfig(
 		name='Lightweight',
 		description='Optimized models for efficient generation',
 		models=LIGHTWEIGHT_MODELS,

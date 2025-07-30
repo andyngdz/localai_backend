@@ -1,8 +1,17 @@
 """Model Recommendation Schemas"""
 
+from enum import Enum
 from typing import List
 
 from pydantic import BaseModel
+
+
+class RecommendationSectionType(str, Enum):
+	"""Enum for recommendation section types"""
+
+	HIGH_PERFORMANCE = 'high-performance'
+	STANDARD = 'standard'
+	LIGHTWEIGHT = 'lightweight'
 
 
 class ModelRecommendationItem(BaseModel):

@@ -11,6 +11,7 @@ from app.schemas.recommendations import (
 	DeviceCapabilities,
 	ModelRecommendationResponse,
 	ModelRecommendationSection,
+	RecommendationSectionType,
 )
 from app.services import device_service
 
@@ -29,7 +30,7 @@ class ModelRecommendationService:
 		device_capabilities = self.get_device_capabilities(memory_config)
 
 		sections = self.build_recommendation_sections(device_capabilities)
-		default_recommend_section = self.get_default_recommend_section(device_capabilities)
+		default_recommend_section = self.get_recommended_section_type(device_capabilities)
 		default_selected_model = self.get_default_selected_model(sections)
 
 		return ModelRecommendationResponse(
@@ -78,40 +79,42 @@ class ModelRecommendationService:
 
 		return sections
 
+	def get_recommended_section_type(self, capabilities: DeviceCapabilities) -> RecommendationSectionType:
+		"""Get the recommended section type based on hardware capabilities"""
+
+		if capabilities.max_gpu_gb >= 8:
+			return RecommendationSectionType.HIGH_PERFORMANCE
+		elif capabilities.max_gpu_gb >= 4:
+			return RecommendationSectionType.STANDARD
+		else:
+			return RecommendationSectionType.LIGHTWEIGHT
+
 	def is_section_recommended(self, section_id: str, capabilities: DeviceCapabilities) -> bool:
 		"""Determine if a section should be recommended based on hardware"""
 
-		if section_id == 'high-performance':
-			return capabilities.max_gpu_gb >= 8
-		elif section_id == 'standard':
-			return 4 <= capabilities.max_gpu_gb < 8
-		elif section_id == 'lightweight':
-			return capabilities.max_gpu_gb < 4
-		return False
-
-	def get_default_recommend_section(self, capabilities: DeviceCapabilities) -> str:
-		"""Determine the default recommended section based on hardware"""
-
-		if capabilities.max_gpu_gb >= 8:
-			return 'high-performance'
-		elif capabilities.max_gpu_gb >= 4:
-			return 'standard'
-		else:
-			return 'lightweight'
+		recommended_section = self.get_recommended_section_type(capabilities)
+		return section_id == recommended_section
 
 	def get_default_selected_model(self, sections: List[ModelRecommendationSection]) -> str:
 		"""Get the default selected model from recommendations"""
 
-		# Find first recommended model in recommended section
-		for section in sections:
-			if section.is_recommended:
-				for model in section.models:
-					if model.is_recommended:
-						return model.id
+		# Find first recommended model in sections (recommended sections first)
+		sorted_sections = sorted(sections, key=lambda s: (not s.is_recommended, s.id))
 
-		# Fallback to first model in first section
-		if sections and sections[0].models:
-			return sections[0].models[0].id
+		for section in sorted_sections:
+			# Look for recommended models first
+			for model in section.models:
+				if model.is_recommended:
+					return model.id
+
+			# If no recommended models, take first model from recommended section
+			if section.is_recommended and section.models:
+				return section.models[0].id
+
+		# Fallback: first model from any section
+		for section in sorted_sections:
+			if section.models:
+				return section.models[0].id
 
 		# Ultimate fallback
 		return DEFAULT_FALLBACK_MODEL
