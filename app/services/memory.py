@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.database.crud import get_device_index
 from app.services.device import device_service
 
+GPU_MEMORY_ESTIMATE_FACTOR = 0.8
+
 
 class MemoryService:
 	def __init__(self, db: Session):
@@ -21,7 +23,7 @@ class MemoryService:
 			# For MPS, we'll use a conservative estimate of available memory
 			# Apple Silicon Macs share memory between CPU and GPU
 			# Use 80% of system RAM as available GPU memory estimate
-			self.total_gpu = int(total_ram * 0.8)
+			self.total_gpu = int(total_ram * GPU_MEMORY_ESTIMATE_FACTOR)
 		else:
 			# CPU-only, no dedicated GPU memory
 			self.total_gpu = 0
