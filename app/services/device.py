@@ -1,6 +1,9 @@
+import logging
 import platform
 
 import torch
+
+logger = logging.getLogger(__name__)
 
 
 class DeviceService:
@@ -14,22 +17,29 @@ class DeviceService:
 			if torch.cuda.is_available():
 				self.device = 'cuda'
 				self.torch_dtype = torch.float16
+				logger.info(f'CUDA device detected: {torch.cuda.get_device_name(0)}')
 			elif torch.backends.mps.is_available():
 				self.device = 'mps'
 				# Use float32 for MPS to avoid numerical instability issues that cause NaN values
 				self.torch_dtype = torch.float32
+				logger.info(f'MPS device detected: Apple {platform.machine()}')
 			else:
 				self.device = 'cpu'
 				self.torch_dtype = torch.float32
+				logger.info('Using CPU device (no GPU acceleration available)')
 		except Exception as error:
 			# Fallback to CPU if there are any issues with device detection
-			print(f'Warning: Device detection failed, falling back to CPU: {error}')
+			logger.warning(f'Device detection failed, falling back to CPU: {error}')
 			self.device = 'cpu'
 			self.torch_dtype = torch.float32
 
 	def get_device_name(self, index: int) -> str:
 		if self.is_cuda:
-			return torch.cuda.get_device_name(index)
+			try:
+				return torch.cuda.get_device_name(index)
+			except Exception as error:
+				logger.error(f'Failed to get CUDA device name for index {index}: {error}')
+				return f'cuda:{index}'
 		elif self.is_mps:
 			# For MPS, return the Apple Silicon chip name
 			return f'Apple {platform.machine()}'
@@ -38,7 +48,11 @@ class DeviceService:
 
 	def get_device_properties(self, index: int):
 		if self.is_cuda:
-			return torch.cuda.get_device_properties(index)
+			try:
+				return torch.cuda.get_device_properties(index)
+			except Exception as error:
+				logger.error(f'Failed to get CUDA device properties for index {index}: {error}')
+				return None
 
 		# MPS and CPU don't have device properties like CUDA
 		return None
