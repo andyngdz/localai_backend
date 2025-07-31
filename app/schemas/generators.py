@@ -37,7 +37,7 @@ class ImageGenerationRequest(BaseModel):
 class ImageGenerationStepEndResponse(BaseModel):
 	index: int = Field(..., description='Index of the step in the generation process.')
 	current_step: int = Field(..., description='Current step number in the generation process.')
-	timestep: int = Field(..., description='Current timestep in the generation process.')
+	timestep: float = Field(..., description='Current timestep in the generation process.')
 	image_base64: str = Field(..., description='Base64 encoded image generated at this step.')
 
 
