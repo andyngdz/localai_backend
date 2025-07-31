@@ -89,7 +89,7 @@ class ModelRecommendationService:
 		else:
 			return RecommendationSectionType.LIGHTWEIGHT
 
-	def is_section_recommended(self, section_id: str, capabilities: DeviceCapabilities) -> bool:
+	def is_section_recommended(self, section_id: RecommendationSectionType, capabilities: DeviceCapabilities) -> bool:
 		"""Determine if a section should be recommended based on hardware"""
 
 		recommended_section = self.get_recommended_section_type(capabilities)

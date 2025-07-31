@@ -71,7 +71,7 @@ LIGHTWEIGHT_MODELS = [
 ]
 
 # Section Configurations
-SECTION_CONFIGS: Dict[str, SectionConfig] = {
+SECTION_CONFIGS: Dict[RecommendationSectionType, SectionConfig] = {
 	RecommendationSectionType.HIGH_PERFORMANCE: SectionConfig(
 		name='High Performance',
 		description='Advanced models for powerful hardware',
