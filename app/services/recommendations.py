@@ -5,7 +5,7 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from app.constants.recommendations import DEFAULT_FALLBACK_MODEL, SECTION_CONFIGS
+from app.constants.recommendations import SECTION_CONFIGS
 from app.model_loader.max_memory import MaxMemoryConfig
 from app.schemas.recommendations import (
 	DeviceCapabilities,
@@ -31,7 +31,7 @@ class ModelRecommendationService:
 
 		sections = self.build_recommendation_sections(device_capabilities)
 		default_recommend_section = self.get_recommended_section_type(device_capabilities)
-		default_selected_model = self.get_default_selected_model(sections)
+		default_selected_model = self.get_default_selected_model(sections, default_recommend_section)
 
 		return ModelRecommendationResponse(
 			sections=sections,
@@ -95,29 +95,21 @@ class ModelRecommendationService:
 		recommended_section = self.get_recommended_section_type(capabilities)
 		return section_id == recommended_section
 
-	def get_default_selected_model(self, sections: List[ModelRecommendationSection]) -> str:
-		"""Get the default selected model from recommendations"""
+	def get_default_selected_model(
+		self, sections: List[ModelRecommendationSection], default_recommend_section: RecommendationSectionType
+	) -> str:
+		"""Get the default selected model from the recommended section"""
 
-		# Find first recommended model in sections (recommended sections first)
-		sorted_sections = sorted(sections, key=lambda s: (not s.is_recommended, s.id))
+		# Find the recommended section (guaranteed to exist)
+		recommended_section = next(s for s in sections if s.id == default_recommend_section)
 
-		for section in sorted_sections:
-			# Look for recommended models first
-			for model in section.models:
-				if model.is_recommended:
-					return model.id
+		# Look for recommended model in the default section first
+		for model in recommended_section.models:
+			if model.is_recommended:
+				return model.id
 
-			# If no recommended models, take first model from recommended section
-			if section.is_recommended and section.models:
-				return section.models[0].id
-
-		# Fallback: first model from any section
-		for section in sorted_sections:
-			if section.models:
-				return section.models[0].id
-
-		# Ultimate fallback
-		return DEFAULT_FALLBACK_MODEL
+		# If no recommended model, take first model from default section
+		return recommended_section.models[0].id
 
 
 model_recommendation_service = ModelRecommendationService()

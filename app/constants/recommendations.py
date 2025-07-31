@@ -91,6 +91,3 @@ SECTION_CONFIGS: Dict[RecommendationSectionType, SectionConfig] = {
 		min_gpu_gb=0,
 	),
 }
-
-# Default fallback model
-DEFAULT_FALLBACK_MODEL = 'runwayml/stable-diffusion-v1-5'
