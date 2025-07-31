@@ -40,7 +40,7 @@ class ModelRecommendationResponse(BaseModel):
 	"""Model for complete recommendation response"""
 
 	sections: List[ModelRecommendationSection]
-	default_recommend_section: str
+	default_recommend_section: RecommendationSectionType
 	default_selected_model: str
 
 
