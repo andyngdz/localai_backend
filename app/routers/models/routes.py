@@ -12,7 +12,7 @@ from app.database.crud import downloaded_models, is_model_downloaded
 from app.model_manager import model_manager_service
 from app.schemas.recommendations import ModelRecommendationResponse
 from app.schemas.responses import JSONResponseMessage
-from app.services import ModelRecommendationService
+from app.services.recommendations import ModelRecommendationService
 
 from .schemas import (
 	LoadModelRequest,
