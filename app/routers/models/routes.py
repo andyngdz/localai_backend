@@ -12,7 +12,7 @@ from app.database.crud import downloaded_models, is_model_downloaded
 from app.model_manager import model_manager_service
 from app.schemas.recommendations import ModelRecommendationResponse
 from app.schemas.responses import JSONResponseMessage
-from app.services.recommendations import model_recommendation_service
+from app.services import ModelRecommendationService
 
 from .schemas import (
 	LoadModelRequest,
@@ -145,7 +145,8 @@ def get_model_recommendations(db: Session = Depends(database_service.get_db)) ->
 	"""Get model recommendations based on hardware capabilities"""
 
 	try:
-		recommendations = model_recommendation_service.get_recommendations(db)
+		model_recommendation_service = ModelRecommendationService(db)
+		recommendations = model_recommendation_service.get_recommendations()
 
 		logger.info(f'Generated {len(recommendations.sections)} recommendation sections')
 

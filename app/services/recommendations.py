@@ -21,12 +21,15 @@ logger = logging.getLogger(__name__)
 class ModelRecommendationService:
 	"""Service for generating hardware-based model recommendations"""
 
-	def get_recommendations(self, db: Session) -> ModelRecommendationResponse:
+	def __init__(self, db: Session):
+		self.db = db
+
+	def get_recommendations(self) -> ModelRecommendationResponse:
 		"""Get model recommendations based on current hardware configuration"""
 
 		logger.info('Generating model recommendations based on hardware capabilities')
 
-		memory_config = MaxMemoryConfig(db)
+		memory_config = MaxMemoryConfig(self.db)
 		device_capabilities = self.get_device_capabilities(memory_config)
 
 		sections = self.build_recommendation_sections(device_capabilities)
@@ -110,6 +113,3 @@ class ModelRecommendationService:
 
 		# If no recommended model, take first model from default section
 		return recommended_section.models[0].id
-
-
-model_recommendation_service = ModelRecommendationService()
