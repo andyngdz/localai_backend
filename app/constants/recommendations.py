@@ -29,7 +29,7 @@ HIGH_PERFORMANCE_MODELS = [
 # Standard Models
 STANDARD_MODELS = [
 	ModelRecommendationItem(
-		id='runwayml/stable-diffusion-v1-5',
+		id='stable-diffusion-v1-5/stable-diffusion-v1-5',
 		name='Stable Diffusion 1.5',
 		description='Reliable and widely-used image generation model',
 		memory_requirement_gb=4,
