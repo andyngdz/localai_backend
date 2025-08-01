@@ -58,14 +58,19 @@ def model_loader(id: str):
 	if device_service.is_cuda:
 		pipe.enable_model_cpu_offload()
 		pipe.enable_attention_slicing()
+		logger.info('Applied CUDA optimizations: CPU offloading and attention slicing enabled')
+		# Note: When using CPU offloading, do NOT manually move pipeline to device
+		# The offloading system will handle device placement automatically
 	elif device_service.is_mps:
 		# For MPS, we can enable attention slicing but not model CPU offload
 		# as it's not supported/needed on Apple Silicon
 		pipe.enable_attention_slicing()
-		logger.info('Applied MPS optimizations: attention slicing enabled')
-
-	# Move pipeline to the appropriate device
-	pipe = pipe.to(device_service.device)
+		pipe = pipe.to(device_service.device)
+		logger.info('Applied MPS optimizations: attention slicing enabled, moved to MPS device')
+	else:
+		# For CPU-only systems, keep pipeline on CPU
+		pipe = pipe.to(device_service.device)
+		logger.info('No GPU acceleration available, using CPU')
 
 	model_dir = storage_service.get_model_dir(id)
 
