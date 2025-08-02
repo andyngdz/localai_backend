@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 from app.database import database_service
 from app.database.crud import downloaded_models, is_model_downloaded
 from app.model_manager import model_manager_service
+from app.schemas.recommendations import ModelRecommendationResponse
 from app.schemas.responses import JSONResponseMessage
+from app.services.recommendations import ModelRecommendationService
 
 from .schemas import (
 	LoadModelRequest,
@@ -135,6 +137,27 @@ async def load_model(request: LoadModelRequest):
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail=f"Failed to load model '{id}': {error}",
+		)
+
+
+@models.get('/recommendations')
+def get_model_recommendations(db: Session = Depends(database_service.get_db)) -> ModelRecommendationResponse:
+	"""Get model recommendations based on hardware capabilities"""
+
+	try:
+		model_recommendation_service = ModelRecommendationService(db)
+		recommendations = model_recommendation_service.get_recommendations()
+
+		logger.info(f'Generated {len(recommendations.sections)} recommendation sections')
+
+		return recommendations
+
+	except Exception as error:
+		logger.exception('Failed to generate model recommendations')
+
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail=f'Failed to generate model recommendations: {error}',
 		)
 
 
