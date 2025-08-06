@@ -40,8 +40,8 @@ class ModelRecommendationResponse(BaseModel):
 	"""Model for complete recommendation response"""
 
 	sections: List[ModelRecommendationSection]
-	default_recommend_section: RecommendationSectionType
-	default_selected_model: str
+	default_section: RecommendationSectionType
+	default_selected_id: str
 
 
 class DeviceCapabilities(BaseModel):
