@@ -20,7 +20,7 @@ class SocketService:
 			cors_allowed_origins='*',
 			logger=True,
 		)
-		self.sio_app = socketio.ASGIApp(self.sio, socketio_path='ws')
+		self.sio_app = socketio.ASGIApp(self.sio)
 
 		logger.info('SocketService initialized.')
 

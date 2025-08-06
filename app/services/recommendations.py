@@ -33,13 +33,13 @@ class ModelRecommendationService:
 		device_capabilities = self.get_device_capabilities(memory_config)
 
 		sections = self.build_recommendation_sections(device_capabilities)
-		default_recommend_section = self.get_recommended_section_type(device_capabilities)
-		default_selected_model = self.get_default_selected_model(sections, default_recommend_section)
+		default_section = self.get_default_section(device_capabilities)
+		default_selected_id = self.get_default_selected_id(sections, default_section)
 
 		return ModelRecommendationResponse(
 			sections=sections,
-			default_recommend_section=default_recommend_section,
-			default_selected_model=default_selected_model,
+			default_section=default_section,
+			default_selected_id=default_selected_id,
 		)
 
 	def get_device_capabilities(self, memory_config: MaxMemoryConfig) -> DeviceCapabilities:
@@ -82,7 +82,7 @@ class ModelRecommendationService:
 
 		return sections
 
-	def get_recommended_section_type(self, capabilities: DeviceCapabilities) -> RecommendationSectionType:
+	def get_default_section(self, capabilities: DeviceCapabilities) -> RecommendationSectionType:
 		"""Get the recommended section type based on hardware capabilities"""
 
 		if capabilities.max_gpu_gb >= 8:
@@ -95,16 +95,18 @@ class ModelRecommendationService:
 	def is_section_recommended(self, section_id: RecommendationSectionType, capabilities: DeviceCapabilities) -> bool:
 		"""Determine if a section should be recommended based on hardware"""
 
-		recommended_section = self.get_recommended_section_type(capabilities)
+		recommended_section = self.get_default_section(capabilities)
 		return section_id == recommended_section
 
-	def get_default_selected_model(
-		self, sections: List[ModelRecommendationSection], default_recommend_section: RecommendationSectionType
+	def get_default_selected_id(
+		self,
+		sections: List[ModelRecommendationSection],
+		default_section: RecommendationSectionType,
 	) -> str:
 		"""Get the default selected model from the recommended section"""
 
 		# Find the recommended section (guaranteed to exist)
-		recommended_section = next(s for s in sections if s.id == default_recommend_section)
+		recommended_section = next(s for s in sections if s.id == default_section)
 
 		# Look for recommended model in the default section first
 		for model in recommended_section.models:
