@@ -50,7 +50,7 @@ app = FastAPI(
 	lifespan=lifespan,
 )
 app.mount('/static', StaticFiles(directory='static'), name='static')
-app.mount('/ws', app=socket_service.sio_app)
+app.mount('/socket.io', app=socket_service.sio_app)
 app.include_router(users)
 app.include_router(models)
 app.include_router(downloads)
