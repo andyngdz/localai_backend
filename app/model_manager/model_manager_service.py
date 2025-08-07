@@ -11,7 +11,9 @@ from app.constants import (
 	SamplerType,
 )
 from app.model_loader import model_loader
+from app.model_loader.schemas import ModelLoadCompletedResponse
 from app.services.device import device_service
+from app.socket import socket_service
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,11 @@ class ModelManagerService:
 			if unet_config is not None:
 				logger.info(f'UNet config: {unet_config}')
 
-			return dict(self.pipe.config)
+			config = dict(self.pipe.config)
+
+			socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
+
+			return config
 
 		try:
 			self.unload_model()
