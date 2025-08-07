@@ -8,7 +8,7 @@ from app.database.crud import add_model
 from app.database.service import SessionLocal
 from app.model_loader.constants import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
 from app.services import device_service, storage_service
-from app.socket import SocketEvents, socket_service
+from app.socket import socket_service
 from config import CACHE_FOLDER
 
 from .max_memory import MaxMemoryConfig
@@ -78,9 +78,6 @@ def model_loader(id: str):
 
 	db.close()
 
-	socket_service.emit_sync(
-		SocketEvents.MODEL_LOAD_COMPLETED,
-		ModelLoadCompletedResponse(id=id).model_dump(),
-	)
+	socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
 
 	return pipe

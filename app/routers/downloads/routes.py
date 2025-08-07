@@ -8,7 +8,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 from app.model_manager import model_manager_service
 from app.services import storage_service
-from app.socket import SocketEvents, socket_service
+from app.socket import socket_service
 
 from .schemas import (
 	DownloadModelRequest,
@@ -28,10 +28,7 @@ async def start_downloading(id: str):
 	"""Run the download task for the given model ID."""
 
 	try:
-		await socket_service.emit(
-			SocketEvents.DOWNLOAD_START,
-			DownloadModelStartResponse(id=id).model_dump(),
-		)
+		await socket_service.download_start(DownloadModelStartResponse(id=id))
 
 		model_dir = storage_service.get_model_dir(id)
 

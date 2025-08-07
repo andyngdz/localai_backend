@@ -2,6 +2,7 @@ import asyncio
 from logging import getLogger
 
 import socketio
+from pydantic import BaseModel
 
 from .schemas import SocketEvents
 
@@ -35,6 +36,24 @@ class SocketService:
 			self.sio.emit(event, data=data),
 			loop=self.loop,
 		)
+
+	async def download_start(self, data: BaseModel):
+		"""
+		Emit a download start event with the provided data.
+		"""
+		await self.emit(SocketEvents.DOWNLOAD_START, data=data.model_dump())
+
+	def model_load_completed(self, data: BaseModel):
+		"""
+		Emit a model load completed event with the provided data.
+		"""
+		self.emit_sync(SocketEvents.MODEL_LOAD_COMPLETED, data=data.model_dump())
+
+	def image_generation_step_end(self, data: BaseModel):
+		"""
+		Emit an image generation step end event with the provided data.
+		"""
+		self.emit_sync(SocketEvents.IMAGE_GENERATION_STEP_END, data=data.model_dump())
 
 
 socket_service = SocketService()

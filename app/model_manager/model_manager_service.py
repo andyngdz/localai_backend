@@ -13,7 +13,7 @@ from app.constants import (
 from app.model_loader import model_loader
 from app.model_loader.schemas import ModelLoadCompletedResponse
 from app.services.device import device_service
-from app.socket import SocketEvents, socket_service
+from app.socket import socket_service
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +66,11 @@ class ModelManagerService:
 			if unet_config is not None:
 				logger.info(f'UNet config: {unet_config}')
 
-			socket_service.emit_sync(
-				SocketEvents.MODEL_LOAD_COMPLETED,
-				ModelLoadCompletedResponse(id=id).model_dump(),
-			)
+			config = dict(self.pipe.config)
 
-			return dict(self.pipe.config)
+			socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
+
+			return config
 
 		try:
 			self.unload_model()

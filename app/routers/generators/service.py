@@ -15,7 +15,7 @@ from app.schemas.generators import (
 	ImageGenerationStepEndResponse,
 )
 from app.services import device_service, image_service, styles_service
-from app.socket import SocketEvents, socket_service
+from app.socket import socket_service
 from config import GENERATED_IMAGES_FOLDER, GENERATED_IMAGES_STATIC_FOLDER
 
 from .constants import DEFAULT_NEGATIVE_PROMPT
@@ -113,14 +113,13 @@ class GeneratorService:
 
 			logger.info(f'Generated image for current_step {current_step}, index {index}')
 
-			socket_service.emit_sync(
-				SocketEvents.IMAGE_GENERATION_STEP_END,
+			socket_service.image_generation_step_end(
 				ImageGenerationStepEndResponse(
 					current_step=current_step,
 					image_base64=image_base64,
 					index=index,
 					timestep=timestep,
-				).model_dump(),
+				)
 			)
 
 		return callback_kwargs
