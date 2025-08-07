@@ -28,6 +28,12 @@ class SocketService:
 	async def emit(self, event: SocketEvents, data: dict):
 		await self.sio.emit(event, data=data)
 
+	async def download_start(self, data: BaseModel):
+		"""
+		Emit a download start event with the provided data.
+		"""
+		await self.emit(SocketEvents.DOWNLOAD_START, data=data.model_dump())
+
 	def emit_sync(self, event: SocketEvents, data: dict):
 		"""
 		Emit an event synchronously to all connected clients.
@@ -36,12 +42,6 @@ class SocketService:
 			self.sio.emit(event, data=data),
 			loop=self.loop,
 		)
-
-	async def download_start(self, data: BaseModel):
-		"""
-		Emit a download start event with the provided data.
-		"""
-		await self.emit(SocketEvents.DOWNLOAD_START, data=data.model_dump())
 
 	def model_load_completed(self, data: BaseModel):
 		"""
