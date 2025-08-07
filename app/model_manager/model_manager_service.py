@@ -11,7 +11,9 @@ from app.constants import (
 	SamplerType,
 )
 from app.model_loader import model_loader
+from app.model_loader.schemas import ModelLoadCompletedResponse
 from app.services.device import device_service
+from app.socket import SocketEvents, socket_service
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +65,11 @@ class ModelManagerService:
 			unet_config = self.pipe.unet.config
 			if unet_config is not None:
 				logger.info(f'UNet config: {unet_config}')
+
+			socket_service.emit_sync(
+				SocketEvents.MODEL_LOAD_COMPLETED,
+				ModelLoadCompletedResponse(id=id).model_dump(),
+			)
 
 			return dict(self.pipe.config)
 
