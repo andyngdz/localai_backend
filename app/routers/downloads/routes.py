@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from app.model_manager import model_manager_service
+from app.routers.downloads.services import download_service
 from app.services import storage_service
 from app.socket import socket_service
 
@@ -34,7 +34,7 @@ async def start_downloading(id: str):
 
 		logger.info(f'Download model into folder: {model_dir}')
 
-		await model_manager_service.load_model_async(id)
+		download_service.download_model(id)
 
 	except CancelledError:
 		logger.warning(f'Download task for id {id} was cancelled')
