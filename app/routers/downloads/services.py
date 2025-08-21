@@ -8,7 +8,10 @@ from typing import List
 from huggingface_hub import HfApi, hf_hub_download
 from tqdm import tqdm as BaseTqdm
 
+from app.socket import socket_service
 from config import CACHE_FOLDER
+
+from .schemas import DownloadStepProgressResponse
 
 os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = 1
 logger = logging.getLogger(__name__)
@@ -27,6 +30,15 @@ class DownloadTqdm(BaseTqdm):
 		super().update(n)
 		total = self.total
 		desc = self.desc
+
+		socket_service.download_step_progress(
+			DownloadStepProgressResponse(
+				id=self.id,
+				step=self.n,
+				total=total,
+			)
+		)
+
 		logger.info(f'{desc} {self.n}/{total}')
 
 	def close(self):

@@ -43,6 +43,12 @@ class SocketService:
 		"""
 		await self.emit(SocketEvents.DOWNLOAD_START, data=data.model_dump())
 
+	async def download_step_progress(self, data: BaseModel):
+		"""
+		Emit a download step progress event with the provided data.
+		"""
+		await self.emit(SocketEvents.DOWNLOAD_STEP_PROGRESS, data=data.model_dump())
+
 	def model_load_completed(self, data: BaseModel):
 		"""
 		Emit a model load completed event with the provided data.
