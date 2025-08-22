@@ -23,6 +23,7 @@ class DownloadTqdm(BaseTqdm):
 
 	def __init__(self, *args, **kwargs):
 		self.id = kwargs.pop('id')
+		kwargs.setdefault('disable', True)
 		kwargs.setdefault('file', sys.stderr)
 		kwargs.setdefault('mininterval', 0.25)
 		kwargs.setdefault('leave', False)
@@ -44,10 +45,7 @@ class DownloadTqdm(BaseTqdm):
 		logger.info(f'{desc} {self.n}/{total}')
 
 	def close(self):
-		try:
-			print('', flush=True)
-		finally:
-			return super().close()
+		super().close()
 
 
 class DownloadService:
