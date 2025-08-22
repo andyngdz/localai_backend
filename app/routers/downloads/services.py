@@ -1,8 +1,10 @@
+import asyncio
 import fnmatch
 import json
 import logging
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 from huggingface_hub import HfApi, hf_hub_download
@@ -13,7 +15,6 @@ from config import CACHE_FOLDER
 
 from .schemas import DownloadStepProgressResponse
 
-os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = 1
 logger = logging.getLogger(__name__)
 
 
@@ -21,6 +22,7 @@ class DownloadTqdm(BaseTqdm):
 	"""Custom tqdm for overall snapshot progress."""
 
 	def __init__(self, *args, **kwargs):
+		self.id = kwargs.pop('id')
 		kwargs.setdefault('file', sys.stderr)
 		kwargs.setdefault('mininterval', 0.25)
 		kwargs.setdefault('leave', False)
@@ -49,7 +51,13 @@ class DownloadTqdm(BaseTqdm):
 
 
 class DownloadService:
-	api = HfApi()
+	def __init__(self):
+		self.executor = ThreadPoolExecutor()
+		self.api = HfApi()
+
+	async def start(self, id: str):
+		loop = asyncio.get_event_loop()
+		await loop.run_in_executor(self.executor, self.download_model, id)
 
 	def download_model(self, id: str):
 		components = self.get_components(id)
@@ -69,11 +77,11 @@ class DownloadService:
 
 		total = len(files_to_download)
 		if total == 0:
-			logger.error('No files to download')
+			logger.warning('No files to download')
 			return
 
-		logger.info(f'\n[Download] Starting download of {total} files for model {id}')
-		progress = DownloadTqdm(total=total, desc=f'Downloading {id}', unit='files')
+		logger.info(f'Starting download of {total} files for model {id}')
+		progress = DownloadTqdm(id=id, total=total, desc=f'Downloading {id}', unit='files')
 
 		local_dir = None
 
@@ -91,7 +99,7 @@ class DownloadService:
 		finally:
 			progress.close()
 
-		logger.info(f'[Download] All files downloaded to {local_dir}')
+		logger.info(f'All files downloaded to {local_dir}')
 
 		return local_dir
 

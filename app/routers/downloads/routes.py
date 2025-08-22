@@ -7,7 +7,6 @@ from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.routers.downloads.services import download_service
-from app.services import storage_service
 from app.socket import socket_service
 
 from .schemas import (
@@ -24,24 +23,6 @@ downloads = APIRouter(
 api = HfApi()
 
 
-async def start_downloading(id: str):
-	"""Run the download task for the given model ID."""
-
-	try:
-		await socket_service.download_start(DownloadModelStartResponse(id=id))
-
-		model_dir = storage_service.get_model_dir(id)
-
-		logger.info(f'Download model into folder: {model_dir}')
-
-		download_service.download_model(id)
-
-	except CancelledError:
-		logger.warning(f'Download task for id {id} was cancelled')
-	finally:
-		logger.info(f'Download task for id {id} completed')
-
-
 @downloads.post('/')
 @retry(
 	stop=stop_after_attempt(5),
@@ -55,9 +36,17 @@ async def download(request: DownloadModelRequest):
 
 	logger.info(f'API Request: Initiating download for id: {id}')
 
-	await start_downloading(id)
+	try:
+		await socket_service.download_start(DownloadModelStartResponse(id=id))
 
-	return DownloadModelResponse(
-		id=id,
-		message='Download completed',
-	)
+		await download_service.start(id)
+
+		return DownloadModelResponse(
+			id=id,
+			message='Download completed',
+		)
+
+	except CancelledError:
+		logger.warning(f'Download task for id {id} was cancelled')
+	finally:
+		logger.info(f'Download task for id {id} completed')
