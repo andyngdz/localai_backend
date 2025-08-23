@@ -6,9 +6,8 @@ from transformers import CLIPImageProcessor
 
 from app.cores.constants.model_loader import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
 from app.cores.max_memory import MaxMemoryConfig
-from app.database.crud import add_model
 from app.database.service import SessionLocal
-from app.services import device_service, storage_service
+from app.services import device_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
@@ -71,10 +70,6 @@ def model_loader(id: str):
 		# For CPU-only systems, keep pipeline on CPU
 		pipe = pipe.to(device_service.device)
 		logger.info('No GPU acceleration available, using CPU')
-
-	model_dir = storage_service.get_model_dir(id)
-
-	add_model(db, id, model_dir)
 
 	db.close()
 
