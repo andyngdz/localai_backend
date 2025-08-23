@@ -15,12 +15,15 @@ class SocketService:
 	"""
 
 	def __init__(self):
-		self.loop = asyncio.get_event_loop()
+		self.loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(self.loop)
+
 		self.sio = socketio.AsyncServer(
 			async_mode='asgi',
 			cors_allowed_origins='*',
 			logger=True,
 		)
+
 		self.sio_app = socketio.ASGIApp(self.sio)
 
 		logger.info('SocketService initialized.')
@@ -42,6 +45,12 @@ class SocketService:
 		Emit a download start event with the provided data.
 		"""
 		await self.emit(SocketEvents.DOWNLOAD_START, data=data.model_dump())
+
+	async def download_completed(self, data: BaseModel):
+		"""
+		Emit a download completed event with the provided data.
+		"""
+		await self.emit(SocketEvents.DOWNLOAD_COMPLETED, data=data.model_dump())
 
 	def download_step_progress(self, data: BaseModel):
 		"""

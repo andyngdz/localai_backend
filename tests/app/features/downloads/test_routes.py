@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.features.downloads import downloads as downloads_router
-from app.features.downloads.schemas import DownloadModelStartResponse
+from app.features.downloads.schemas import DownloadModelRequest, DownloadModelResponse, DownloadModelStartResponse
 
 
 class DummySocketService:
@@ -27,9 +27,13 @@ class DummySocketService:
 
 	def __init__(self) -> None:
 		self.download_start_calls: List[DownloadModelStartResponse] = []
+		self.download_completed_calls: List[DownloadModelResponse] = []
 
 	async def download_start(self, payload: DownloadModelStartResponse) -> None:
 		self.download_start_calls.append(payload)
+		
+	async def download_completed(self, payload: DownloadModelResponse) -> None:
+		self.download_completed_calls.append(payload)
 
 
 class DummyDownloadService:
@@ -72,12 +76,19 @@ def test_post_download_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
 	# Assert
 	assert response.status_code == 200
-	assert response.json() == {'id': 'test-model', 'message': 'Download completed'}
+	assert response.json() is None  # API doesn't return a response body
 
 	# Service calls assertions
 	assert dummy_service.calls == ['test-model']
 	assert len(dummy_socket.download_start_calls) == 1
 	assert dummy_socket.download_start_calls[0].id == 'test-model'
+	
+	# Verify download_completed was called with correct payload
+	assert hasattr(dummy_socket, 'download_completed_calls'), \
+		"Socket service missing download_completed_calls attribute"
+	assert len(dummy_socket.download_completed_calls) == 1
+	assert dummy_socket.download_completed_calls[0].id == 'test-model'
+	assert dummy_socket.download_completed_calls[0].message == 'Download completed'
 
 
 def test_post_download_handles_cancelled_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -87,19 +98,16 @@ def test_post_download_handles_cancelled_error(monkeypatch: pytest.MonkeyPatch) 
 	mod = sys.modules.get('app.features.downloads.api') or importlib.import_module('app.features.downloads.api')
 	monkeypatch.setattr(mod, 'socket_service', dummy_socket, raising=True)
 	monkeypatch.setattr(mod, 'download_service', dummy_service, raising=True)
-
-	app = create_test_app()
-	client = TestClient(app)
-
-	# Act
-	response = client.post('/downloads/', json={'id': 'cancel-me'})
-
-	# Assert
-	# Function swallows CancelledError and completes; no explicit return => null body with 200
-	assert response.status_code == 200
-	assert response.json() is None
-
-	# Service call assertions
+	
+	# Instead of testing through the API, test the handler function directly
+	# This avoids the CancelledError propagation through the test client
+	request = DownloadModelRequest(id='cancel-me')
+	
+	# We expect this to raise a CancelledError
+	with pytest.raises(asyncio.CancelledError):
+		asyncio.run(mod.download(request))
+	
+	# Service call assertions - these should still happen before the error
 	assert dummy_service.calls == ['cancel-me']
 	assert len(dummy_socket.download_start_calls) == 1
 	assert dummy_socket.download_start_calls[0].id == 'cancel-me'
@@ -127,9 +135,13 @@ def test_post_download_retries_on_client_error(monkeypatch: pytest.MonkeyPatch) 
 
 	# Assert
 	assert response.status_code == 200
-	assert response.json() == {'id': 'retry-model', 'message': 'Download completed'}
+	assert response.json() is None  # API doesn't return a response body
 
 	# Should have tried twice due to retry on ClientError
 	assert dummy_service.calls == ['retry-model', 'retry-model']
 	# socket.download_start is called on each attempt since it's before start()
 	assert [p.id for p in dummy_socket.download_start_calls] == ['retry-model', 'retry-model']
+	# Verify download_completed was called with correct payload
+	assert len(dummy_socket.download_completed_calls) == 1
+	assert dummy_socket.download_completed_calls[0].id == 'retry-model'
+	assert dummy_socket.download_completed_calls[0].message == 'Download completed'

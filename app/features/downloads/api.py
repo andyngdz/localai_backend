@@ -41,11 +41,12 @@ async def download(request: DownloadModelRequest):
 
 		await download_service.start(id)
 
-		return DownloadModelResponse(
-			id=id,
-			message='Download completed',
+		await socket_service.download_completed(
+			DownloadModelResponse(
+				id=id,
+				message='Download completed',
+			)
 		)
-
 	except CancelledError:
 		logger.warning(f'Download task for id {id} was cancelled')
 		raise
