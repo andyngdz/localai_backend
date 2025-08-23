@@ -23,7 +23,10 @@ class DownloadTqdm(BaseTqdm):
 
 	def __init__(self, *args, **kwargs):
 		self.id = kwargs.pop('id')
-		kwargs.setdefault('disable', True)
+		self.desc = kwargs.pop('desc')
+		# Use auto-disable so internal counters (self.n) still update in non-TTY contexts
+		# When disable=True, tqdm.update() short-circuits and does not increment self.n
+		kwargs.setdefault('disable', None)
 		kwargs.setdefault('file', sys.stderr)
 		kwargs.setdefault('mininterval', 0.25)
 		kwargs.setdefault('leave', False)

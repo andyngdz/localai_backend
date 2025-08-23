@@ -48,5 +48,6 @@ async def download(request: DownloadModelRequest):
 
 	except CancelledError:
 		logger.warning(f'Download task for id {id} was cancelled')
+		raise
 	finally:
 		logger.info(f'Download task for id {id} completed')
