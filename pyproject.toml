@@ -57,3 +57,6 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = [
   "tests"
 ]
+[tool.coverage.run]
+source = ["app"]
+relative_files = true
