@@ -5,13 +5,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 import torch
 
-from app.cores.constants import (
-	DEFAULT_SAMPLE_SIZE,
+from app.cores.constants.samplers import DEFAULT_SAMPLE_SIZE
+from app.cores.model_loader import model_loader
+from app.cores.model_loader.schemas import ModelLoadCompletedResponse
+from app.cores.samplers import (
 	SCHEDULER_MAPPING,
 	SamplerType,
 )
-from app.cores.model_loader import model_loader
-from app.cores.model_loader.schemas import ModelLoadCompletedResponse
 from app.services import device_service
 from app.socket import socket_service
 

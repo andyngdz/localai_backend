@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from app.cores.constants import SamplerType
+from app.cores.samplers import SamplerType
 
 
 class GeneratorConfig(BaseModel):

@@ -2,9 +2,9 @@ from .schedulers import SCHEDULER_DESCRIPTIONS, SCHEDULER_NAMES, SamplerType
 from .schemas import SamplerItem
 
 
-class ConstantService:
+class SamplersService:
 	"""
-	A service class to manage constants used across the application.
+	A service class to manage samplers used across the application.
 	"""
 
 	@property
@@ -22,4 +22,4 @@ class ConstantService:
 		]
 
 
-constant_service = ConstantService()
+samplers_service = SamplersService()
