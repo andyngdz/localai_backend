@@ -27,6 +27,16 @@ class DownloadModelStartResponse(BaseModel):
 	id: str = Field(..., description='The ID of the model being downloaded.')
 
 
+class DownloadStepProgressResponse(BaseModel):
+	"""
+	Response model for a download step progress.
+	"""
+
+	id: str = Field(..., description='The ID of the model being downloaded.')
+	step: int = Field(..., description='The current step of the download.')
+	total: int = Field(..., description='The total number of steps in the download.')
+
+
 class DownloadModelResponse(BaseModel):
 	"""
 	Response schema for the status of a model download.
