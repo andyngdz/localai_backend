@@ -15,12 +15,15 @@ class SocketService:
 	"""
 
 	def __init__(self):
-		self.loop = asyncio.get_event_loop()
+		self.loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(self.loop)
+
 		self.sio = socketio.AsyncServer(
 			async_mode='asgi',
 			cors_allowed_origins='*',
 			logger=True,
 		)
+
 		self.sio_app = socketio.ASGIApp(self.sio)
 
 		logger.info('SocketService initialized.')
