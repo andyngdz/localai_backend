@@ -35,11 +35,11 @@ def import_services_with_stubs(dummy_socket: object | None = None):
 	if 'tqdm' not in sys.modules:
 		tqdm_mod = ModuleType('tqdm')
 
-		class tqdm:  # noqa: N801 - match library name
+		class tqdm:
 			def __init__(self, *args, **kwargs):
 				self.n = 0
 				self.total = kwargs.get('total', 0)
-				self.desc = kwargs.get('desc')
+				self.desc = kwargs.get('desc', '')
 
 			def update(self, n: int = 1):
 				self.n += n
@@ -86,6 +86,30 @@ def import_services_with_stubs(dummy_socket: object | None = None):
 	# Ensure the module-level binding points to our dummy socket when provided
 	if dummy_socket is not None:
 		setattr(services, 'socket_service', dummy_socket)
+		
+	# Replace the DownloadTqdm class with our stub that properly handles desc
+	class StubDownloadTqdm:
+		def __init__(self, *args, **kwargs):
+			self.id = kwargs.pop('id')
+			self.n = 0
+			self.total = kwargs.get('total', 0)
+			self.desc = kwargs.get('desc', '')
+			
+		def update(self, n=1):
+			self.n += n
+			if dummy_socket is not None:
+				dummy_socket.download_step_progress(
+					schemas_mod.DownloadStepProgressResponse(
+						id=self.id,
+						step=self.n,
+						total=self.total,
+					)
+				)
+				
+		def close(self):
+			pass
+			
+	setattr(services, 'DownloadTqdm', StubDownloadTqdm)
 	return services
 
 

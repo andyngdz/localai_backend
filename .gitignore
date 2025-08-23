@@ -11,6 +11,8 @@
 *.log                   # Log files
 logs.txt
 localai_backend.db
+.coverage
+coverage.xml
 
 # Build artifacts and distribution directories
 dist/                   # PyInstaller output (e.g., dist/app.exe or dist/app)
