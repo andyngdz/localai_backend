@@ -6,7 +6,6 @@ from fastapi import APIRouter
 from huggingface_hub import HfApi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from app.routers.downloads.services import download_service
 from app.socket import socket_service
 
 from .schemas import (
@@ -14,6 +13,7 @@ from .schemas import (
 	DownloadModelResponse,
 	DownloadModelStartResponse,
 )
+from .services import download_service
 
 logger = logging.getLogger(__name__)
 downloads = APIRouter(

@@ -18,8 +18,8 @@ from aiohttp import ClientError
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.routers import downloads as downloads_router
-from app.routers.downloads.schemas import DownloadModelStartResponse
+from app.features.downloads import downloads as downloads_router
+from app.features.downloads.schemas import DownloadModelStartResponse
 
 
 class DummySocketService:
@@ -60,7 +60,7 @@ def test_post_download_success(monkeypatch: pytest.MonkeyPatch) -> None:
 	# Arrange
 	dummy_socket = DummySocketService()
 	dummy_service = DummyDownloadService()
-	mod = sys.modules.get('app.routers.downloads.routes') or importlib.import_module('app.routers.downloads.routes')
+	mod = sys.modules.get('app.features.downloads.api') or importlib.import_module('app.features.downloads.api')
 	monkeypatch.setattr(mod, 'socket_service', dummy_socket, raising=True)
 	monkeypatch.setattr(mod, 'download_service', dummy_service, raising=True)
 
@@ -84,7 +84,7 @@ def test_post_download_handles_cancelled_error(monkeypatch: pytest.MonkeyPatch) 
 	# Arrange
 	dummy_socket = DummySocketService()
 	dummy_service = DummyDownloadService(side_effects=[asyncio.CancelledError()])
-	mod = sys.modules.get('app.routers.downloads.routes') or importlib.import_module('app.routers.downloads.routes')
+	mod = sys.modules.get('app.features.downloads.api') or importlib.import_module('app.features.downloads.api')
 	monkeypatch.setattr(mod, 'socket_service', dummy_socket, raising=True)
 	monkeypatch.setattr(mod, 'download_service', dummy_service, raising=True)
 
@@ -114,7 +114,7 @@ def test_post_download_retries_on_client_error(monkeypatch: pytest.MonkeyPatch) 
 	async def fast_sleep(_: float) -> None:  # avoid waiting for tenacity's wait_fixed
 		return None
 
-	mod = sys.modules.get('app.routers.downloads.routes') or importlib.import_module('app.routers.downloads.routes')
+	mod = sys.modules.get('app.features.downloads.api') or importlib.import_module('app.features.downloads.api')
 	monkeypatch.setattr(mod, 'socket_service', dummy_socket, raising=True)
 	monkeypatch.setattr(mod, 'download_service', dummy_service, raising=True)
 	monkeypatch.setattr(asyncio, 'sleep', fast_sleep, raising=False)

@@ -8,17 +8,17 @@ import torch
 from PIL import Image
 
 from app.model_manager import model_manager_service
-from app.schemas.generators import (
-	GeneratorConfig,
-	ImageGenerationItem,
-	ImageGenerationResponse,
-	ImageGenerationStepEndResponse,
-)
 from app.services import device_service, image_service, styles_service
 from app.socket import socket_service
 from config import GENERATED_IMAGES_FOLDER, GENERATED_IMAGES_STATIC_FOLDER
 
 from .constants import DEFAULT_NEGATIVE_PROMPT
+from .schemas import (
+	GeneratorConfig,
+	ImageGenerationItem,
+	ImageGenerationResponse,
+	ImageGenerationStepEndResponse,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ import pytest
 
 
 def import_services_with_stubs(dummy_socket: object | None = None):
-	"""Import app.routers.downloads.services while stubbing heavy deps if missing.
+	"""Import app.features.downloads.services while stubbing heavy deps if missing.
 
 	- Stubs huggingface_hub (HfApi, hf_hub_download)
 	- Stubs tqdm.tqdm base class used for progress
@@ -58,19 +58,19 @@ def import_services_with_stubs(dummy_socket: object | None = None):
 	)
 	sys.modules['app.socket'] = socket_mod
 
-	# Stub packages 'app.routers' and 'app.routers.downloads' to prevent executing their __init__
+	# Stub packages 'app.features' and 'app.features.downloads' to prevent executing their __init__
 	# Set __path__ so that Python can locate the real 'services.py' under these packages
 	project_root = pathlib.Path(__file__).resolve().parents[4]
-	routers_pkg = ModuleType('app.routers')
-	setattr(routers_pkg, '__path__', [str(project_root / 'app' / 'routers')])
-	sys.modules['app.routers'] = routers_pkg
+	features_pkg = ModuleType('app.features')
+	setattr(features_pkg, '__path__', [str(project_root / 'app' / 'features')])
+	sys.modules['app.features'] = features_pkg
 
-	downloads_pkg = ModuleType('app.routers.downloads')
-	setattr(downloads_pkg, '__path__', [str(project_root / 'app' / 'routers' / 'downloads')])
-	sys.modules['app.routers.downloads'] = downloads_pkg
+	downloads_pkg = ModuleType('app.features.downloads')
+	setattr(downloads_pkg, '__path__', [str(project_root / 'app' / 'features' / 'downloads')])
+	sys.modules['app.features.downloads'] = downloads_pkg
 
-	# Stub app.routers.downloads.schemas to avoid importing pydantic
-	schemas_mod = ModuleType('app.routers.downloads.schemas')
+	# Stub app.features.downloads.schemas to avoid importing pydantic
+	schemas_mod = ModuleType('app.features.downloads.schemas')
 
 	class DownloadStepProgressResponse:
 		def __init__(self, id: str, step: int, total: int) -> None:
@@ -79,10 +79,10 @@ def import_services_with_stubs(dummy_socket: object | None = None):
 			self.total = total
 
 	schemas_mod.DownloadStepProgressResponse = DownloadStepProgressResponse
-	sys.modules['app.routers.downloads.schemas'] = schemas_mod
+	sys.modules['app.features.downloads.schemas'] = schemas_mod
 
 	# Now import the target module
-	services = importlib.import_module('app.routers.downloads.services')
+	services = importlib.import_module('app.features.downloads.services')
 	# Ensure the module-level binding points to our dummy socket when provided
 	if dummy_socket is not None:
 		setattr(services, 'socket_service', dummy_socket)

@@ -1,4 +1,4 @@
-"""Downloads Router"""
+"""Downloads Feature Schemas"""
 
 from typing import Optional
 
