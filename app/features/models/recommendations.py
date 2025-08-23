@@ -5,8 +5,8 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from app.constants.recommendations import SECTION_CONFIGS
-from app.model_loader.max_memory import MaxMemoryConfig
+from app.cores.constants.recommendations import SECTION_CONFIGS
+from app.cores.max_memory import MaxMemoryConfig
 from app.schemas.recommendations import (
 	DeviceCapabilities,
 	ModelRecommendationResponse,
@@ -23,15 +23,14 @@ class ModelRecommendationService:
 
 	def __init__(self, db: Session):
 		self.db = db
+		self.memory_config = MaxMemoryConfig(db)
 
 	def get_recommendations(self) -> ModelRecommendationResponse:
 		"""Get model recommendations based on current hardware configuration"""
 
 		logger.info('Generating model recommendations based on hardware capabilities')
 
-		memory_config = MaxMemoryConfig(self.db)
-		device_capabilities = self.get_device_capabilities(memory_config)
-
+		device_capabilities = self.get_device_capabilities()
 		sections = self.build_recommendation_sections(device_capabilities)
 		default_section = self.get_default_section(device_capabilities)
 		default_selected_id = self.get_default_selected_id(sections, default_section)
@@ -42,15 +41,15 @@ class ModelRecommendationService:
 			default_selected_id=default_selected_id,
 		)
 
-	def get_device_capabilities(self, memory_config: MaxMemoryConfig) -> DeviceCapabilities:
+	def get_device_capabilities(self) -> DeviceCapabilities:
 		"""Extract device capabilities for recommendation logic"""
 
 		return DeviceCapabilities(
-			max_ram_gb=memory_config.max_ram,
-			max_gpu_gb=memory_config.max_gpu,
+			max_ram_gb=self.memory_config.max_ram,
+			max_gpu_gb=self.memory_config.max_gpu,
 			is_cuda=device_service.is_cuda,
 			is_mps=device_service.is_mps,
-			device_index=memory_config.device_index,
+			device_index=self.memory_config.device_index,
 		)
 
 	def build_recommendation_sections(self, capabilities: DeviceCapabilities) -> List[ModelRecommendationSection]:

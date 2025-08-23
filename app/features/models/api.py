@@ -7,13 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 
+from app.cores.model_manager import model_manager
 from app.database import database_service
 from app.database.crud import downloaded_models, is_model_downloaded
-from app.model_manager import model_manager_service
-from app.schemas.recommendations import ModelRecommendationResponse
 from app.schemas.responses import JSONResponseMessage
-from app.services.recommendations import ModelRecommendationService
 
+from .recommendations import ModelRecommendationService
 from .schemas import (
 	LoadModelRequest,
 	LoadModelResponse,
@@ -119,8 +118,8 @@ async def load_model(request: LoadModelRequest):
 	try:
 		id = request.id
 
-		config = await model_manager_service.load_model_async(id)
-		sample_size = model_manager_service.get_sample_size()
+		config = await model_manager.load_model_async(id)
+		sample_size = model_manager.get_sample_size()
 
 		return LoadModelResponse(id=id, config=config, sample_size=sample_size)
 
@@ -141,7 +140,7 @@ async def load_model(request: LoadModelRequest):
 
 
 @models.get('/recommendations')
-def get_model_recommendations(db: Session = Depends(database_service.get_db)) -> ModelRecommendationResponse:
+def get_model_recommendations(db: Session = Depends(database_service.get_db)):
 	"""Get model recommendations based on hardware capabilities"""
 
 	try:
@@ -168,7 +167,7 @@ def unload_model():
 	"""
 
 	try:
-		model_manager_service.unload_model()
+		model_manager.unload_model()
 
 		return JSONResponseMessage(message='Model unloaded successfully')
 	except Exception as error:

@@ -5,20 +5,20 @@ from concurrent.futures import ThreadPoolExecutor
 
 import torch
 
-from app.constants import (
+from app.cores.constants import (
 	DEFAULT_SAMPLE_SIZE,
 	SCHEDULER_MAPPING,
 	SamplerType,
 )
-from app.model_loader import model_loader
-from app.model_loader.schemas import ModelLoadCompletedResponse
-from app.services.device import device_service
+from app.cores.model_loader import model_loader
+from app.cores.model_loader.schemas import ModelLoadCompletedResponse
+from app.services import device_service
 from app.socket import socket_service
 
 logger = logging.getLogger(__name__)
 
 
-class ModelManagerService:
+class ModelManager:
 	"""
 	Manages the active diffusion pipeline and handles background loading with
 	cancellation.
@@ -100,7 +100,7 @@ class ModelManagerService:
 
 			config = await loop.run_in_executor(
 				self.executor,
-				model_manager_service.load_model,
+				model_manager.load_model,
 				id,
 			)
 
@@ -160,4 +160,4 @@ class ModelManagerService:
 			return DEFAULT_SAMPLE_SIZE
 
 
-model_manager_service = ModelManagerService()
+model_manager = ModelManager()

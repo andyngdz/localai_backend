@@ -5,9 +5,9 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.cores.model_manager import model_manager
 from app.database import database_service
 from app.database.crud import add_history, delete_history_entry, get_histories
-from app.model_manager import model_manager_service
 from app.schemas.generators import GeneratorConfig
 from app.schemas.responses import JSONResponseMessage
 
@@ -25,13 +25,13 @@ async def add_new_history(
 ):
 	"""Add a new history entry for the image generation request."""
 	try:
-		if model_manager_service.id is None:
+		if model_manager.id is None:
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
 				detail='No model loaded. Please load a model before creating a history entry.',
 			)
 
-		history = add_history(db, model_manager_service.id, config)
+		history = add_history(db, model_manager.id, config)
 
 		return history.id
 

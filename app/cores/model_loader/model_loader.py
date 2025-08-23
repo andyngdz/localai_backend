@@ -4,14 +4,14 @@ from diffusers import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
 
+from app.cores.constants.model_loader import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
+from app.cores.max_memory import MaxMemoryConfig
 from app.database.crud import add_model
 from app.database.service import SessionLocal
-from app.model_loader.constants import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
 from app.services import device_service, storage_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
-from .max_memory import MaxMemoryConfig
 from .schemas import ModelLoadCompletedResponse
 
 logger = logging.getLogger(__name__)

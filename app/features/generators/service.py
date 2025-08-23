@@ -7,7 +7,7 @@ from datetime import datetime
 import torch
 from PIL import Image
 
-from app.model_manager import model_manager_service
+from app.cores.model_manager import model_manager
 from app.services import device_service, image_service, styles_service
 from app.socket import socket_service
 from config import GENERATED_IMAGES_FOLDER, GENERATED_IMAGES_STATIC_FOLDER
@@ -127,7 +127,7 @@ class GeneratorService:
 	async def generate_image(self, config: GeneratorConfig):
 		logger.info(f'Received image generation request: {config}')
 
-		pipe = model_manager_service.pipe
+		pipe = model_manager.pipe
 
 		if pipe is None:
 			logger.warning('Attempted to generate image, but no model is loaded.')
@@ -140,7 +140,7 @@ class GeneratorService:
 				f'size={config.width}x{config.height}'
 			)
 
-			model_manager_service.set_sampler(config.sampler)
+			model_manager.set_sampler(config.sampler)
 
 			self.apply_hires_fix(config.hires_fix)
 

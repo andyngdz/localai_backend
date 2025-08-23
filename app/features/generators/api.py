@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.constants import constant_service
+from app.cores.constants import constant_service
 from app.database import database_service
 from app.database.crud import add_generated_image
 
