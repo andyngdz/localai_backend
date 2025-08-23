@@ -8,19 +8,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.cores.model_manager import model_manager
 from app.database import database_service
 from app.database.service import SessionLocal
-from app.model_manager import model_manager_service
-from app.routers import (
-	downloads,
-	generators,
-	hardware,
-	histories,
-	models,
-	resizes,
-	styles,
-	users,
-)
+from app.features.downloads import downloads
+from app.features.generators import generators
+from app.features.hardware import hardware
+from app.features.histories import histories
+from app.features.models import models
+from app.features.resizes import resizes
+from app.features.styles import styles
+from app.features.users import users
 from app.services import logger_service, platform_service, storage_service
 from app.socket import socket_service
 from config import STATIC_FOLDER
@@ -36,7 +34,7 @@ async def lifespan(app: FastAPI):
 	database_service.init()
 
 	db = SessionLocal()
-	model_manager_service.unload_model()
+	model_manager.unload_model()
 
 	yield
 
