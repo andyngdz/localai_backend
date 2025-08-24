@@ -1,5 +1,6 @@
 """Main entry point for the LocalAI Backend application."""
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
@@ -26,26 +27,29 @@ from config import STATIC_FOLDER
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-	"""Startup event"""
+    """Startup event"""
 
-	logger_service.init()
-	storage_service.init()
-	platform_service.init()
-	database_service.init()
+    logger_service.init()
+    storage_service.init()
+    platform_service.init()
+    database_service.init()
 
-	db = SessionLocal()
-	model_manager.unload_model()
+    # Attach the running ASGI loop to the socket service for thread-safe emits
+    socket_service.attach_loop(asyncio.get_running_loop())
 
-	yield
+    db = SessionLocal()
+    model_manager.unload_model()
 
-	db.close()
+    yield
+
+    db.close()
 
 
 app = FastAPI(
-	description='Backend for Local AI operations.',
-	title='LocalAI Backend',
-	version='0.1.0',
-	lifespan=lifespan,
+    description='Backend for Local AI operations.',
+    title='LocalAI Backend',
+    version='0.1.0',
+    lifespan=lifespan,
 )
 app.mount('/static', StaticFiles(directory='static'), name='static')
 app.mount('/socket.io', app=socket_service.sio_app)
@@ -58,22 +62,22 @@ app.include_router(styles)
 app.include_router(histories)
 app.include_router(resizes)
 app.add_middleware(
-	CORSMiddleware,
-	allow_origins=['*'],
-	allow_credentials=True,
-	allow_methods=['*'],
-	allow_headers=['*'],
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
 
 
 @app.get('/favicon.ico')
 async def favicon():
-	static_folder = STATIC_FOLDER
-	favicon_path = os.path.join(static_folder, 'favicon.ico')
-	return FileResponse(favicon_path, media_type='image/vnd.microsoft.icon')
+    static_folder = STATIC_FOLDER
+    favicon_path = os.path.join(static_folder, 'favicon.ico')
+    return FileResponse(favicon_path, media_type='image/vnd.microsoft.icon')
 
 
 @app.get('/')
 def health_check():
-	"""Health check endpoint to verify if the server is running."""
-	return {'status': 'healthy', 'message': 'LocalAI Backend is running!'}
+    """Health check endpoint to verify if the server is running."""
+    return {'status': 'healthy', 'message': 'LocalAI Backend is running!'}
