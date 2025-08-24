@@ -11,7 +11,7 @@ from app.services import device_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
-from .schemas import ModelLoadCompletedResponse
+from .schemas import ModelLoadCompletedResponse, ModelLoadFailed
 
 logger = logging.getLogger(__name__)
 
@@ -39,18 +39,24 @@ def model_loader(id: str):
 			feature_extractor=feature_extractor,
 		)
 	except EnvironmentError:
-		pipe = AutoPipelineForText2Image.from_pretrained(
-			id,
-			cache_dir=CACHE_FOLDER,
-			low_cpu_mem_usage=True,
-			max_memory=max_memory,
-			torch_dtype=device_service.torch_dtype,
-			use_safetensors=False,
-			safety_checker=safety_checker_instance,
-			feature_extractor=feature_extractor,
-		)
+		try:
+			pipe = AutoPipelineForText2Image.from_pretrained(
+				id,
+				cache_dir=CACHE_FOLDER,
+				low_cpu_mem_usage=True,
+				max_memory=max_memory,
+				torch_dtype=device_service.torch_dtype,
+				use_safetensors=False,
+				safety_checker=safety_checker_instance,
+				feature_extractor=feature_extractor,
+			)
+		except Exception as error:
+			logger.error(f'Failed to load model {id}: {error}')
+			socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(error)))
+			raise error
 	except Exception as error:
 		logger.error(f'Error loading model {id}: {error}')
+		socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(error)))
 		raise
 
 	# Apply device-specific optimizations

@@ -58,6 +58,12 @@ class SocketService:
 		"""
 		self.emit_sync(SocketEvents.DOWNLOAD_STEP_PROGRESS, data=data.model_dump())
 
+	def model_load_failed(self, data: BaseModel):
+		"""
+		Emit a model load failed event with the provided data.
+		"""
+		self.emit_sync(SocketEvents.MODEL_LOAD_FAILED, data=data.model_dump())
+
 	def model_load_completed(self, data: BaseModel):
 		"""
 		Emit a model load completed event with the provided data.
