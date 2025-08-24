@@ -5,6 +5,7 @@ import pathlib
 import sys
 from types import ModuleType, SimpleNamespace
 from typing import List, Tuple
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -80,6 +81,15 @@ def import_services_with_stubs(dummy_socket: object | None = None):
 
 	schemas_mod.DownloadStepProgressResponse = DownloadStepProgressResponse
 	sys.modules['app.features.downloads.schemas'] = schemas_mod
+
+	# Stub app.database.crud to avoid importing SQLAlchemy
+	crud_mod = ModuleType('app.database.crud')
+
+	def add_model(db, id, path):
+		pass
+
+	crud_mod.add_model = add_model
+	sys.modules['app.database.crud'] = crud_mod
 
 	# Now import the target module
 	services = importlib.import_module('app.features.downloads.services')
@@ -200,6 +210,9 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 	services = import_services_with_stubs(dummy_socket)
 	service = services.DownloadService()
 
+	# Create mock db session
+	mock_db = MagicMock()
+
 	# Components that we care about
 	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet', 'vae'])  # type: ignore[misc]
 
@@ -229,8 +242,12 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 
 	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
 
+	# Mock add_model function to verify it's called
+	mock_add_model = MagicMock()
+	monkeypatch.setattr(services, 'add_model', mock_add_model)
+
 	# Act
-	local_dir = service.download_model('some/repo')
+	local_dir = service.download_model('some/repo', mock_db)
 
 	# Assert: files downloaded in correct order with model_index.json first
 	expected_filenames = ['model_index.json', 'unet/model.safetensors', 'vae/model.bin']
@@ -243,3 +260,6 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 	assert [step for (_id, step, _total) in dummy_socket.progress_calls] == [1, 2, 3]
 	assert all(total == 3 for (_id, _step, total) in dummy_socket.progress_calls)
 	assert all(_id == 'some/repo' for (_id, _step, _total) in dummy_socket.progress_calls)
+
+	# Assert: add_model was called with the correct parameters
+	mock_add_model.assert_called_once_with(mock_db, 'some/repo', os.path.normpath(str(snapshot_root)))
