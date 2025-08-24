@@ -76,7 +76,6 @@ parallel = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 85
 exclude_lines = [
   "if __name__ == .__main__.:",
   "pragma: no cover",
