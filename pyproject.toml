@@ -2,9 +2,7 @@
 name = "localai_backend"
 version = "0.1.0"
 description = "Backend for LocalAI project"
-authors = [
-  { name = "Andy D. Nguyen" }
-]
+authors = [{ name = "Andy D. Nguyen" }]
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -17,8 +15,6 @@ dependencies = [
   "brotlicffi==1.1.0.0",
   "chardet==5.2.0",
   "ConfigParser==7.2.0",
-  "cryptography==45.0.5",
-  "diffusers==0.34.0",
   "docutils==0.21.2",
   "filelock==3.18.0",
   "h2==4.2.0",
@@ -44,7 +40,7 @@ dependencies = [
   "urllib3_secure_extra==0.1.0",
   "zstandard==0.23.0",
   "psutil==7.0.0",
-  "accelerate==1.9.0"
+  "accelerate==1.9.0",
 ]
 
 [build-system]
@@ -52,11 +48,42 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
+# Async
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-testpaths = [
-  "tests"
-]
+
+# Discover tests
+testpaths = ["tests"]
+
+# Pytest defaults
+addopts = "-ra --strict-markers --maxfail=1"
+# Optional: define common markers to silence warnings
+markers = ["slow: slow tests", "integration: integration tests"]
+
+# Optional: tune log capture
+log_cli = true
+log_cli_level = "INFO"
+
 [tool.coverage.run]
 source = ["app"]
 relative_files = true
+branch = true
+# If you spawn threads/async tasks, this helps
+concurrency = ["thread", "greenlet"] # drop "greenlet" if not used
+# Combine coverage from parallel runs (e.g. tox/ci)
+parallel = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "if __name__ == .__main__.:",
+  "pragma: no cover",
+  "raise NotImplementedError",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"

@@ -43,4 +43,5 @@ class DownloadModelResponse(BaseModel):
 	"""
 
 	id: str = Field(..., description='The ID of the model being downloaded.')
+	path: str = Field(..., description='The local directory path where the model is stored.')
 	message: Optional[str] = Field(..., description='A human-readable message about the download status.')

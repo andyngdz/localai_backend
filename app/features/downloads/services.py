@@ -8,8 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 from huggingface_hub import HfApi, hf_hub_download
+from sqlalchemy.orm import Session
 from tqdm import tqdm as BaseTqdm
 
+from app.database.crud import add_model
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
@@ -56,11 +58,17 @@ class DownloadService:
 		self.executor = ThreadPoolExecutor()
 		self.api = HfApi()
 
-	async def start(self, id: str):
+	async def start(self, id: str, db: Session):
 		loop = asyncio.get_event_loop()
-		await loop.run_in_executor(self.executor, self.download_model, id)
+		local_dir = await loop.run_in_executor(
+			self.executor, 
+			self.download_model, 
+			id, 
+			db
+		)
+		return local_dir
 
-	def download_model(self, id: str):
+	def download_model(self, id: str, db: Session):
 		components = self.get_components(id)
 		components_scopes = [f'{c}/*' for c in components]
 		files = self.list_files(id)
@@ -101,6 +109,14 @@ class DownloadService:
 			progress.close()
 
 		logger.info(f'All files downloaded to {local_dir}')
+
+		# Save the downloaded model to the database
+		if local_dir:
+			try:
+				add_model(db, id, local_dir)
+				logger.info(f'Model {id} saved to database with path {local_dir}')
+			except Exception as error:
+				logger.error(f'Failed to save model {id} to database: {error}')
 
 		return local_dir
 

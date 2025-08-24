@@ -21,7 +21,7 @@ exclude = [
   "node_modules",
   "venv",
   "./epay/tests",
-  ".pyenv"
+  ".pyenv",
 ]
 
 builtins = ["_"]
