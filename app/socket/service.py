@@ -77,7 +77,7 @@ class SocketService:
             An event loop or None if no loop is available
         """
         # Use cached loop if available
-        if self.loop is not None:
+        if self.loop is not None and not self.loop.is_closed():
             return self.loop
             
         # Try to get a running loop first (if called from an async context)
@@ -90,7 +90,7 @@ class SocketService:
             
         # Fall back to the current event loop (may not be running in tests)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.new_event_loop()
             self.loop = loop  # Cache for subsequent calls
             return loop
         except RuntimeError:
