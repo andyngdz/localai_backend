@@ -84,19 +84,28 @@ def test_download_model_response_requires_message_field_even_if_optional_type() 
 
 def test_download_model_response_allows_message_none() -> None:
 	# Arrange & Act
-	model = DownloadModelResponse(id='org/model', message=None)
+	model = DownloadModelResponse(id='org/model', message=None, path='/path/to/model')
 
 	# Assert
 	assert model.id == 'org/model'
 	assert model.message is None
+	assert model.path == '/path/to/model'
 
 
 def test_download_model_response_accepts_message_string_and_serializes() -> None:
 	# Arrange
-	model = DownloadModelResponse(id='org/model', message='Download completed')
+	model = DownloadModelResponse(
+		id='org/model',
+		message='Download completed',
+		path='/path/to/model',
+	)
 
 	# Act
 	payload = model.model_dump()
 
 	# Assert
-	assert payload == {'id': 'org/model', 'message': 'Download completed'}
+	assert payload == {
+		'id': 'org/model',
+		'message': 'Download completed',
+		'path': '/path/to/model',
+	}
