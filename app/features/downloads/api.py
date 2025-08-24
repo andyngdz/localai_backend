@@ -53,16 +53,16 @@ async def download(
 				detail=f'Failed to download model {id}',
 			)
 
-		download_modle_response = DownloadModelResponse(
+		download_model_response = DownloadModelResponse(
 			id=id,
 			message='Download completed and saved to database',
 			path=local_dir,
 		)
 
 		# Send completion notification
-		await socket_service.download_completed(download_modle_response)
+		await socket_service.download_completed(download_model_response)
 
-		return download_modle_response
+		return download_model_response
 
 	except CancelledError:
 		logger.warning(f'Download task for id {id} was cancelled')
