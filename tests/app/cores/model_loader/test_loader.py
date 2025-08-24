@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -73,6 +73,7 @@ def test_model_loader_exception(mock_dependencies):
         model_loader(model_id)
 
     # Assert that model_load_failed was called
-    mock_socket_service.model_load_failed.assert_called_once_with(
-        {'id': model_id, 'error': str(test_exception)}
-    )
+    mock_socket_service.model_load_failed.assert_called_once_with(ANY)
+    call_args, _ = mock_socket_service.model_load_failed.call_args
+    assert call_args[0].id == model_id
+    assert call_args[0].error == str(test_exception)

@@ -122,6 +122,130 @@ def import_services_with_stubs(dummy_socket: object | None = None):
 	setattr(services, 'DownloadTqdm', StubDownloadTqdm)
 	return services
 
+@pytest.mark.asyncio
+async def test_start_invokes_download_model_in_executor(
+	monkeypatch: pytest.MonkeyPatch,
+):
+	# Arrange
+	services = import_services_with_stubs()
+	service = services.DownloadService()
+	mock_db = MagicMock()
+
+	# Arrange: Mock the synchronous download_model method
+	mock_download_model = MagicMock(return_value='/fake/path')
+	monkeypatch.setattr(service, 'download_model', mock_download_model)
+
+	# Act
+	result = await service.start('some/repo', mock_db)
+
+	# Assert
+	assert result == '/fake/path'
+	mock_download_model.assert_called_once_with('some/repo', mock_db)
+
+
+def test_download_model_handles_database_exception(
+	tmp_path: pathlib.Path,
+	monkeypatch: pytest.MonkeyPatch,
+):
+	# Arrange
+	services = import_services_with_stubs()
+	service = services.DownloadService()
+	mock_db = MagicMock()
+
+	# Arrange: Mock file discovery and download
+	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet'])
+	monkeypatch.setattr(service, 'list_files', lambda _id: ['unet/model.bin'])
+	snapshot_root = tmp_path / 'snap-123'
+	def fake_hf_hub_download(**_kwargs):
+		local_path = snapshot_root / _kwargs['filename']
+		local_path.parent.mkdir(parents=True, exist_ok=True)
+		local_path.write_bytes(b'')
+		return str(local_path)
+	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+
+	# Arrange: Mock add_model to raise an error
+	def fake_add_model(db, id, path):
+		raise ValueError('DB error')
+	monkeypatch.setattr(services, 'add_model', fake_add_model)
+
+	# Arrange: Spy on the logger
+	mock_logger = MagicMock()
+	monkeypatch.setattr(services, 'logger', mock_logger)
+
+	# Act
+	local_dir = service.download_model('some/repo', mock_db)
+
+	# Assert
+	assert local_dir == os.path.join(str(snapshot_root), 'unet')
+	mock_logger.error.assert_called_once_with(
+		"Failed to save model some/repo to database: DB error"
+	)
+
+
+def test_download_model_handles_download_exception(
+	tmp_path: pathlib.Path,
+	monkeypatch: pytest.MonkeyPatch,
+):
+	# Arrange
+	services = import_services_with_stubs()
+	service = services.DownloadService()
+	mock_db = MagicMock()
+
+	# Arrange: Mock file discovery
+	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet'])
+	monkeypatch.setattr(service, 'list_files', lambda _id: ['unet/model.bin'])
+
+	# Arrange: Mock hf_hub_download to raise an error
+	def fake_hf_hub_download(**_kwargs):
+		raise ConnectionError('Download failed')
+
+	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+
+	# Arrange: Spy on the progress bar's close method
+	mock_progress_close = MagicMock()
+
+	class MockDownloadTqdm:
+		def __init__(self, *args, **kwargs):
+			pass
+
+		def update(self, n=1):
+			pass
+
+		def close(self):
+			mock_progress_close()
+
+	monkeypatch.setattr(services, 'DownloadTqdm', MockDownloadTqdm)
+
+	# Act & Assert
+	with pytest.raises(ConnectionError, match='Download failed'):
+		service.download_model('some/repo', mock_db)
+
+	mock_progress_close.assert_called_once()
+
+
+def test_download_model_when_no_files_to_download(
+	monkeypatch: pytest.MonkeyPatch,
+):
+	# Arrange
+	services = import_services_with_stubs()
+	service = services.DownloadService()
+	mock_db = MagicMock()
+
+	# Arrange: Mock dependencies to return empty file list
+	monkeypatch.setattr(service, 'get_components', lambda _id: [])
+	monkeypatch.setattr(service, 'list_files', lambda _id: [])
+	
+	# Arrange: Spy on the logger
+	mock_logger = MagicMock()
+	monkeypatch.setattr(services, 'logger', mock_logger)
+
+	# Act
+	result = service.download_model('some/repo', mock_db)
+
+	# Assert
+	assert result is None
+	mock_logger.warning.assert_called_once_with('No files to download')
+
 
 class DummySocket:
 	def __init__(self) -> None:
