@@ -16,6 +16,21 @@ from .schemas import ModelLoadCompletedResponse, ModelLoadFailed
 logger = logging.getLogger(__name__)
 
 
+def move_to_device(pipe, device, log_prefix):
+	"""
+	Helper function to move a model to a device, trying to_empty() first with fallback to to()
+	"""
+	try:
+		# Try using to_empty() first for meta tensors
+		pipe = pipe.to_empty(device)
+		logger.info(f'{log_prefix}, moved to {device} device using to_empty()')
+	except (AttributeError, TypeError):
+		# Fall back to regular to() if to_empty() is not available or fails
+		pipe = pipe.to(device)
+		logger.info(f'{log_prefix}, moved to {device} device using to()')
+	return pipe
+
+
 def model_loader(id: str):
 	db = SessionLocal()
 
@@ -70,12 +85,10 @@ def model_loader(id: str):
 		# For MPS, we can enable attention slicing but not model CPU offload
 		# as it's not supported/needed on Apple Silicon
 		pipe.enable_attention_slicing()
-		pipe = pipe.to(device_service.device)
-		logger.info('Applied MPS optimizations: attention slicing enabled, moved to MPS device')
+		pipe = move_to_device(pipe, device_service.device, 'Applied MPS optimizations: attention slicing enabled')
 	else:
 		# For CPU-only systems, keep pipeline on CPU
-		pipe = pipe.to(device_service.device)
-		logger.info('No GPU acceleration available, using CPU')
+		pipe = move_to_device(pipe, device_service.device, 'No GPU acceleration available')
 
 	db.close()
 

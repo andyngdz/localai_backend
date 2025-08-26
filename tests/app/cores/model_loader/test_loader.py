@@ -4,7 +4,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
-from app.cores.model_loader.model_loader import model_loader
+from app.cores.model_loader.model_loader import model_loader, move_to_device
 
 
 @pytest.fixture
@@ -27,6 +27,9 @@ def mock_dependencies():
 
         mock_pipe = MagicMock()
         mock_auto_pipeline.from_pretrained.return_value = mock_pipe
+        # Set up to_empty to return the same mock_pipe
+        mock_pipe.to_empty.return_value = mock_pipe
+        # Set up to as fallback
         mock_pipe.to.return_value = mock_pipe
 
         yield {
@@ -77,3 +80,50 @@ def test_model_loader_exception(mock_dependencies):
     call_args, _ = mock_socket_service.model_load_failed.call_args
     assert call_args[0].id == model_id
     assert call_args[0].error == str(test_exception)
+
+
+def test_move_to_device_to_empty_success():
+    # Arrange
+    mock_pipe = MagicMock()
+    device = 'cpu'
+    log_prefix = 'Test model'
+    
+    # Act
+    result = move_to_device(mock_pipe, device, log_prefix)
+    
+    # Assert
+    assert result == mock_pipe.to_empty.return_value
+    mock_pipe.to_empty.assert_called_once_with(device)
+    mock_pipe.to.assert_not_called()
+
+
+def test_move_to_device_fallback_to_to():
+    # Arrange
+    mock_pipe = MagicMock()
+    device = 'cpu'
+    log_prefix = 'Test model'
+    mock_pipe.to_empty.side_effect = AttributeError('to_empty not available')
+    
+    # Act
+    result = move_to_device(mock_pipe, device, log_prefix)
+    
+    # Assert
+    assert result == mock_pipe.to.return_value
+    mock_pipe.to_empty.assert_called_once_with(device)
+    mock_pipe.to.assert_called_once_with(device)
+
+
+def test_move_to_device_fallback_to_to_type_error():
+    # Arrange
+    mock_pipe = MagicMock()
+    device = 'cpu'
+    log_prefix = 'Test model'
+    mock_pipe.to_empty.side_effect = TypeError('Incompatible type')
+    
+    # Act
+    result = move_to_device(mock_pipe, device, log_prefix)
+    
+    # Assert
+    assert result == mock_pipe.to.return_value
+    mock_pipe.to_empty.assert_called_once_with(device)
+    mock_pipe.to.assert_called_once_with(device)
