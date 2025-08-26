@@ -27,6 +27,9 @@ def mock_dependencies():
 
         mock_pipe = MagicMock()
         mock_auto_pipeline.from_pretrained.return_value = mock_pipe
+        # Set up to_empty to return the same mock_pipe
+        mock_pipe.to_empty.return_value = mock_pipe
+        # Set up to as fallback
         mock_pipe.to.return_value = mock_pipe
 
         yield {
