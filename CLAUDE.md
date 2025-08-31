@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Swich to .venv
+### Switch to .venv
 
 ```bash
 source .venv/bin/activate
