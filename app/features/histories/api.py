@@ -60,4 +60,9 @@ async def delete_history(history_id: int, db: Session = Depends(database_service
 
 		return JSONResponseMessage(message=f'History entry deleted successfully {history_id}')
 	except ValueError as error:
-		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+		# Handle cases where the history_id does not exist
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
+	except Exception as error:
+		# Handle unexpected server-side errors
+		logger.error(f'Error deleting history entry: {error}')
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='An unexpected error occurred while deleting the history entry')

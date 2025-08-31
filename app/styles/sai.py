@@ -1,4 +1,4 @@
-from app.predefined_styles.schemas import StyleItem
+from app.styles.schemas import StyleItem
 
 sai_styles = [
 	StyleItem(

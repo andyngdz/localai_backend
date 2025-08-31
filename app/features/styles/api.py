@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter
 
-from app.predefined_styles import fooocus_styles, sai_styles
 from app.services import styles_service
+from app.styles import fooocus_styles, sai_styles
 
 from .schemas import StyleSectionResponse
 

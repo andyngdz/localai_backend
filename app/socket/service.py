@@ -1,7 +1,7 @@
-from logging import getLogger
-from typing import Any, Dict, Optional, Union
-
 import asyncio
+from logging import getLogger
+from typing import Any, Dict, Optional
+
 import socketio
 from pydantic import BaseModel
 
