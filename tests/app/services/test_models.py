@@ -23,63 +23,48 @@ class TestModelService:
 		# Arrange
 		model_id = 'test/model'
 		model_dir = '/path/to/model'
-		mock_model = MagicMock()
 
-		# Directly patch the method of the service instance
-		original_add_model = self.model_service.add_model
-		self.model_service.add_model = MagicMock(return_value=mock_model)
+		# Mock the Model constructor and database add/commit
+		with patch('app.services.models.Model') as mock_model_cls:
+			mock_model_instance = MagicMock()
+			mock_model_cls.return_value = mock_model_instance
 
-		try:
 			# Act
 			result = self.model_service.add_model(self.mock_db, model_id, model_dir)
 
 			# Assert
-			assert result == mock_model
-			self.model_service.add_model.assert_called_once_with(self.mock_db, model_id, model_dir)
-		finally:
-			# Restore the original method
-			self.model_service.add_model = original_add_model
-
+			assert result == mock_model_instance
+			self.mock_db.add.assert_called_once_with(mock_model_instance)
+			self.mock_db.commit.assert_called_once()
+			mock_model_cls.assert_called_once_with(model_id=model_id, model_dir=model_dir)
 	def test_get_downloaded_models(self):
 		"""Test get_downloaded_models method."""
 		# Arrange
 		mock_models = [MagicMock(), MagicMock()]
+		self.mock_db.query.return_value.all.return_value = mock_models
 
-		# Directly patch the method of the service instance
-		original_get_downloaded_models = self.model_service.get_downloaded_models
-		self.model_service.get_downloaded_models = MagicMock(return_value=mock_models)
+		# Act
+		result = self.model_service.get_downloaded_models(self.mock_db)
 
-		try:
-			# Act
-			result = self.model_service.get_downloaded_models(self.mock_db)
-
-			# Assert
-			assert result == mock_models
-			self.model_service.get_downloaded_models.assert_called_once_with(self.mock_db)
-		finally:
-			# Restore the original method
-			self.model_service.get_downloaded_models = original_get_downloaded_models
-
+		# Assert
+		assert result == mock_models
+		self.mock_db.query.assert_called_once_with(Model)
+		self.mock_db.query.return_value.all.assert_called_once()
 	def test_is_model_downloaded(self):
 		"""Test is_model_downloaded method."""
 		# Arrange
 		model_id = 'test/model'
+		mock_model = MagicMock()
+		self.mock_db.query.return_value.filter.return_value.first.return_value = mock_model
 
-		# Directly patch the method of the service instance
-		original_is_model_downloaded = self.model_service.is_model_downloaded
-		self.model_service.is_model_downloaded = MagicMock(return_value=True)
+		# Act
+		result = self.model_service.is_model_downloaded(self.mock_db, model_id)
 
-		try:
-			# Act
-			result = self.model_service.is_model_downloaded(self.mock_db, model_id)
-
-			# Assert
-			assert result is True
-			self.model_service.is_model_downloaded.assert_called_once_with(self.mock_db, model_id)
-		finally:
-			# Restore the original method
-			self.model_service.is_model_downloaded = original_is_model_downloaded
-
+		# Assert
+		assert result is True
+		self.mock_db.query.assert_called_once_with(Model)
+		self.mock_db.query.return_value.filter.assert_called_once()
+		self.mock_db.query.return_value.filter.return_value.first.assert_called_once()
 	def test_delete_model_success(self):
 		"""Test delete_model method when successful."""
 		# Arrange
