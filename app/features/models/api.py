@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.cores.model_manager import model_manager
 from app.database import database_service
-from app.database.crud import delete_model, downloaded_models, is_model_downloaded
 from app.schemas.responses import JSONResponseMessage
+from app.services.models import model_service
 
 from .recommendations import ModelRecommendationService
 from .schemas import (
@@ -78,7 +78,7 @@ def get_model_info(id: str = Query(..., description='Model ID')):
 def get_downloaded_models(db: Session = Depends(database_service.get_db)):
 	"""Get a list of downloaded models"""
 	try:
-		models = downloaded_models(db)
+		models = model_service.get_downloaded_models(db)
 
 		return models
 	except Exception as error:
@@ -98,7 +98,7 @@ def is_model_available(
 	"""Check if model is already downloaded by id"""
 
 	try:
-		is_downloaded = is_model_downloaded(db, id)
+		is_downloaded = model_service.is_model_downloaded(db, id)
 
 		return ModelAvailableResponse(id=id, is_downloaded=is_downloaded)
 	except Exception as error:
@@ -200,7 +200,7 @@ def delete_model_by_id(
 
 	try:
 		# Delete the model
-		deleted_model_id = delete_model(db, model_id)
+		deleted_model_id = model_service.delete_model(db, model_id)
 
 		return JSONResponseMessage(message=f'Model {deleted_model_id} deleted successfully')
 

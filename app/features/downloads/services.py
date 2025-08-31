@@ -11,7 +11,7 @@ from huggingface_hub import HfApi, hf_hub_download
 from sqlalchemy.orm import Session
 from tqdm import tqdm as BaseTqdm
 
-from app.database.crud import add_model
+from app.services.models import model_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
@@ -113,7 +113,7 @@ class DownloadService:
 		# Save the downloaded model to the database
 		if local_dir:
 			try:
-				add_model(db, id, local_dir)
+				model_service.add_model(db, id, local_dir)
 				logger.info(f'Model {id} saved to database with path {local_dir}')
 			except Exception as error:
 				logger.error(f'Failed to save model {id} to database: {error}')

@@ -3,8 +3,8 @@ from itertools import chain
 
 from transformers import CLIPTokenizer
 
-from app.predefined_styles import fooocus_styles, sai_styles
-from app.predefined_styles.schemas import StyleItem
+from app.styles import fooocus_styles, sai_styles
+from app.styles.schemas import StyleItem
 
 PROMPT_REMOVE_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
 CLIP_TOKENIZER_MODEL = 'openai/clip-vit-base-patch32'

@@ -15,7 +15,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.features.models.api import delete_model
+from app.features.models.api import delete_model_by_id
 from app.schemas.responses import JSONResponseMessage
 
 
@@ -28,18 +28,18 @@ class TestDeleteModelEndpoint:
 		self.model_id = 'test/model'
 
 	@patch('app.features.models.api.model_manager')
-	@patch('app.features.models.api.delete_model')
-	def test_delete_model_success(self, mock_delete_model, mock_model_manager):
+	@patch('app.services.models.model_service')
+	def test_delete_model_success(self, mock_model_service, mock_model_manager):
 		"""Test successful model deletion."""
 		# Setup
 		mock_model_manager.id = 'different/model'  # Model not in use
-		mock_delete_model.return_value = self.model_id
+		mock_model_service.delete_model.return_value = self.model_id
 
 		# Execute
-		result = delete_model(self.model_id, self.db_mock)
+		result = delete_model_by_id(self.model_id, self.db_mock)
 
 		# Verify
-		mock_delete_model.assert_called_once_with(self.db_mock, self.model_id)
+		mock_model_service.delete_model.assert_called_once_with(self.db_mock, self.model_id)
 		assert isinstance(result, JSONResponseMessage)
 		# Check the content dict that was passed to JSONResponse
 		assert result.body.decode() == '{"message":"Model test/model deleted successfully"}'
@@ -52,37 +52,37 @@ class TestDeleteModelEndpoint:
 
 		# Execute & Verify
 		with pytest.raises(HTTPException) as exc_info:
-			delete_model(self.model_id, self.db_mock)
+			delete_model_by_id(self.model_id, self.db_mock)
 
 		assert exc_info.value.status_code == status.HTTP_409_CONFLICT
 		assert 'Model is currently loaded' in str(exc_info.value.detail)
 
 	@patch('app.features.models.api.model_manager')
-	@patch('app.features.models.api.delete_model')
-	def test_delete_nonexistent_model(self, mock_delete_model, mock_model_manager):
+	@patch('app.services.models.model_service')
+	def test_delete_nonexistent_model(self, mock_model_service, mock_model_manager):
 		"""Test deletion fails for non-existent model."""
 		# Setup
 		mock_model_manager.id = 'different/model'
-		mock_delete_model.side_effect = ValueError(f'Model with id {self.model_id} does not exist.')
+		mock_model_service.delete_model.side_effect = ValueError(f'Model with id {self.model_id} does not exist.')
 
 		# Execute & Verify
 		with pytest.raises(HTTPException) as exc_info:
-			delete_model(self.model_id, self.db_mock)
+			delete_model_by_id(self.model_id, self.db_mock)
 
 		assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
 		assert 'does not exist' in str(exc_info.value.detail)
 
 	@patch('app.features.models.api.model_manager')
-	@patch('app.features.models.api.delete_model')
-	def test_delete_model_general_error(self, mock_delete_model, mock_model_manager):
+	@patch('app.services.models.model_service')
+	def test_delete_model_general_error(self, mock_model_service, mock_model_manager):
 		"""Test general error handling during deletion."""
 		# Setup
 		mock_model_manager.id = 'different/model'
-		mock_delete_model.side_effect = Exception('Filesystem error')
+		mock_model_service.delete_model.side_effect = Exception('Filesystem error')
 
 		# Execute & Verify
 		with pytest.raises(HTTPException) as exc_info:
-			delete_model(self.model_id, self.db_mock)
+			delete_model_by_id(self.model_id, self.db_mock)
 
 		assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 		assert 'Failed to delete model' in str(exc_info.value.detail)

@@ -1,15 +1,11 @@
 import os
-import shutil
 from logging import getLogger
 from typing import List
 
 from sqlalchemy.orm import Session, selectinload
 
-from app.database.models import Config, GeneratedImage, History, Model
+from app.database.models import GeneratedImage, History, Model
 from app.schemas.generators import GeneratorConfig, ImageGenerationResponse
-from app.services import storage_service
-
-from .constant import DEFAULT_MAX_GPU_SCALE_FACTOR, DEFAULT_MAX_RAM_SCALE_FACTOR, DeviceSelection
 
 logger = getLogger(__name__)
 
@@ -42,66 +38,6 @@ def is_model_downloaded(db: Session, model_id: str) -> bool:
 
 	return model is not None
 
-
-def get_device_index(db: Session) -> int:
-	"""Get selected device index from the database."""
-	config = db.query(Config).first()
-
-	return config.device_index if config else DeviceSelection.NOT_FOUND
-
-
-def add_device_index(db: Session, device_index: int):
-	"""Add or update selected device"""
-
-	config = db.query(Config).first()
-
-	if config:
-		config.device_index = device_index
-	else:
-		config = Config(device_index=device_index)
-		db.add(config)
-
-	db.commit()
-
-	return config
-
-
-def add_max_memory(db: Session, ram_scale_factor: float, gpu_scale_factor: float):
-	"""Add or update configuration in the database."""
-	config = db.query(Config).first()
-
-	if config:
-		config.ram_scale_factor = ram_scale_factor
-		config.gpu_scale_factor = gpu_scale_factor
-	else:
-		config = Config(ram_scale_factor=ram_scale_factor, gpu_scale_factor=gpu_scale_factor)
-		db.add(config)
-
-	db.commit()
-
-	return config
-
-
-def get_gpu_scale_factor(db: Session) -> float:
-	"""Get GPU max factor from the database."""
-
-	config = db.query(Config).first()
-
-	if config and config.gpu_scale_factor is not None:
-		return config.gpu_scale_factor
-
-	return DEFAULT_MAX_GPU_SCALE_FACTOR
-
-
-def get_ram_scale_factor(db: Session) -> float:
-	"""Get RAM max factor from the database."""
-
-	config = db.query(Config).first()
-
-	if config and config.ram_scale_factor is not None:
-		return config.gpu_scale_factor
-
-	return DEFAULT_MAX_RAM_SCALE_FACTOR
 
 
 def add_history(db: Session, model: str, config: GeneratorConfig):
@@ -155,38 +91,6 @@ def delete_history_entry(db: Session, history_id: int):
 	return history_id
 
 
-def delete_model(db: Session, model_id: str):
-	"""Delete a model from the database and its files from the filesystem."""
-	model = db.query(Model).filter(Model.model_id == model_id).first()
-
-	if not model:
-		raise ValueError(f'Model with id {model_id} does not exist.')
-
-	model_dir = model.model_dir
-
-	try:
-		# Delete the model directory and all its contents
-		if os.path.exists(model_dir):
-			logger.info(f'Deleting model directory: {model_dir}')
-			shutil.rmtree(model_dir)
-
-		# Delete the lock directory if it exists
-		lock_dir = storage_service.get_model_lock_dir(model_id)
-		if os.path.exists(lock_dir):
-			logger.info(f'Deleting model lock directory: {lock_dir}')
-			shutil.rmtree(lock_dir)
-
-		# Delete from database
-		db.delete(model)
-		db.commit()
-
-		logger.info(f'Successfully deleted model: {model_id}')
-		return model_id
-
-	except Exception as error:
-		db.rollback()
-		logger.error(f'Error deleting model {model_id}: {error}')
-		raise ValueError(f'Error deleting model: {str(error)}')
 
 
 def add_generated_image(db: Session, history_id: int, response: ImageGenerationResponse):

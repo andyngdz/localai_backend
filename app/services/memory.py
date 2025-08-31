@@ -2,7 +2,7 @@ import psutil
 import torch
 from sqlalchemy.orm import Session
 
-from app.database.crud import get_device_index
+from app.database.config_crud import get_device_index
 from app.services.device import device_service
 
 GPU_MEMORY_ESTIMATE_FACTOR = 0.8

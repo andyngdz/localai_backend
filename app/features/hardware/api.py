@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import database_service
-from app.database.crud import add_device_index, add_max_memory, get_device_index
+from app.database.config_crud import add_device_index, add_max_memory, get_device_index
 from app.services import device_service
 from app.services.memory import MemoryService
 
