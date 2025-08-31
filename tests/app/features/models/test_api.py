@@ -28,7 +28,7 @@ class TestDeleteModelEndpoint:
 		self.model_id = 'test/model'
 
 	@patch('app.features.models.api.model_manager')
-	@patch('app.services.models.model_service')
+	@patch('app.features.models.api.model_service')
 	def test_delete_model_success(self, mock_model_service, mock_model_manager):
 		"""Test successful model deletion."""
 		# Setup
@@ -58,7 +58,7 @@ class TestDeleteModelEndpoint:
 		assert 'Model is currently loaded' in str(exc_info.value.detail)
 
 	@patch('app.features.models.api.model_manager')
-	@patch('app.services.models.model_service')
+	@patch('app.features.models.api.model_service')
 	def test_delete_nonexistent_model(self, mock_model_service, mock_model_manager):
 		"""Test deletion fails for non-existent model."""
 		# Setup
@@ -73,7 +73,7 @@ class TestDeleteModelEndpoint:
 		assert 'does not exist' in str(exc_info.value.detail)
 
 	@patch('app.features.models.api.model_manager')
-	@patch('app.services.models.model_service')
+	@patch('app.features.models.api.model_service')
 	def test_delete_model_general_error(self, mock_model_service, mock_model_manager):
 		"""Test general error handling during deletion."""
 		# Setup

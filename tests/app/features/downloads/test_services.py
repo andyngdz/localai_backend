@@ -65,6 +65,28 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 		# Use setattr for type-safe attribute assignment
 		setattr(tqdm_mod, 'tqdm', tqdm)
 
+	# Stub app.services.styles to avoid importing transformers
+	styles_mod = ModuleType('app.services.styles')
+	sys.modules['app.services.styles'] = styles_mod
+	
+	class StylesService:
+		def __init__(self):
+			pass
+			
+	styles_service = StylesService()
+	setattr(styles_mod, 'styles_service', styles_service)
+	
+	# Stub app.services.models to avoid importing real dependencies
+	models_mod = ModuleType('app.services.models')
+	sys.modules['app.services.models'] = models_mod
+	
+	class ModelService:
+		def add_model(self, db, id, path):
+			pass
+			
+	model_service = ModelService()
+	setattr(models_mod, 'model_service', model_service)
+
 	# Stub app.socket submodule early to avoid importing python-socketio
 	socket_mod = ModuleType('app.socket')
 	sys.modules['app.socket'] = socket_mod
@@ -193,7 +215,7 @@ def test_download_model_handles_database_exception(
 	def fake_add_model(db, id, path):
 		raise ValueError('DB error')
 
-	monkeypatch.setattr(services, 'add_model', fake_add_model)
+	monkeypatch.setattr(services.model_service, 'add_model', fake_add_model)
 
 	# Arrange: Spy on the logger
 	mock_logger = MagicMock()
@@ -383,9 +405,9 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 
 	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
 
-	# Mock add_model function to verify it's called
+	# Mock model_service.add_model function to verify it's called
 	mock_add_model = MagicMock()
-	monkeypatch.setattr(services, 'add_model', mock_add_model)
+	monkeypatch.setattr(services.model_service, 'add_model', mock_add_model)
 
 	# Act
 	local_dir = service.download_model('some/repo', mock_db)
