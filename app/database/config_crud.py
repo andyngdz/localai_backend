@@ -67,6 +67,6 @@ def get_ram_scale_factor(db: Session) -> float:
 	config = db.query(Config).first()
 
 	if config and config.ram_scale_factor is not None:
-		return config.gpu_scale_factor
+		return config.ram_scale_factor
 
 	return DEFAULT_MAX_RAM_SCALE_FACTOR

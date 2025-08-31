@@ -188,7 +188,8 @@ def delete_model_by_id(
 	Delete a model from the system.
 	- Checks if the model is currently in use (loaded)
 	- Deletes the model files from cache
-	- Removes the model entry from database
+	- Removes the model entry from databasepython_files = test_*.py
+
 	"""
 
 	# Check if the model is currently loaded/in use
