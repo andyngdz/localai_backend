@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.cores.model_manager import model_manager
 from app.database import database_service
-from app.database.crud import downloaded_models, is_model_downloaded
+from app.database.crud import delete_model, downloaded_models, is_model_downloaded
 from app.schemas.responses import JSONResponseMessage
 
 from .recommendations import ModelRecommendationService
@@ -176,4 +176,44 @@ def unload_model():
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail=f'Failed to unload model: {error}',
+		)
+
+
+@models.delete('/{model_id}')
+def delete_model_by_id(
+	model_id: str,
+	db: Session = Depends(database_service.get_db),
+):
+	"""
+	Delete a model from the system.
+	- Checks if the model is currently in use (loaded)
+	- Deletes the model files from cache
+	- Removes the model entry from database
+	"""
+
+	# Check if the model is currently loaded/in use
+	if model_manager.id == model_id:
+		raise HTTPException(
+			status_code=status.HTTP_409_CONFLICT,
+			detail=f"Cannot delete model '{model_id}': Model is currently loaded. Please unload it first.",
+		)
+
+	try:
+		# Delete the model
+		deleted_model_id = delete_model(db, model_id)
+
+		return JSONResponseMessage(message=f'Model {deleted_model_id} deleted successfully')
+
+	except ValueError as error:
+		# Handle model not found or deletion errors
+		logger.error(f'Error deleting model {model_id}: {error}')
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail=str(error),
+		)
+	except Exception as error:
+		logger.exception(f'Failed to delete model {model_id}')
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail=f'Failed to delete model: {error}',
 		)
