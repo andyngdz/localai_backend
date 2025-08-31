@@ -179,9 +179,9 @@ def unload_model():
 		)
 
 
-@models.delete('/{model_id}')
+@models.delete('/')
 def delete_model_by_id(
-	model_id: str,
+	model_id: str = Query(..., description='Model ID to delete'),
 	db: Session = Depends(database_service.get_db),
 ):
 	"""

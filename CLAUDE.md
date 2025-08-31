@@ -84,6 +84,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 - **Feature-based Architecture**: Code organized by features under `app/features/`
 - **Core Services**: Shared business logic in `app/cores/`
 - **Database Layer**: SQLAlchemy models and CRUD operations in `app/database/`
+- **Service Layer**: Business logic services in `app/services/` (models, storage, etc.)
 - **WebSocket Support**: Real-time communication via Socket.IO
 
 ### Key Components
