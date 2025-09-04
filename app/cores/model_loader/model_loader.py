@@ -62,8 +62,8 @@ def model_loader(id: str):
 		raise
 
 	# Apply device-specific optimizations
-	# Note: device_map="balanced" handles device placement, so we can't use CPU offloading
-	# The balanced device mapping already optimizes memory usage across devices
+	# Note: For the current models and library versions, device_map="balanced" handles device placement,
+	# and CPU offloading is not supported. This limitation may not apply to all models or future library versions.
 	if device_service.is_cuda:
 		pipe.enable_attention_slicing()
 		# Ensure safety checker is on the same device as the rest of the pipeline
