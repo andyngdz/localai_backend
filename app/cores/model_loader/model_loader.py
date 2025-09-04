@@ -76,26 +76,28 @@ def model_loader(id: str):
 		socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(error)))
 		raise
 
+	# Reset device map to allow explicit device placement, then move pipeline
+	if hasattr(pipe, 'reset_device_map'):
+		pipe.reset_device_map()
+		logger.info(f'Reset device map for pipeline {id}')
+	
+	# Move entire pipeline to target device using to_empty() for meta tensors
+	pipe = move_to_device(pipe, device_service.device, f'Pipeline {id}')
+
 	# Apply device-specific optimizations
 	# Note: For the current models and library versions, device_map="balanced" handles device placement,
 	# and CPU offloading is not supported. This limitation may not apply to all models or future library versions.
 	if device_service.is_cuda:
 		pipe.enable_attention_slicing()
-		# Ensure safety checker is on the same device as the rest of the pipeline
-		if hasattr(pipe, 'safety_checker') and pipe.safety_checker is not None:
-			pipe.safety_checker = move_to_device(pipe.safety_checker, device_service.device, 'Safety checker')
-		logger.info('Applied CUDA optimizations: attention slicing enabled, safety checker moved to GPU')
+		logger.info('Applied CUDA optimizations: attention slicing enabled, pipeline moved to GPU')
 	elif device_service.is_mps:
 		# For MPS, we can enable attention slicing
 		pipe.enable_attention_slicing()
-		# Ensure safety checker is on the same device as the rest of the pipeline
-		if hasattr(pipe, 'safety_checker') and pipe.safety_checker is not None:
-			pipe.safety_checker = move_to_device(pipe.safety_checker, device_service.device, 'Safety checker')
-		logger.info('Applied MPS optimizations: attention slicing enabled, safety checker moved to MPS')
+		logger.info('Applied MPS optimizations: attention slicing enabled, pipeline moved to MPS')
 	else:
 		# For CPU-only systems, just enable attention slicing for better memory usage
 		pipe.enable_attention_slicing()
-		logger.info('Applied CPU optimizations: attention slicing enabled')
+		logger.info('Applied CPU optimizations: attention slicing enabled, pipeline moved to CPU')
 
 	db.close()
 
