@@ -16,6 +16,21 @@ from .schemas import ModelLoadCompletedResponse, ModelLoadFailed
 logger = logging.getLogger(__name__)
 
 
+def move_to_device(pipe, device, log_prefix):
+	"""
+	Helper function to move a model to a device, trying to_empty() first with fallback to to()
+	"""
+	try:
+		# Try using to_empty() first for meta tensors
+		pipe = pipe.to_empty(device)
+		logger.info(f'{log_prefix}, moved to {device} device using to_empty()')
+	except (AttributeError, TypeError):
+		# Fall back to regular to() if to_empty() is not available or fails
+		pipe = pipe.to(device)
+		logger.info(f'{log_prefix}, moved to {device} device using to()')
+	return pipe
+
+
 def model_loader(id: str):
 	db = SessionLocal()
 
@@ -68,14 +83,14 @@ def model_loader(id: str):
 		pipe.enable_attention_slicing()
 		# Ensure safety checker is on the same device as the rest of the pipeline
 		if hasattr(pipe, 'safety_checker') and pipe.safety_checker is not None:
-			pipe.safety_checker = pipe.safety_checker.to(device_service.device)
+			pipe.safety_checker = move_to_device(pipe.safety_checker, device_service.device, 'Safety checker')
 		logger.info('Applied CUDA optimizations: attention slicing enabled, safety checker moved to GPU')
 	elif device_service.is_mps:
 		# For MPS, we can enable attention slicing
 		pipe.enable_attention_slicing()
 		# Ensure safety checker is on the same device as the rest of the pipeline
 		if hasattr(pipe, 'safety_checker') and pipe.safety_checker is not None:
-			pipe.safety_checker = pipe.safety_checker.to(device_service.device)
+			pipe.safety_checker = move_to_device(pipe.safety_checker, device_service.device, 'Safety checker')
 		logger.info('Applied MPS optimizations: attention slicing enabled, safety checker moved to MPS')
 	else:
 		# For CPU-only systems, just enable attention slicing for better memory usage
