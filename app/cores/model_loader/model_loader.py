@@ -52,6 +52,7 @@ def model_loader(id: str):
 			use_safetensors=True,
 			safety_checker=safety_checker_instance,
 			feature_extractor=feature_extractor,
+			device_map='balanced',  # Use balanced device placement strategy
 		)
 	except EnvironmentError:
 		try:
@@ -64,6 +65,7 @@ def model_loader(id: str):
 				use_safetensors=False,
 				safety_checker=safety_checker_instance,
 				feature_extractor=feature_extractor,
+				device_map='balanced',  # Use balanced device placement strategy
 			)
 		except Exception as error:
 			logger.error(f'Failed to load model {id}: {error}')
@@ -74,21 +76,28 @@ def model_loader(id: str):
 		socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(error)))
 		raise
 
+	# Reset device map to allow explicit device placement, then move pipeline
+	if hasattr(pipe, 'reset_device_map'):
+		pipe.reset_device_map()
+		logger.info(f'Reset device map for pipeline {id}')
+	
+	# Move entire pipeline to target device using to_empty() for meta tensors
+	pipe = move_to_device(pipe, device_service.device, f'Pipeline {id}')
+
 	# Apply device-specific optimizations
+	# Note: For the current models and library versions, device_map="balanced" handles device placement,
+	# and CPU offloading is not supported. This limitation may not apply to all models or future library versions.
 	if device_service.is_cuda:
-		pipe.enable_model_cpu_offload()
 		pipe.enable_attention_slicing()
-		logger.info('Applied CUDA optimizations: CPU offloading and attention slicing enabled')
-		# Note: When using CPU offloading, do NOT manually move pipeline to device
-		# The offloading system will handle device placement automatically
+		logger.info('Applied CUDA optimizations: attention slicing enabled, pipeline moved to GPU')
 	elif device_service.is_mps:
-		# For MPS, we can enable attention slicing but not model CPU offload
-		# as it's not supported/needed on Apple Silicon
+		# For MPS, we can enable attention slicing
 		pipe.enable_attention_slicing()
-		pipe = move_to_device(pipe, device_service.device, 'Applied MPS optimizations: attention slicing enabled')
+		logger.info('Applied MPS optimizations: attention slicing enabled, pipeline moved to MPS')
 	else:
-		# For CPU-only systems, keep pipeline on CPU
-		pipe = move_to_device(pipe, device_service.device, 'No GPU acceleration available')
+		# For CPU-only systems, just enable attention slicing for better memory usage
+		pipe.enable_attention_slicing()
+		logger.info('Applied CPU optimizations: attention slicing enabled, pipeline moved to CPU')
 
 	db.close()
 
