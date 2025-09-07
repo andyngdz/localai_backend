@@ -35,7 +35,7 @@ dependencies = [
   "SQLAlchemy==2.0.41",
   "tenacity==9.1.2",
   "thread==2.0.5",
-  "torch==2.7.1",
+  "torch==2.8.0",
   "transformers==4.53.2",
   "urllib3_secure_extra==0.1.0",
   "zstandard==0.23.0",
