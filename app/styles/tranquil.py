@@ -1,0 +1,12 @@
+from app.styles.schemas import StyleItem
+
+tranquil_styles = [
+	StyleItem(
+		id='tranquil_relaxing-atmosphere',
+		name='Tranquil Relaxing Atmosphere',
+		origin='Fooocus',
+		positive='Tranquil Relaxing Atmosphere, {prompt}, calming style, soothing colors, peaceful, idealic, Tranquil Relaxing Atmosphere',
+		negative='ugly, deformed, noisy, blurry, low contrast, oversaturated',
+		image='styles/tranquil/relaxing-atmosphere.jpg',
+	),
+]

@@ -3,7 +3,7 @@ from itertools import chain
 
 from transformers import CLIPTokenizer
 
-from app.styles import fooocus_styles, sai_styles
+from app.styles import all_styles
 from app.styles.schemas import StyleItem
 
 PROMPT_REMOVE_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
@@ -13,7 +13,7 @@ CLIP_TOKENIZER_MODEL = 'openai/clip-vit-base-patch32'
 class StylesService:
 	def __init__(self):
 		self.tokenizer = CLIPTokenizer.from_pretrained(CLIP_TOKENIZER_MODEL)
-		self.all_styles = list(chain.from_iterable([fooocus_styles, sai_styles]))
+		self.all_styles = chain.from_iterable(all_styles.values())
 
 	def truncate_clip_prompt(self, prompt: str, max_tokens: int = 77) -> str:
 		clip_tokenizer = self.tokenizer(prompt)

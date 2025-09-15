@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 from app.services import styles_service
-from app.styles import fooocus_styles, sai_styles
+from app.styles import all_styles, sections
 
 from .schemas import StyleSectionResponse
 
@@ -16,16 +16,15 @@ styles = APIRouter(
 @styles.get('/')
 def get_styles():
 	"""List all styles"""
-
+	# all_styles is a mapping: section_id -> list[StyleItem]
 	return [
 		StyleSectionResponse(
-			id='fooocus',
-			styles=fooocus_styles,
-		),
-		StyleSectionResponse(
-			id='sai',
-			styles=sai_styles,
-		),
+			id=section_id,
+			name=sections.get(section_id, section_id.capitalize()),
+			styles=styles,
+		)
+		for section_id, styles in all_styles.items()
+		if styles
 	]
 
 
