@@ -74,16 +74,12 @@ class TestStylesEndpoints:
 			)
 		]
 
-	@patch('app.features.styles.api.fooocus_styles', new_callable=list)
-	@patch('app.features.styles.api.sai_styles', new_callable=list)
-	def test_get_styles_returns_correct_sections(self, mock_sai_styles, mock_fooocus_styles):
+	@patch('app.features.styles.api.all_styles', new_callable=dict)
+	def test_get_styles_returns_correct_sections(self, mock_all_styles):
 		"""Test that get_styles returns the correct style sections."""
 		# Arrange
-		mock_fooocus_styles.clear()
-		mock_fooocus_styles.extend(self.test_fooocus_styles)
-
-		mock_sai_styles.clear()
-		mock_sai_styles.extend(self.test_sai_styles)
+		mock_all_styles.clear()
+		mock_all_styles.update({'fooocus': self.test_fooocus_styles, 'sai': self.test_sai_styles})
 
 		# Act
 		result = get_styles()
