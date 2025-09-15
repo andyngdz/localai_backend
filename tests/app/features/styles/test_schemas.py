@@ -22,19 +22,18 @@ class TestStyleSectionResponse:
 
 	def setup_method(self):
 		"""Setup test method."""
-		self.valid_style_item = StyleItem(
-			id='test_style', name='Test Style', origin='Test', image='styles/test/style.jpg'
-		)
+		self.valid_style_item = StyleItem(id='test_style', name='Test Style', origin='Test', image='styles/test/style.jpg')
 
 		self.valid_data = {
 			'id': 'test_section',
+			'name': 'Test Section',
 			'styles': [{'id': 'test_style', 'name': 'Test Style', 'origin': 'Test', 'image': 'styles/test/style.jpg'}],
 		}
 
 	def test_valid_initialization(self):
 		"""Test that StyleSectionResponse can be initialized with valid data."""
 		# Arrange & Act
-		response = StyleSectionResponse(id='test_section', styles=[self.valid_style_item])
+		response = StyleSectionResponse(id='test_section', name='Test Section', styles=[self.valid_style_item])
 
 		# Assert
 		assert response.id == 'test_section'
@@ -57,16 +56,17 @@ class TestStyleSectionResponse:
 	def test_empty_styles_list(self):
 		"""Test that StyleSectionResponse accepts empty styles list."""
 		# Arrange & Act
-		response = StyleSectionResponse(id='test_section')
+		response = StyleSectionResponse(id='test_section', name='Test Section')
 
 		# Assert
 		assert response.id == 'test_section'
+		assert response.name == 'Test Section'
 		assert response.styles == []
 
 	def test_serialization(self):
 		"""Test that StyleSectionResponse can be serialized to JSON."""
 		# Arrange
-		response = StyleSectionResponse(id='test_section', styles=[self.valid_style_item])
+		response = StyleSectionResponse(id='test_section', name='Test Section', styles=[self.valid_style_item])
 
 		# Act
 		serialized = response.model_dump_json()
@@ -74,6 +74,7 @@ class TestStyleSectionResponse:
 
 		# Assert
 		assert deserialized['id'] == 'test_section'
+		assert deserialized['name'] == 'Test Section'
 		assert len(deserialized['styles']) == 1
 		assert deserialized['styles'][0]['id'] == 'test_style'
 		assert deserialized['styles'][0]['name'] == 'Test Style'
@@ -85,6 +86,7 @@ class TestStyleSectionResponse:
 
 		# Assert
 		assert response.id == 'test_section'
+		assert response.name == 'Test Section'
 		assert len(response.styles) == 1
 		assert response.styles[0].id == 'test_style'
 		assert response.styles[0].name == 'Test Style'
@@ -96,4 +98,5 @@ class TestStyleSectionResponse:
 
 		# Assert
 		assert schema['properties']['id']['description'] == 'Unique identifier for the styles response'
+		assert schema['properties']['name']['description'] == 'Display name for the styles section'
 		assert schema['properties']['styles']['description'] == 'List of style'
