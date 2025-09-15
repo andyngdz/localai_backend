@@ -5,7 +5,7 @@ neo_styles = [
 		id='neo_baroque',
 		name='Neo Baroque',
 		origin='Fooocus',
-		positive='Neo-Baroque, {prompt}, ornate and elaborate, dynaimc, Neo-Baroque',
+		positive='Neo-Baroque, {prompt}, ornate and elaborate, dynamic, Neo-Baroque',
 		negative='ugly, deformed, noisy, blurry, low contrast',
 		image='styles/neo/baroque.jpg',
 	),
