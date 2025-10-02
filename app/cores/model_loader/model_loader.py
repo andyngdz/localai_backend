@@ -86,8 +86,8 @@ def model_loader(id: str):
 		except Exception as error:
 			last_error = error
 			logger.warning(f'Strategy {strategy_idx} failed: {error}')
-			continue  
-
+			continue
+			
 	if pipe is None:
 		error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
 		logger.error(error_msg)
