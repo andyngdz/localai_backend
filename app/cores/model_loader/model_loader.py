@@ -42,39 +42,57 @@ def model_loader(id: str):
 	feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
 	safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
 
-	try:
-		pipe = AutoPipelineForText2Image.from_pretrained(
-			id,
-			cache_dir=CACHE_FOLDER,
-			low_cpu_mem_usage=True,
-			max_memory=max_memory,
-			torch_dtype=device_service.torch_dtype,
-			use_safetensors=True,
-			safety_checker=safety_checker_instance,
-			feature_extractor=feature_extractor,
-			device_map='balanced',  # Use balanced device placement strategy
-		)
-	except EnvironmentError:
+	# Try multiple loading strategies to support various model formats
+	loading_strategies = [
+		# Strategy 1: FP16 safetensors (for models like Juggernaut XL)
+		{
+			'use_safetensors': True,
+			'variant': 'fp16',
+		},
+		# Strategy 2: Standard safetensors
+		{
+			'use_safetensors': True,
+		},
+		# Strategy 3: FP16 without safetensors
+		{
+			'use_safetensors': False,
+			'variant': 'fp16',
+		},
+		# Strategy 4: Standard without safetensors
+		{
+			'use_safetensors': False,
+		},
+	]
+
+	pipe = None
+	last_error = None
+
+	for strategy_idx, strategy_params in enumerate(loading_strategies, 1):
 		try:
+			logger.info(f'Trying loading strategy {strategy_idx}/{len(loading_strategies)}: {strategy_params}')
 			pipe = AutoPipelineForText2Image.from_pretrained(
 				id,
 				cache_dir=CACHE_FOLDER,
 				low_cpu_mem_usage=True,
 				max_memory=max_memory,
 				torch_dtype=device_service.torch_dtype,
-				use_safetensors=False,
 				safety_checker=safety_checker_instance,
 				feature_extractor=feature_extractor,
-				device_map='balanced',  # Use balanced device placement strategy
+				device_map='balanced',
+				**strategy_params,
 			)
+			logger.info(f'Successfully loaded model using strategy {strategy_idx}')
+			break
 		except Exception as error:
-			logger.error(f'Failed to load model {id}: {error}')
-			socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(error)))
-			raise error
-	except Exception as error:
-		logger.error(f'Error loading model {id}: {error}')
-		socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(error)))
-		raise
+			last_error = error
+			logger.warning(f'Strategy {strategy_idx} failed: {error}')
+			continue  
+
+	if pipe is None:
+		error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
+		logger.error(error_msg)
+		socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(last_error)))
+		raise Exception(error_msg)
 
 	# Reset device map to allow explicit device placement, then move pipeline
 	if hasattr(pipe, 'reset_device_map'):
