@@ -28,7 +28,7 @@ dependencies = [
   "Pillow==11.3.0",
   "pydantic==2.11.7",
   "pyOpenSSL==25.1.0",
-  "python-socketio==5.13.0",
+  "python-socketio==5.14.0",
   "redis==6.2.0",
   "simplejson==3.20.1",
   "Sphinx==8.2.3",
