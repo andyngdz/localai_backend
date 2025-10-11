@@ -7,22 +7,13 @@ from app.schemas.recommendations import ModelRecommendationItem, RecommendationS
 # High Performance Models
 HIGH_PERFORMANCE_MODELS = [
 	ModelRecommendationItem(
-		id='stabilityai/stable-diffusion-xl-base-1.0',
-		name='Stable Diffusion XL',
-		description='Latest high-quality image generation model',
-		memory_requirement_gb=6,
-		model_size='6.9 GB',
-		tags=['xl', 'high-quality', 'latest'],
+		id='RunDiffusion/Juggernaut-XL-v9',
+		name='Juggernaut XL',
+		description='Premium XL model with exceptional quality and detail',
+		memory_requirement_gb=8,
+		model_size='6.5 GB',
+		tags=['xl', 'high-quality', 'photorealistic'],
 		is_recommended=True,
-	),
-	ModelRecommendationItem(
-		id='stabilityai/stable-diffusion-xl-refiner-1.0',
-		name='SDXL Refiner',
-		description='Refiner model for enhanced image quality',
-		memory_requirement_gb=6,
-		model_size='6.1 GB',
-		tags=['xl', 'refiner', 'enhancement'],
-		is_recommended=False,
 	),
 ]
 
@@ -37,15 +28,6 @@ STANDARD_MODELS = [
 		tags=['stable', 'reliable', 'popular'],
 		is_recommended=True,
 	),
-	ModelRecommendationItem(
-		id='stabilityai/stable-diffusion-2-1',
-		name='Stable Diffusion 2.1',
-		description='Improved version with better prompt adherence',
-		model_size='5.1 GB',
-		memory_requirement_gb=5,
-		tags=['improved', 'better-prompts'],
-		is_recommended=False,
-	),
 ]
 
 # Lightweight Models
@@ -58,15 +40,6 @@ LIGHTWEIGHT_MODELS = [
 		model_size='1.8 GB',
 		tags=['compact', 'fast', 'efficient'],
 		is_recommended=True,
-	),
-	ModelRecommendationItem(
-		id='segmind/tiny-sd',
-		description='Ultra-compact model for minimal resource usage',
-		name='Tiny Stable Diffusion',
-		memory_requirement_gb=1,
-		model_size='983 MB',
-		tags=['tiny', 'minimal', 'ultra-fast'],
-		is_recommended=False,
 	),
 ]
 
