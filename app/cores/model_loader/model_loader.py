@@ -92,7 +92,10 @@ def model_loader(id: str):
 		error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
 		logger.error(error_msg)
 		socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(last_error)))
-		raise Exception(error_msg)
+		if last_error is not None:
+			raise last_error
+		else:
+			raise RuntimeError(error_msg)
 
 	# Reset device map to allow explicit device placement, then move pipeline
 	if hasattr(pipe, 'reset_device_map'):
