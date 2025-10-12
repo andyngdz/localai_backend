@@ -1125,3 +1125,68 @@ def test_download_model_progress_tracking_increments_correctly(
 	assert completions[1][3] == 15
 	assert completions[2][3] == 30
 	assert completions[2][4] == 30
+
+def test_auth_headers_returns_empty_dict_when_no_token():
+	"""Test that auth_headers returns empty dict when token is None."""
+	services = import_services_with_stubs()
+	service = services.DownloadService()
+	
+	headers = service.auth_headers(None)
+	
+	assert headers == {}
+
+
+def test_auth_headers_returns_bearer_token_when_provided():
+	"""Test that auth_headers returns Authorization header with Bearer token."""
+	services = import_services_with_stubs()
+	service = services.DownloadService()
+	
+	headers = service.auth_headers('test-token-123')
+	
+	assert headers == {'Authorization': 'Bearer test-token-123'}
+
+
+def test_download_file_blocks_path_traversal_with_parent_directories():
+	"""Test that download_file blocks path traversal attempts using ../"""
+	services = import_services_with_stubs()
+	service = services.DownloadService()
+	
+	class MockProgress:
+		def set_file_size(self, index, size): pass
+		def update_bytes(self, count): pass
+	
+	progress = MockProgress()
+	
+	with pytest.raises(ValueError, match='attempts to escape snapshot directory'):
+		service.download_file(
+			repo_id='test/repo',
+			filename='../../../etc/passwd',
+			revision='main',
+			snapshot_dir='/tmp/test',
+			file_index=0,
+			file_size=100,
+			progress=progress,
+		)
+
+
+def test_download_file_blocks_absolute_paths():
+	"""Test that download_file blocks absolute path attempts."""
+	services = import_services_with_stubs()
+	service = services.DownloadService()
+	
+	class MockProgress:
+		def set_file_size(self, index, size): pass
+		def update_bytes(self, count): pass
+	
+	progress = MockProgress()
+	
+	with pytest.raises(ValueError, match='attempts to escape snapshot directory'):
+		service.download_file(
+			repo_id='test/repo',
+			filename='/etc/passwd',
+			revision='main',
+			snapshot_dir='/tmp/test',
+			file_index=0,
+			file_size=100,
+			progress=progress,
+		)

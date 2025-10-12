@@ -85,3 +85,94 @@ def test_download_progress_captures_phases(patched_socket):
 	assert phases.count('chunk') >= 1
 	assert phases.count('file_complete') == 2
 	assert patched_socket.events[-1].downloaded_size == 30
+
+
+def test_download_progress_emits_complete_event_on_close(patched_socket):
+	"""Test that close() emits a 'complete' phase event."""
+	from app.features.downloads.progress import DownloadProgress
+
+	logger = DummyLogger()
+	progress = DownloadProgress(
+		id='model',
+		desc='Downloading model',
+		file_sizes=[10],
+		total=1,
+		unit='files',
+		logger=logger,
+	)
+
+	progress.start_file('test.bin')
+	progress.update(1)
+	progress.close()
+
+	# Check that 'complete' event was emitted
+	phases = [event.phase for event in patched_socket.events]
+	assert 'complete' in phases
+	assert phases[-1] == 'complete'
+
+
+def test_download_progress_uses_running_total_for_performance(patched_socket):
+	"""Test that progress tracking uses O(1) completed_files_size instead of O(n) sum()."""
+	from app.features.downloads.progress import DownloadProgress
+
+	logger = DummyLogger()
+	progress = DownloadProgress(
+		id='model',
+		desc='Downloading model',
+		file_sizes=[10, 20, 30, 40],
+		total=4,
+		unit='files',
+		logger=logger,
+	)
+
+	# Verify completed_files_size is initialized
+	assert hasattr(progress, 'completed_files_size')
+	assert progress.completed_files_size == 0
+
+	# Complete first file
+	progress.start_file('file1.bin')
+	progress.update(1)
+	assert progress.completed_files_size == 10
+	assert progress.downloaded_size >= 10
+
+	# Complete second file
+	progress.start_file('file2.bin')
+	progress.update(1)
+	assert progress.completed_files_size == 30  # 10 + 20
+	assert progress.downloaded_size >= 30
+
+	# Complete third file
+	progress.start_file('file3.bin')
+	progress.update(1)
+	assert progress.completed_files_size == 60  # 10 + 20 + 30
+	assert progress.downloaded_size >= 60
+
+
+def test_download_progress_set_file_size_updates_completed_total(patched_socket):
+	"""Test that set_file_size() updates completed_files_size for already completed files."""
+	from app.features.downloads.progress import DownloadProgress
+
+	logger = DummyLogger()
+	progress = DownloadProgress(
+		id='model',
+		desc='Downloading model',
+		file_sizes=[10, 20, 30],
+		total=3,
+		unit='files',
+		logger=logger,
+	)
+
+	# Complete first file
+	progress.start_file('file1.bin')
+	progress.update(1)
+	assert progress.completed_files_size == 10
+
+	# Update the size of the first file (already completed)
+	progress.set_file_size(0, 15)  # Change from 10 to 15
+	assert progress.completed_files_size == 15  # Should be updated
+	assert progress.total_downloaded_size == 65  # 15 + 20 + 30
+
+	# Complete second file
+	progress.start_file('file2.bin')
+	progress.update(1)
+	assert progress.completed_files_size == 35  # 15 + 20

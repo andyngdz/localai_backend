@@ -90,7 +90,9 @@ class DownloadProgress(BaseTqdm):
 
 	def update(self, n=1):
 		super().update(n)
-		for i in range(max(0, self.n - n), self.n):
+		start_index = max(0, self.n - n)
+		end_index = self.n
+		for i in range(start_index, end_index):
 			if i < len(self.file_sizes):
 				self.completed_files_size += self.file_sizes[i]
 
