@@ -183,6 +183,13 @@ class DownloadService:
 
 		return components
 
+	def auth_headers(self, token: Optional[str] = None) -> Dict[str, str]:
+		"""Build authorization headers for HuggingFace API requests."""
+		headers = {}
+		if token:
+			headers['Authorization'] = f'Bearer {token}'
+		return headers
+
 	def download_file(
 		self,
 		repo_id: str,
@@ -214,7 +221,7 @@ class DownloadService:
 			- Creates snapshot_dir and parent directories if needed
 			- Skips download if file already exists with matching size
 			- Downloads to temporary .part file, then atomically renames on success
-			- Updates progress.file_size() with actual Content-Length
+			- Updates progress.set_file_size() with actual Content-Length
 			- Calls progress.update_bytes() for each downloaded chunk
 			- Cleans up .part file on error
 		"""
@@ -247,9 +254,7 @@ class DownloadService:
 			os.remove(temp_path)
 
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
-		headers = {}
-		if token:
-			headers['Authorization'] = f'Bearer {token}'
+		headers = self.auth_headers(token)
 
 		try:
 			with requests.get(url, stream=True, headers=headers, timeout=60) as response:
@@ -286,9 +291,7 @@ class DownloadService:
 	) -> int:
 		"""Best-effort size lookup for repositories that do not publish sibling metadata."""
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
-		headers = {}
-		if token:
-			headers['Authorization'] = f'Bearer {token}'
+		headers = self.auth_headers(token)
 
 		try:
 			response = requests.head(url, headers=headers, timeout=30, allow_redirects=True)
