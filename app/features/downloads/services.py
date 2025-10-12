@@ -26,6 +26,9 @@ class DownloadTqdm(BaseTqdm):
 	def __init__(self, *args, **kwargs):
 		self.id = kwargs.pop('id')
 		self.desc = kwargs.pop('desc')
+		self.file_sizes = kwargs.pop('file_sizes')
+		self.downloaded_size = 0
+		self.total_downloaded_size = sum(self.file_sizes)
 		# Use auto-disable so internal counters (self.n) still update in non-TTY contexts
 		# When disable=True, tqdm.update() short-circuits and does not increment self.n
 		kwargs.setdefault('disable', None)
@@ -34,8 +37,27 @@ class DownloadTqdm(BaseTqdm):
 		kwargs.setdefault('leave', False)
 		super().__init__(*args, **kwargs)
 
+	def set_file_size(self, index: int, size: int) -> None:
+		"""Update the recorded size for a file and adjust totals accordingly."""
+		if index < 0 or index >= len(self.file_sizes):
+			return
+
+		size = max(size, 0)
+		previous = self.file_sizes[index]
+
+		if previous == size:
+			return
+
+		self.file_sizes[index] = size
+		self.total_downloaded_size += size - previous
+
 	def update(self, n=1):
+		prev_n = self.n
 		super().update(n)
+
+		for index in range(prev_n, min(self.n, len(self.file_sizes))):
+			self.downloaded_size += self.file_sizes[index]
+
 		total = self.total
 		desc = self.desc
 
@@ -44,6 +66,8 @@ class DownloadTqdm(BaseTqdm):
 				id=self.id,
 				step=self.n,
 				total=total,
+				downloaded_size=self.downloaded_size,
+				total_downloaded_size=self.total_downloaded_size,
 			)
 		)
 
@@ -73,6 +97,7 @@ class DownloadService:
 		components_scopes = [f'{c}/*' for c in components]
 		files = self.list_files(id)
 		ignore_components = self.get_ignore_components(files, components_scopes)
+		file_sizes_map = self.get_file_sizes_map(id)
 
 		files_to_download = [
 			f
@@ -83,6 +108,7 @@ class DownloadService:
 
 		# Download model_index.json first to anchor snapshot root
 		files_to_download.sort(key=lambda f: (f != 'model_index.json', f))
+		file_sizes = [file_sizes_map.get(filename, 0) for filename in files_to_download]
 
 		total = len(files_to_download)
 		if total == 0:
@@ -90,7 +116,13 @@ class DownloadService:
 			return
 
 		logger.info(f'Starting download of {total} files for model {id}')
-		progress = DownloadTqdm(id=id, total=total, desc=f'Downloading {id}', unit='files')
+		progress = DownloadTqdm(
+			id=id,
+			total=total,
+			desc=f'Downloading {id}',
+			unit='files',
+			file_sizes=file_sizes,
+		)
 
 		local_dir = None
 
@@ -101,6 +133,13 @@ class DownloadService:
 					filename=filename,
 					cache_dir=CACHE_FOLDER,
 				)
+
+				try:
+					file_size = os.path.getsize(local_path)
+				except OSError:
+					file_size = file_sizes_map.get(filename, 0)
+
+				progress.set_file_size(index - 1, file_size)
 				if local_dir is None:
 					# If we downloaded model_index.json first, this will be the snapshot root
 					local_dir = os.path.dirname(local_path)
@@ -146,6 +185,17 @@ class DownloadService:
 			return []
 
 		return [s.rfilename for s in info.siblings]
+
+	def get_file_sizes_map(self, id: str):
+		info = self.api.repo_info(id)
+
+		if not info.siblings:
+			return {}
+
+		return {
+			s.rfilename: getattr(s, 'size', 0) or 0
+			for s in info.siblings
+		}
 
 	def get_components(self, id: str):
 		model_index = hf_hub_download(

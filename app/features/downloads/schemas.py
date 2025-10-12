@@ -35,6 +35,8 @@ class DownloadStepProgressResponse(BaseModel):
 	id: str = Field(..., description='The ID of the model being downloaded.')
 	step: int = Field(..., description='The current step of the download.')
 	total: int = Field(..., description='The total number of steps in the download.')
+	downloaded_size: int = Field(..., description='Total downloaded bytes so far.')
+	total_downloaded_size: int = Field(..., description='Total number of bytes to download.')
 
 
 class DownloadModelResponse(BaseModel):

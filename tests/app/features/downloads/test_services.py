@@ -12,11 +12,19 @@ import pytest
 
 class DummySocket:
 	def __init__(self) -> None:
-		self.progress_calls: List[Tuple[str, int, int]] = []
+		self.progress_calls: List[Tuple[str, int, int, int, int]] = []
 
 	# Make this a properly typed method
 	def download_step_progress(self, data) -> None:  # matches BaseModel-like interface
-		self.progress_calls.append((data.id, data.step, data.total))
+		self.progress_calls.append(
+			(
+				data.id,
+				data.step,
+				data.total,
+				data.downloaded_size,
+				data.total_downloaded_size,
+			)
+		)
 
 	def download_start(self, data) -> None:
 		pass
@@ -118,10 +126,19 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 	sys.modules['app.features.downloads.schemas'] = schemas_mod
 
 	class DownloadStepProgressResponse:
-		def __init__(self, id: str, step: int, total: int) -> None:
+		def __init__(
+			self,
+			id: str,
+			step: int,
+			total: int,
+			downloaded_size: int,
+			total_downloaded_size: int,
+		) -> None:
 			self.id = id
 			self.step = step
 			self.total = total
+			self.downloaded_size = downloaded_size
+			self.total_downloaded_size = total_downloaded_size
 
 	# Use setattr for type-safe attribute assignment
 	setattr(schemas_mod, 'DownloadStepProgressResponse', DownloadStepProgressResponse)
@@ -146,18 +163,26 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 	class StubDownloadTqdm:
 		def __init__(self, *args, **kwargs):
 			self.id = kwargs.pop('id')
+			self.file_sizes = kwargs.pop('file_sizes', [])
 			self.n = 0
 			self.total = kwargs.get('total', 0)
 			self.desc = kwargs.get('desc', '')
+			self.downloaded_size = 0
+			self.total_downloaded_size = sum(self.file_sizes)
 
 		def update(self, n=1):
+			prev_n = self.n
 			self.n += n
+			for index in range(prev_n, min(self.n, len(self.file_sizes))):
+				self.downloaded_size += self.file_sizes[index]
 			if dummy_socket is not None:
 				# Create response object directly from the imported schema class
 				response = getattr(sys.modules['app.features.downloads.schemas'], 'DownloadStepProgressResponse')(
 					id=self.id,
 					step=self.n,
 					total=self.total,
+					downloaded_size=self.downloaded_size,
+					total_downloaded_size=self.total_downloaded_size,
 				)
 				dummy_socket.download_step_progress(response)
 
@@ -490,6 +515,15 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 		]
 
 	monkeypatch.setattr(service, 'list_files', fake_list_files)  # type: ignore[misc]
+	monkeypatch.setattr(
+		service,
+		'get_file_sizes_map',
+		lambda _id: {
+			'model_index.json': 10,
+			'unet/model.safetensors': 20,
+			'vae/model.bin': 30,
+		},
+	)
 
 	# Fake download to create paths under a snapshot directory
 	calls: List[Tuple[str, str]] = []
@@ -520,9 +554,11 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 	assert os.path.normpath(local_dir) == os.path.normpath(str(snapshot_root))
 
 	# Assert: progress events emitted with correct steps and totals
-	assert [step for (_id, step, _total) in dummy_socket.progress_calls] == [1, 2, 3]
-	assert all(total == 3 for (_id, _step, total) in dummy_socket.progress_calls)
-	assert all(_id == 'some/repo' for (_id, _step, _total) in dummy_socket.progress_calls)
+	assert [call[1] for call in dummy_socket.progress_calls] == [1, 2, 3]
+	assert all(call[2] == 3 for call in dummy_socket.progress_calls)
+	assert all(call[0] == 'some/repo' for call in dummy_socket.progress_calls)
+	assert [call[3] for call in dummy_socket.progress_calls] == [10, 30, 60]
+	assert all(call[4] == 60 for call in dummy_socket.progress_calls)
 
 	# Assert: add_model was called with the correct parameters
 	mock_add_model.assert_called_once_with(mock_db, 'some/repo', os.path.normpath(str(snapshot_root)))
@@ -534,7 +570,12 @@ def test_download_tqdm_update_emits_progress():
 	services = import_services_with_stubs(dummy_socket)
 	
 	# Use the actual DownloadTqdm class to test its behavior
-	tqdm_instance = services.DownloadTqdm(id='test-repo', total=5, desc='Testing progress')
+	tqdm_instance = services.DownloadTqdm(
+		id='test-repo',
+		total=5,
+		desc='Testing progress',
+		file_sizes=[1, 1, 1, 1, 1],
+	)
 	
 	# Act
 	tqdm_instance.update(2)
@@ -542,8 +583,8 @@ def test_download_tqdm_update_emits_progress():
 	
 	# Assert
 	assert len(dummy_socket.progress_calls) == 2
-	assert dummy_socket.progress_calls[0] == ('test-repo', 2, 5)
-	assert dummy_socket.progress_calls[1] == ('test-repo', 3, 5)
+	assert dummy_socket.progress_calls[0] == ('test-repo', 2, 5, 2, 5)
+	assert dummy_socket.progress_calls[1] == ('test-repo', 3, 5, 3, 5)
 
 
 def test_download_model_sorts_files_with_model_index_first(
@@ -663,6 +704,15 @@ def test_download_model_progress_tracking_increments_correctly(
 		'unet/model1.bin',
 		'unet/model2.bin',
 	])
+	monkeypatch.setattr(
+		service,
+		'get_file_sizes_map',
+		lambda _id: {
+			'model_index.json': 5,
+			'unet/model1.bin': 10,
+			'unet/model2.bin': 15,
+		},
+	)
 	
 	snapshot_root = tmp_path / 'snap-progress'
 	
@@ -679,5 +729,7 @@ def test_download_model_progress_tracking_increments_correctly(
 	
 	# Assert: progress should increment for each file
 	assert len(dummy_socket.progress_calls) == 3
-	assert [step for (_id, step, _total) in dummy_socket.progress_calls] == [1, 2, 3]
-	assert all(total == 3 for (_id, _step, total) in dummy_socket.progress_calls)
+	assert [call[1] for call in dummy_socket.progress_calls] == [1, 2, 3]
+	assert all(call[2] == 3 for call in dummy_socket.progress_calls)
+	assert [call[3] for call in dummy_socket.progress_calls] == [5, 15, 30]
+	assert all(call[4] == 30 for call in dummy_socket.progress_calls)
