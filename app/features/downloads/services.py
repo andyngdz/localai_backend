@@ -142,6 +142,9 @@ class DownloadService:
 	def list_files(self, id: str):
 		info = self.api.repo_info(id)
 
+		if not info.siblings:
+			return []
+
 		return [s.rfilename for s in info.siblings]
 
 	def get_components(self, id: str):
