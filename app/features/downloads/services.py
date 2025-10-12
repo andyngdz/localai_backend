@@ -5,15 +5,16 @@ import logging
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
+from typing import List, Optional
 
-from huggingface_hub import HfApi, hf_hub_download
+import requests
+from huggingface_hub import HfApi, hf_hub_download, hf_hub_url
 from sqlalchemy.orm import Session
 from tqdm import tqdm as BaseTqdm
 
 from app.services.models import model_service
+from app.services.storage import storage_service
 from app.socket import socket_service
-from config import CACHE_FOLDER
 
 from .schemas import DownloadStepProgressResponse
 
@@ -29,13 +30,25 @@ class DownloadTqdm(BaseTqdm):
 		self.file_sizes = kwargs.pop('file_sizes')
 		self.downloaded_size = 0
 		self.total_downloaded_size = sum(self.file_sizes)
-		# Use auto-disable so internal counters (self.n) still update in non-TTY contexts
-		# When disable=True, tqdm.update() short-circuits and does not increment self.n
 		kwargs.setdefault('disable', None)
 		kwargs.setdefault('file', sys.stderr)
 		kwargs.setdefault('mininterval', 0.25)
 		kwargs.setdefault('leave', False)
 		super().__init__(*args, **kwargs)
+		self.emit_progress()
+
+	def emit_progress(self):
+		socket_service.download_step_progress(
+			DownloadStepProgressResponse(
+				id=self.id,
+				step=self.n,
+				total=self.total,
+				downloaded_size=self.downloaded_size,
+				total_downloaded_size=self.total_downloaded_size,
+			)
+		)
+
+		logger.info(f'{self.desc} {self.n}/{self.total}')
 
 	def set_file_size(self, index: int, size: int) -> None:
 		"""Update the recorded size for a file and adjust totals accordingly."""
@@ -50,34 +63,33 @@ class DownloadTqdm(BaseTqdm):
 
 		self.file_sizes[index] = size
 		self.total_downloaded_size += size - previous
+		if self.total_downloaded_size < 0:
+			self.total_downloaded_size = 0
+		self.emit_progress()
+
+	def update_bytes(self, byte_count: int) -> None:
+		"""Increment downloaded bytes and emit progress for partial file download."""
+		if byte_count <= 0:
+			return
+
+		self.downloaded_size += byte_count
+		if self.total_downloaded_size and self.downloaded_size > self.total_downloaded_size:
+			self.downloaded_size = self.total_downloaded_size
+		self.emit_progress()
 
 	def update(self, n=1):
-		prev_n = self.n
 		super().update(n)
-
-		for index in range(prev_n, min(self.n, len(self.file_sizes))):
-			self.downloaded_size += self.file_sizes[index]
-
-		total = self.total
-		desc = self.desc
-
-		socket_service.download_step_progress(
-			DownloadStepProgressResponse(
-				id=self.id,
-				step=self.n,
-				total=total,
-				downloaded_size=self.downloaded_size,
-				total_downloaded_size=self.total_downloaded_size,
-			)
-		)
-
-		logger.info(f'{desc} {self.n}/{total}')
+		self.emit_progress()
 
 	def close(self):
 		super().close()
 
 
 class DownloadService:
+	"""Service responsible for downloading models and emitting socket progress."""
+
+	CHUNK_SIZE = 4 * 1024 * 1024
+
 	def __init__(self):
 		self.executor = ThreadPoolExecutor()
 		self.api = HfApi()
@@ -93,7 +105,9 @@ class DownloadService:
 		return local_dir
 
 	def download_model(self, id: str, db: Session):
-		components = self.get_components(id)
+		repo_info = self.api.repo_info(id)
+		revision = getattr(repo_info, 'sha', 'main')
+		components = self.get_components(id, revision=revision)
 		components_scopes = [f'{c}/*' for c in components]
 		files = self.list_files(id)
 		ignore_components = self.get_ignore_components(files, components_scopes)
@@ -106,7 +120,6 @@ class DownloadService:
 			and f not in ignore_components
 		]
 
-		# Download model_index.json first to anchor snapshot root
 		files_to_download.sort(key=lambda f: (f != 'model_index.json', f))
 		file_sizes = [file_sizes_map.get(filename, 0) for filename in files_to_download]
 
@@ -124,32 +137,33 @@ class DownloadService:
 			file_sizes=file_sizes,
 		)
 
-		local_dir = None
+		model_root = storage_service.get_model_dir(id)
+		snapshot_dir = os.path.join(model_root, 'snapshots', revision)
+		local_dir: Optional[str] = None
 
 		try:
-			for index, filename in enumerate(files_to_download, start=1):
-				local_path = hf_hub_download(
+			for index, filename in enumerate(files_to_download):
+				progress.set_file_size(index, file_sizes_map.get(filename, 0))
+				local_path = self.download_file(
 					repo_id=id,
 					filename=filename,
-					cache_dir=CACHE_FOLDER,
+					revision=revision,
+					snapshot_dir=snapshot_dir,
+					file_index=index,
+					file_size=file_sizes_map.get(filename, 0),
+					progress=progress,
 				)
-
-				try:
-					file_size = os.path.getsize(local_path)
-				except OSError:
-					file_size = file_sizes_map.get(filename, 0)
-
-				progress.set_file_size(index - 1, file_size)
 				if local_dir is None:
-					# If we downloaded model_index.json first, this will be the snapshot root
 					local_dir = os.path.dirname(local_path)
 				progress.update(1)
+		except Exception:
+			logger.exception('Failed during download of %s', id)
+			raise
 		finally:
 			progress.close()
 
 		logger.info(f'All files downloaded to {local_dir}')
 
-		# Save the downloaded model to the database
 		if local_dir:
 			try:
 				model_service.add_model(db, id, local_dir)
@@ -197,11 +211,12 @@ class DownloadService:
 			for s in info.siblings
 		}
 
-	def get_components(self, id: str):
+	def get_components(self, id: str, revision: Optional[str] = None):
 		model_index = hf_hub_download(
 			repo_id=id,
 			filename='model_index.json',
 			repo_type='model',
+			revision=revision,
 		)
 
 		with open(model_index, 'r', encoding='utf-8') as f:
@@ -214,6 +229,60 @@ class DownloadService:
 				components.append(key)
 
 		return components
+
+	def download_file(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		snapshot_dir: str,
+		file_index: int,
+		file_size: int,
+		progress: DownloadTqdm,
+		token: Optional[str] = None,
+	):
+		os.makedirs(snapshot_dir, exist_ok=True)
+		local_path = os.path.join(snapshot_dir, filename)
+		os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+		if os.path.exists(local_path):
+			actual_size = os.path.getsize(local_path)
+			if actual_size > 0:
+				progress.set_file_size(file_index, actual_size)
+				progress.update_bytes(actual_size)
+				logger.debug('Skipping download for %s; already complete', filename)
+				return local_path
+			os.remove(local_path)
+
+		temp_path = f'{local_path}.part'
+		if os.path.exists(temp_path):
+			os.remove(temp_path)
+
+		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
+		headers = {}
+		if token:
+			headers['authorization'] = f'Bearer {token}'
+
+		with requests.get(url, stream=True, headers=headers, timeout=60) as response:
+			response.raise_for_status()
+			content_length = response.headers.get('Content-Length')
+			if content_length:
+				try:
+					progress.set_file_size(file_index, int(content_length))
+				except ValueError:
+					pass
+
+			with open(temp_path, 'wb') as dest:
+				for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
+					if not chunk:
+						continue
+					dest.write(chunk)
+					progress.update_bytes(len(chunk))
+
+		os.replace(temp_path, local_path)
+		final_size = os.path.getsize(local_path)
+		progress.set_file_size(file_index, final_size)
+		return local_path
 
 
 download_service = DownloadService()

@@ -49,9 +49,13 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 		def hf_hub_download(**_kwargs):  # pragma: no cover - replaced in tests
 			raise RuntimeError('hf_hub_download should be stubbed in tests')
 
+		def hf_hub_url(*, repo_id: str, filename: str, revision: str | None = None):
+			return f'https://example.com/{repo_id}/{revision or "main"}/{filename}'
+
 		# Use setattr for type-safe attribute assignment
 		setattr(hf_mod, 'HfApi', HfApi)
 		setattr(hf_mod, 'hf_hub_download', hf_hub_download)
+		setattr(hf_mod, 'hf_hub_url', hf_hub_url)
 
 	# Stub tqdm if not installed
 	if 'tqdm' not in sys.modules:
@@ -94,6 +98,20 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 			
 	model_service = ModelService()
 	setattr(models_mod, 'model_service', model_service)
+
+	# Stub app.services.storage so we don't rely on filesystem layout
+	storage_mod = ModuleType('app.services.storage')
+	sys.modules['app.services.storage'] = storage_mod
+
+	class StorageService:
+		def get_model_dir(self, id: str) -> str:
+			return os.path.join('/tmp/localai-tests', id.replace('/', '--'))
+
+		def get_model_lock_dir(self, id: str) -> str:
+			return os.path.join('/tmp/localai-tests', 'locks', id.replace('/', '--'))
+
+	storage_service = StorageService()
+	setattr(storage_mod, 'storage_service', storage_service)
 
 	# Stub app.socket submodule early to avoid importing python-socketio
 	socket_mod = ModuleType('app.socket')
@@ -169,14 +187,10 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 			self.desc = kwargs.get('desc', '')
 			self.downloaded_size = 0
 			self.total_downloaded_size = sum(self.file_sizes)
+			self.emit_progress()
 
-		def update(self, n=1):
-			prev_n = self.n
-			self.n += n
-			for index in range(prev_n, min(self.n, len(self.file_sizes))):
-				self.downloaded_size += self.file_sizes[index]
+		def emit_progress(self):
 			if dummy_socket is not None:
-				# Create response object directly from the imported schema class
 				response = getattr(sys.modules['app.features.downloads.schemas'], 'DownloadStepProgressResponse')(
 					id=self.id,
 					step=self.n,
@@ -185,6 +199,32 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 					total_downloaded_size=self.total_downloaded_size,
 				)
 				dummy_socket.download_step_progress(response)
+
+		def update(self, n=1):
+			self.n += n
+			self.emit_progress()
+
+		def set_file_size(self, index: int, size: int):
+			if index < 0:
+				return
+			if index >= len(self.file_sizes):
+				self.file_sizes.extend([0] * (index + 1 - len(self.file_sizes)))
+			previous = self.file_sizes[index]
+			if previous == size:
+				return
+			self.file_sizes[index] = size
+			self.total_downloaded_size += size - previous
+			if self.total_downloaded_size < 0:
+				self.total_downloaded_size = 0
+			self.emit_progress()
+
+		def update_bytes(self, byte_count: int):
+			if byte_count <= 0:
+				return
+			self.downloaded_size += byte_count
+			if self.total_downloaded_size and self.downloaded_size > self.total_downloaded_size:
+				self.downloaded_size = self.total_downloaded_size
+			self.emit_progress()
 
 		def close(self):
 			pass
@@ -224,17 +264,55 @@ def test_download_model_handles_database_exception(
 	mock_db = MagicMock()
 
 	# Arrange: Mock file discovery and download
-	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet'])
+	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])
 	monkeypatch.setattr(service, 'list_files', lambda _id: ['unet/model.bin'])
-	snapshot_root = tmp_path / 'snap-123'
+	model_root = tmp_path / 'cache-db'
+	monkeypatch.setattr(services.storage_service, 'get_model_dir', lambda _id: str(model_root))
+
+	model_index_path = tmp_path / 'model_index.json'
+	model_index_path.write_text(json.dumps({'unet': ['cfg']}), encoding='utf-8')
 
 	def fake_hf_hub_download(**_kwargs):
-		local_path = snapshot_root / _kwargs['filename']
-		local_path.parent.mkdir(parents=True, exist_ok=True)
-		local_path.write_bytes(b'')
-		return str(local_path)
+		return str(model_index_path)
 
 	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+
+	class DummyApi:
+		def repo_info(self, repo_id: str):
+			return SimpleNamespace(
+				sha='main',
+				siblings=[
+					SimpleNamespace(rfilename='model_index.json', size=10),
+					SimpleNamespace(rfilename='unet/model.bin', size=25),
+				],
+			)
+
+	service.api = DummyApi()  # type: ignore[assignment]
+
+	def fake_download_file(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		snapshot_dir: str,
+		file_index: int,
+		file_size: int,
+		progress,
+		token=None,
+	):
+		local_path = pathlib.Path(snapshot_dir) / filename
+		local_path.parent.mkdir(parents=True, exist_ok=True)
+		size = file_size or 5
+		with open(local_path, 'wb') as dest:
+			remaining = size
+			while remaining > 0:
+				chunk = min(remaining, max(1, size // 2))
+				dest.write(b'x' * chunk)
+				progress.update_bytes(chunk)
+				remaining -= chunk
+		return str(local_path)
+
+	monkeypatch.setattr(services.DownloadService, 'download_file', fake_download_file, raising=False)
 
 	# Arrange: Mock add_model to raise an error
 	def fake_add_model(db, id, path):
@@ -250,7 +328,8 @@ def test_download_model_handles_database_exception(
 	local_dir = service.download_model('some/repo', mock_db)
 
 	# Assert
-	assert local_dir == os.path.join(str(snapshot_root), 'unet')
+	expected_snapshot = os.path.join(str(model_root), 'snapshots', 'main', 'unet')
+	assert os.path.normpath(local_dir) == os.path.normpath(expected_snapshot)
 	mock_logger.error.assert_called_once_with('Failed to save model some/repo to database: DB error')
 
 
@@ -264,14 +343,46 @@ def test_download_model_handles_download_exception(
 	mock_db = MagicMock()
 
 	# Arrange: Mock file discovery
-	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet'])
+	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])
 	monkeypatch.setattr(service, 'list_files', lambda _id: ['unet/model.bin'])
+	monkeypatch.setattr(
+		service,
+		'get_file_sizes_map',
+		lambda _id: {'unet/model.bin': 25},
+	)
+
+	model_root = tmp_path / 'cache-failure'
+	monkeypatch.setattr(services.storage_service, 'get_model_dir', lambda _id: str(model_root))
 
 	# Arrange: Mock hf_hub_download to raise an error
+	model_index_path = tmp_path / 'model_index.json'
+	model_index_path.write_text(json.dumps({'unet': ['cfg']}), encoding='utf-8')
+
 	def fake_hf_hub_download(**_kwargs):
-		raise ConnectionError('Download failed')
+		return str(model_index_path)
 
 	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+
+	class DummyApi:
+		def repo_info(self, repo_id: str):
+			return SimpleNamespace(sha='main', siblings=[])
+
+	service.api = DummyApi()  # type: ignore[assignment]
+
+	def fake_download_file(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		snapshot_dir: str,
+		file_index: int,
+		file_size: int,
+		progress,
+		token=None,
+	):
+		raise ConnectionError('Download failed')
+
+	monkeypatch.setattr(services.DownloadService, 'download_file', fake_download_file, raising=False)
 
 	# Arrange: Spy on the progress bar's close method
 	mock_progress_close = MagicMock()
@@ -281,6 +392,12 @@ def test_download_model_handles_download_exception(
 			pass
 
 		def update(self, n=1):
+			pass
+
+		def set_file_size(self, index, size):
+			pass
+
+		def update_bytes(self, byte_count):
 			pass
 
 		def close(self):
@@ -303,8 +420,14 @@ def test_download_model_when_no_files_to_download(
 	service = services.DownloadService()
 	mock_db = MagicMock()
 
+	class DummyApi:
+		def repo_info(self, repo_id: str):
+			return SimpleNamespace(sha='main', siblings=[])
+
+	service.api = DummyApi()  # type: ignore[assignment]
+
 	# Arrange: Mock dependencies to return empty file list
-	monkeypatch.setattr(service, 'get_components', lambda _id: [])
+	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: [])
 	monkeypatch.setattr(service, 'list_files', lambda _id: [])
 
 	# Arrange: Spy on the logger
@@ -405,6 +528,7 @@ def test_get_components_parses_model_index_json(tmp_path: pathlib.Path, monkeypa
 		repo_id: str,
 		filename: str,
 		repo_type: str | None = None,
+		revision: str | None = None,
 		cache_dir: str | None = None,
 	):
 		assert filename == 'model_index.json'
@@ -431,6 +555,7 @@ def test_get_components_handles_malformed_json(tmp_path: pathlib.Path, monkeypat
 		repo_id: str,
 		filename: str,
 		repo_type: str | None = None,
+		revision: str | None = None,
 		cache_dir: str | None = None,
 	):
 		return str(model_index_path)
@@ -455,6 +580,7 @@ def test_get_components_handles_empty_dict(tmp_path: pathlib.Path, monkeypatch: 
 		repo_id: str,
 		filename: str,
 		repo_type: str | None = None,
+		revision: str | None = None,
 		cache_dir: str | None = None,
 	):
 		return str(model_index_path)
@@ -502,7 +628,7 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 	mock_db = MagicMock()
 
 	# Components that we care about
-	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet', 'vae'])  # type: ignore[misc]
+	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet', 'vae'])  # type: ignore[misc]
 
 	# File listing contains one safetensors/bin pair under unet, and only bin under vae
 	def fake_list_files(_id: str) -> List[str]:
@@ -525,19 +651,62 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 		},
 	)
 
-	# Fake download to create paths under a snapshot directory
-	calls: List[Tuple[str, str]] = []
-	snapshot_root = tmp_path / 'snap-123'
+	class DummyApi:
+		def repo_info(self, repo_id: str):
+			return SimpleNamespace(
+				sha='main',
+				siblings=[
+					SimpleNamespace(rfilename='model_index.json', size=10),
+					SimpleNamespace(rfilename='unet/model.safetensors', size=20),
+					SimpleNamespace(rfilename='vae/model.bin', size=30),
+				],
+			)
 
-	def fake_hf_hub_download(*, repo_id: str, filename: str, cache_dir: str | None = None):
-		calls.append((repo_id, filename))
-		local_path = snapshot_root / filename
-		local_path.parent.mkdir(parents=True, exist_ok=True)
-		# create empty file to simulate presence
-		local_path.write_bytes(b'')
-		return str(local_path)
+	service.api = DummyApi()  # type: ignore[assignment]
+
+	# Fake download to create paths under a snapshot directory
+	model_root = tmp_path / 'cache-root'
+	monkeypatch.setattr(services.storage_service, 'get_model_dir', lambda _id: str(model_root))
+
+	model_index_path = tmp_path / 'model_index.json'
+	model_index_path.write_text(json.dumps({'unet': ['cfg'], 'vae': ['cfg']}), encoding='utf-8')
+
+	def fake_hf_hub_download(*, repo_id: str, filename: str, **_kwargs):
+		assert repo_id == 'some/repo'
+		assert filename == 'model_index.json'
+		return str(model_index_path)
 
 	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+
+	download_calls: List[str] = []
+
+	def fake_download_file(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		snapshot_dir: str,
+		file_index: int,
+		file_size: int,
+		progress,
+		token=None,
+	):
+		assert repo_id == 'some/repo'
+		download_calls.append(filename)
+		local_path = pathlib.Path(snapshot_dir) / filename
+		local_path.parent.mkdir(parents=True, exist_ok=True)
+		size = file_size or 5
+		with open(local_path, 'wb') as dest:
+			remaining = size
+			chunk = max(1, size // 2)
+			while remaining > 0:
+				current = min(chunk, remaining)
+				dest.write(b'x' * current)
+				progress.update_bytes(current)
+				remaining -= current
+		return str(local_path)
+
+	monkeypatch.setattr(services.DownloadService, 'download_file', fake_download_file, raising=False)
 
 	# Mock model_service.add_model function to verify it's called
 	mock_add_model = MagicMock()
@@ -548,20 +717,26 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 
 	# Assert: files downloaded in correct order with model_index.json first
 	expected_filenames = ['model_index.json', 'unet/model.safetensors', 'vae/model.bin']
-	assert [f for (_repo, f) in calls] == expected_filenames
+	assert download_calls == expected_filenames
 
 	# Assert: returned snapshot directory is the parent of first downloaded file
-	assert os.path.normpath(local_dir) == os.path.normpath(str(snapshot_root))
+	expected_snapshot = os.path.join(str(model_root), 'snapshots', 'main')
+	assert os.path.normpath(local_dir) == os.path.normpath(expected_snapshot)
 
-	# Assert: progress events emitted with correct steps and totals
-	assert [call[1] for call in dummy_socket.progress_calls] == [1, 2, 3]
-	assert all(call[2] == 3 for call in dummy_socket.progress_calls)
-	assert all(call[0] == 'some/repo' for call in dummy_socket.progress_calls)
-	assert [call[3] for call in dummy_socket.progress_calls] == [10, 30, 60]
-	assert all(call[4] == 60 for call in dummy_socket.progress_calls)
+	# Assert: progress events include chunk updates and final step totals
+	first_per_step = {}
+	for call_data in dummy_socket.progress_calls:
+		step = call_data[1]
+		if step in (1, 2, 3) and step not in first_per_step:
+			first_per_step[step] = call_data
+
+	assert first_per_step[1][3] == 10
+	assert first_per_step[2][3] == 30
+	assert first_per_step[3][3] == 60
+	assert first_per_step[3][4] == 60
 
 	# Assert: add_model was called with the correct parameters
-	mock_add_model.assert_called_once_with(mock_db, 'some/repo', os.path.normpath(str(snapshot_root)))
+	mock_add_model.assert_called_once_with(mock_db, 'some/repo', os.path.normpath(expected_snapshot))
 
 
 def test_download_tqdm_update_emits_progress():
@@ -578,13 +753,14 @@ def test_download_tqdm_update_emits_progress():
 	)
 	
 	# Act
-	tqdm_instance.update(2)
+	tqdm_instance.update_bytes(2)
 	tqdm_instance.update(1)
-	
+
 	# Assert
-	assert len(dummy_socket.progress_calls) == 2
-	assert dummy_socket.progress_calls[0] == ('test-repo', 2, 5, 2, 5)
-	assert dummy_socket.progress_calls[1] == ('test-repo', 3, 5, 3, 5)
+	assert len(dummy_socket.progress_calls) == 3
+	assert dummy_socket.progress_calls[0] == ('test-repo', 0, 5, 0, 5)
+	assert dummy_socket.progress_calls[1] == ('test-repo', 0, 5, 2, 5)
+	assert dummy_socket.progress_calls[2] == ('test-repo', 1, 5, 2, 5)
 
 
 def test_download_model_sorts_files_with_model_index_first(
@@ -595,24 +771,61 @@ def test_download_model_sorts_files_with_model_index_first(
 	service = services.DownloadService()
 	mock_db = MagicMock()
 	
-	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet'])
+	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])
 	monkeypatch.setattr(service, 'list_files', lambda _id: [
 		'unet/config.json',
 		'model_index.json',
 		'unet/model.bin',
 	])
+	monkeypatch.setattr(
+		service,
+		'get_file_sizes_map',
+		lambda _id: {
+			'model_index.json': 8,
+			'unet/config.json': 12,
+			'unet/model.bin': 16,
+		},
+	)
+
+	class DummyApi:
+		def repo_info(self, repo_id: str):
+			return SimpleNamespace(sha='main', siblings=[])
+
+	service.api = DummyApi()  # type: ignore[assignment]
 	
-	snapshot_root = tmp_path / 'snap-456'
-	downloaded_files = []
+	model_root = tmp_path / 'cache-sort'
+	monkeypatch.setattr(services.storage_service, 'get_model_dir', lambda _id: str(model_root))
 	
-	def fake_hf_hub_download(*, repo_id: str, filename: str, cache_dir: str | None = None):
-		downloaded_files.append(filename)
-		local_path = snapshot_root / filename
-		local_path.parent.mkdir(parents=True, exist_ok=True)
-		local_path.write_bytes(b'')
-		return str(local_path)
+	model_index_path = tmp_path / 'model_index.json'
+	model_index_path.write_text(json.dumps({'unet': ['cfg']}), encoding='utf-8')
+	
+	def fake_hf_hub_download(*, repo_id: str, filename: str, **_kwargs):
+		return str(model_index_path)
 	
 	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+	
+	downloaded_files = []
+	
+	def fake_download_file(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		snapshot_dir: str,
+		file_index: int,
+		file_size: int,
+		progress,
+		token=None,
+	):
+		downloaded_files.append(filename)
+		local_path = pathlib.Path(snapshot_dir) / filename
+		local_path.parent.mkdir(parents=True, exist_ok=True)
+		with open(local_path, 'wb') as dest:
+			dest.write(b'x' * max(file_size, 1))
+			progress.update_bytes(max(file_size, 1))
+		return str(local_path)
+	
+	monkeypatch.setattr(services.DownloadService, 'download_file', fake_download_file, raising=False)
 	
 	# Act
 	service.download_model('test/repo', mock_db)
@@ -631,7 +844,7 @@ def test_download_model_handles_file_filtering_logic(
 	mock_db = MagicMock()
 	
 	# Mock components and files to test filtering
-	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet', 'vae'])
+	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet', 'vae'])
 	monkeypatch.setattr(service, 'list_files', lambda _id: [
 		'README.md',  # should be filtered out
 		'model_index.json',  # always included
@@ -640,18 +853,55 @@ def test_download_model_handles_file_filtering_logic(
 		'vae/config.json',
 		'scheduler/model.bin',  # should be filtered out (not in components)
 	])
+	monkeypatch.setattr(
+		service,
+		'get_file_sizes_map',
+		lambda _id: {
+			'model_index.json': 5,
+			'unet/model.safetensors': 15,
+			'vae/config.json': 7,
+		},
+	)
+
+	class DummyApi:
+		def repo_info(self, repo_id: str):
+			return SimpleNamespace(sha='main', siblings=[])
+
+	service.api = DummyApi()  # type: ignore[assignment]
 	
-	snapshot_root = tmp_path / 'snap-789'
-	downloaded_files = []
+	model_root = tmp_path / 'cache-filter'
+	monkeypatch.setattr(services.storage_service, 'get_model_dir', lambda _id: str(model_root))
 	
-	def fake_hf_hub_download(*, repo_id: str, filename: str, cache_dir: str | None = None):
-		downloaded_files.append(filename)
-		local_path = snapshot_root / filename
-		local_path.parent.mkdir(parents=True, exist_ok=True)
-		local_path.write_bytes(b'')
-		return str(local_path)
+	model_index_path = tmp_path / 'model_index.json'
+	model_index_path.write_text(json.dumps({'unet': ['cfg'], 'vae': ['cfg']}), encoding='utf-8')
+	
+	def fake_hf_hub_download(*, repo_id: str, filename: str, **_kwargs):
+		return str(model_index_path)
 	
 	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+	
+	downloaded_files = []
+	
+	def fake_download_file(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		snapshot_dir: str,
+		file_index: int,
+		file_size: int,
+		progress,
+		token=None,
+	):
+		downloaded_files.append(filename)
+		local_path = pathlib.Path(snapshot_dir) / filename
+		local_path.parent.mkdir(parents=True, exist_ok=True)
+		with open(local_path, 'wb') as dest:
+			dest.write(b'x' * max(file_size, 1))
+			progress.update_bytes(max(file_size, 1))
+		return str(local_path)
+	
+	monkeypatch.setattr(services.DownloadService, 'download_file', fake_download_file, raising=False)
 	
 	# Act
 	service.download_model('test/repo', mock_db)
@@ -698,7 +948,7 @@ def test_download_model_progress_tracking_increments_correctly(
 	service = services.DownloadService()
 	mock_db = MagicMock()
 	
-	monkeypatch.setattr(service, 'get_components', lambda _id: ['unet'])
+	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])
 	monkeypatch.setattr(service, 'list_files', lambda _id: [
 		'model_index.json',
 		'unet/model1.bin',
@@ -713,23 +963,59 @@ def test_download_model_progress_tracking_increments_correctly(
 			'unet/model2.bin': 15,
 		},
 	)
+
+	class DummyApi:
+		def repo_info(self, repo_id: str):
+			return SimpleNamespace(sha='main', siblings=[])
+
+	service.api = DummyApi()  # type: ignore[assignment]
 	
-	snapshot_root = tmp_path / 'snap-progress'
+	model_root = tmp_path / 'cache-progress'
+	monkeypatch.setattr(services.storage_service, 'get_model_dir', lambda _id: str(model_root))
 	
-	def fake_hf_hub_download(*, repo_id: str, filename: str, cache_dir: str | None = None):
-		local_path = snapshot_root / filename
-		local_path.parent.mkdir(parents=True, exist_ok=True)
-		local_path.write_bytes(b'')
-		return str(local_path)
+	model_index_path = tmp_path / 'model_index.json'
+	model_index_path.write_text(json.dumps({'unet': ['cfg']}), encoding='utf-8')
+	
+	def fake_hf_hub_download(*, repo_id: str, filename: str, **_kwargs):
+		return str(model_index_path)
 	
 	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+	
+	def fake_download_file(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		snapshot_dir: str,
+		file_index: int,
+		file_size: int,
+		progress,
+		token=None,
+	):
+		local_path = pathlib.Path(snapshot_dir) / filename
+		local_path.parent.mkdir(parents=True, exist_ok=True)
+		size = file_size or 4
+		with open(local_path, 'wb') as dest:
+			for chunk in (max(1, size // 3), max(1, size // 3), size - 2 * max(1, size // 3)):
+				if chunk <= 0:
+					continue
+				dest.write(b'x' * chunk)
+				progress.update_bytes(chunk)
+		return str(local_path)
+	
+	monkeypatch.setattr(services.DownloadService, 'download_file', fake_download_file, raising=False)
 	
 	# Act
 	service.download_model('test/repo', mock_db)
 	
-	# Assert: progress should increment for each file
-	assert len(dummy_socket.progress_calls) == 3
-	assert [call[1] for call in dummy_socket.progress_calls] == [1, 2, 3]
-	assert all(call[2] == 3 for call in dummy_socket.progress_calls)
-	assert [call[3] for call in dummy_socket.progress_calls] == [5, 15, 30]
-	assert all(call[4] == 30 for call in dummy_socket.progress_calls)
+	# Assert: progress should report cumulative bytes after each file completes
+	first_per_step = {}
+	for call_data in dummy_socket.progress_calls:
+		step = call_data[1]
+		if step in (1, 2, 3) and step not in first_per_step:
+			first_per_step[step] = call_data
+
+	assert first_per_step[1][3] == 5
+	assert first_per_step[2][3] == 15
+	assert first_per_step[3][3] == 30
+	assert first_per_step[3][4] == 30
