@@ -12,7 +12,7 @@ import pytest
 
 class DummySocket:
 	def __init__(self) -> None:
-		self.progress_calls: List[Tuple[str, int, int, int, int]] = []
+		self.progress_calls: List[Tuple[str, int, int, int, int, str, str | None]] = []
 
 	# Make this a properly typed method
 	def download_step_progress(self, data) -> None:  # matches BaseModel-like interface
@@ -23,6 +23,8 @@ class DummySocket:
 				data.total,
 				data.downloaded_size,
 				data.total_downloaded_size,
+				data.phase,
+				getattr(data, 'current_file', None),
 			)
 		)
 
@@ -151,12 +153,16 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 			total: int,
 			downloaded_size: int,
 			total_downloaded_size: int,
+			phase: str,
+			current_file: str | None = None,
 		) -> None:
 			self.id = id
 			self.step = step
 			self.total = total
 			self.downloaded_size = downloaded_size
 			self.total_downloaded_size = total_downloaded_size
+			self.phase = phase
+			self.current_file = current_file
 
 	# Use setattr for type-safe attribute assignment
 	setattr(schemas_mod, 'DownloadStepProgressResponse', DownloadStepProgressResponse)
@@ -187,9 +193,10 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 			self.desc = kwargs.get('desc', '')
 			self.downloaded_size = 0
 			self.total_downloaded_size = sum(self.file_sizes)
-			self.emit_progress()
+			self.current_file: str | None = None
+			self.emit_progress('init')
 
-		def emit_progress(self):
+		def emit_progress(self, phase: str):
 			if dummy_socket is not None:
 				response = getattr(sys.modules['app.features.downloads.schemas'], 'DownloadStepProgressResponse')(
 					id=self.id,
@@ -197,12 +204,18 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 					total=self.total,
 					downloaded_size=self.downloaded_size,
 					total_downloaded_size=self.total_downloaded_size,
+					phase=phase,
+					current_file=self.current_file,
 				)
 				dummy_socket.download_step_progress(response)
 
+		def start_file(self, filename: str):
+			self.current_file = filename
+			self.emit_progress('file_start')
+
 		def update(self, n=1):
 			self.n += n
-			self.emit_progress()
+			self.emit_progress('file_complete')
 
 		def set_file_size(self, index: int, size: int):
 			if index < 0:
@@ -216,7 +229,7 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 			self.total_downloaded_size += size - previous
 			if self.total_downloaded_size < 0:
 				self.total_downloaded_size = 0
-			self.emit_progress()
+			self.emit_progress('size_update')
 
 		def update_bytes(self, byte_count: int):
 			if byte_count <= 0:
@@ -224,12 +237,13 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 			self.downloaded_size += byte_count
 			if self.total_downloaded_size and self.downloaded_size > self.total_downloaded_size:
 				self.downloaded_size = self.total_downloaded_size
-			self.emit_progress()
+			self.emit_progress('chunk')
 
 		def close(self):
 			pass
 
 	setattr(services, 'DownloadTqdm', StubDownloadTqdm)
+	setattr(services.DownloadService, 'fetch_remote_file_size', lambda self, repo_id, filename, revision, token=None: 0)
 	return services
 
 
@@ -389,6 +403,9 @@ def test_download_model_handles_download_exception(
 
 	class MockDownloadTqdm:
 		def __init__(self, *args, **kwargs):
+			pass
+
+		def start_file(self, filename):
 			pass
 
 		def update(self, n=1):
@@ -724,20 +741,103 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 	assert os.path.normpath(local_dir) == os.path.normpath(expected_snapshot)
 
 	# Assert: progress events include chunk updates and final step totals
-	first_per_step = {}
-	for call_data in dummy_socket.progress_calls:
-		step = call_data[1]
-		if step in (1, 2, 3) and step not in first_per_step:
-			first_per_step[step] = call_data
-
-	assert first_per_step[1][3] == 10
-	assert first_per_step[2][3] == 30
-	assert first_per_step[3][3] == 60
-	assert first_per_step[3][4] == 60
+	completions = [call for call in dummy_socket.progress_calls if call[5] == 'file_complete']
+	assert [call[1] for call in completions] == [1, 2, 3]
+	assert completions[0][3] == 10
+	assert completions[1][3] == 30
+	assert completions[2][3] == 60
+	assert completions[2][4] == 60
 
 	# Assert: add_model was called with the correct parameters
 	mock_add_model.assert_called_once_with(mock_db, 'some/repo', os.path.normpath(expected_snapshot))
 
+
+def test_download_model_fetches_remote_sizes_when_missing(
+	tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+):
+	# Arrange
+	dummy_socket = DummySocket()
+	services = import_services_with_stubs(dummy_socket)
+	service = services.DownloadService()
+	mock_db = MagicMock()
+
+	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])  # type: ignore[misc]
+
+	def fake_list_files(_id: str) -> List[str]:
+		return ['model_index.json', 'unet/model.bin']
+
+	monkeypatch.setattr(service, 'list_files', fake_list_files)  # type: ignore[misc]
+	monkeypatch.setattr(service, 'get_file_sizes_map', lambda _id: {
+		'model_index.json': 0,
+		'unet/model.bin': 0,
+	})
+
+	class DummyApi:
+		def repo_info(self, repo_id: str):
+			return SimpleNamespace(
+				sha='main',
+				siblings=[
+					SimpleNamespace(rfilename='model_index.json', size=0),
+					SimpleNamespace(rfilename='unet/model.bin', size=0),
+				],
+			)
+
+	service.api = DummyApi()  # type: ignore[assignment]
+
+	model_root = tmp_path / 'cache-remote'
+	monkeypatch.setattr(services.storage_service, 'get_model_dir', lambda _id: str(model_root))
+
+	model_index_path = tmp_path / 'model_index.json'
+	model_index_path.write_text(json.dumps({'unet': ['cfg']}), encoding='utf-8')
+
+	def fake_hf_hub_download(*, repo_id: str, filename: str, **_kwargs):
+		return str(model_index_path)
+
+	monkeypatch.setattr(services, 'hf_hub_download', fake_hf_hub_download)
+
+	fetch_calls: List[str] = []
+
+	def fake_fetch_size(repo_id: str, filename: str, revision: str, token=None):
+		fetch_calls.append(filename)
+		return {'model_index.json': 12, 'unet/model.bin': 34}[filename]
+
+	monkeypatch.setattr(service, 'fetch_remote_file_size', fake_fetch_size)
+
+	def fake_download_file(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		snapshot_dir: str,
+		file_index: int,
+		file_size: int,
+		progress,
+		token=None,
+	):
+		assert file_size == {'model_index.json': 12, 'unet/model.bin': 34}[filename]
+		local_path = pathlib.Path(snapshot_dir) / filename
+		local_path.parent.mkdir(parents=True, exist_ok=True)
+		with open(local_path, 'wb') as dest:
+			to_write = file_size
+			while to_write > 0:
+				chunk = min(10, to_write)
+				dest.write(b'x' * chunk)
+				progress.update_bytes(chunk)
+				to_write -= chunk
+		return str(local_path)
+
+	monkeypatch.setattr(services.DownloadService, 'download_file', fake_download_file, raising=False)
+
+	mock_add_model = MagicMock()
+	monkeypatch.setattr(services.model_service, 'add_model', mock_add_model)
+
+	# Act
+	local_dir = service.download_model('some/repo', mock_db)
+
+	# Assert
+	assert fetch_calls == ['model_index.json', 'unet/model.bin']
+	expected_snapshot = os.path.join(str(model_root), 'snapshots', 'main')
+	assert os.path.normpath(local_dir) == os.path.normpath(expected_snapshot)
 
 def test_download_tqdm_update_emits_progress():
 	# Arrange
@@ -753,14 +853,23 @@ def test_download_tqdm_update_emits_progress():
 	)
 	
 	# Act
+	tqdm_instance.start_file('chunk.bin')
 	tqdm_instance.update_bytes(2)
 	tqdm_instance.update(1)
 
 	# Assert
-	assert len(dummy_socket.progress_calls) == 3
-	assert dummy_socket.progress_calls[0] == ('test-repo', 0, 5, 0, 5)
-	assert dummy_socket.progress_calls[1] == ('test-repo', 0, 5, 2, 5)
-	assert dummy_socket.progress_calls[2] == ('test-repo', 1, 5, 2, 5)
+	assert len(dummy_socket.progress_calls) == 4
+	init_call = dummy_socket.progress_calls[0]
+	assert init_call[:5] == ('test-repo', 0, 5, 0, 5)
+	assert init_call[5] == 'init'
+	start_call = dummy_socket.progress_calls[1]
+	assert start_call[5] == 'file_start'
+	assert start_call[6] == 'chunk.bin'
+	chunk_call = dummy_socket.progress_calls[2]
+	assert chunk_call[5] == 'chunk'
+	assert chunk_call[3] == 2
+	complete_call = dummy_socket.progress_calls[3]
+	assert complete_call[5] == 'file_complete'
 
 
 def test_download_model_sorts_files_with_model_index_first(
@@ -1009,13 +1118,9 @@ def test_download_model_progress_tracking_increments_correctly(
 	service.download_model('test/repo', mock_db)
 	
 	# Assert: progress should report cumulative bytes after each file completes
-	first_per_step = {}
-	for call_data in dummy_socket.progress_calls:
-		step = call_data[1]
-		if step in (1, 2, 3) and step not in first_per_step:
-			first_per_step[step] = call_data
-
-	assert first_per_step[1][3] == 5
-	assert first_per_step[2][3] == 15
-	assert first_per_step[3][3] == 30
-	assert first_per_step[3][4] == 30
+	completions = [call for call in dummy_socket.progress_calls if call[5] == 'file_complete']
+	assert [call[1] for call in completions] == [1, 2, 3]
+	assert completions[0][3] == 5
+	assert completions[1][3] == 15
+	assert completions[2][3] == 30
+	assert completions[2][4] == 30

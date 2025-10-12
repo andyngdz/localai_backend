@@ -30,14 +30,15 @@ class DownloadTqdm(BaseTqdm):
 		self.file_sizes = kwargs.pop('file_sizes')
 		self.downloaded_size = 0
 		self.total_downloaded_size = sum(self.file_sizes)
+		self.current_file: Optional[str] = None
 		kwargs.setdefault('disable', None)
 		kwargs.setdefault('file', sys.stderr)
 		kwargs.setdefault('mininterval', 0.25)
 		kwargs.setdefault('leave', False)
 		super().__init__(*args, **kwargs)
-		self.emit_progress()
+		self.emit_progress(phase='init')
 
-	def emit_progress(self):
+	def emit_progress(self, phase: str, *, current_file: Optional[str] = None):
 		socket_service.download_step_progress(
 			DownloadStepProgressResponse(
 				id=self.id,
@@ -45,10 +46,16 @@ class DownloadTqdm(BaseTqdm):
 				total=self.total,
 				downloaded_size=self.downloaded_size,
 				total_downloaded_size=self.total_downloaded_size,
+				phase=phase,
+				current_file=current_file or self.current_file,
 			)
 		)
 
 		logger.info(f'{self.desc} {self.n}/{self.total}')
+
+	def start_file(self, filename: str):
+		self.current_file = filename
+		self.emit_progress(phase='file_start', current_file=filename)
 
 	def set_file_size(self, index: int, size: int) -> None:
 		"""Update the recorded size for a file and adjust totals accordingly."""
@@ -65,7 +72,7 @@ class DownloadTqdm(BaseTqdm):
 		self.total_downloaded_size += size - previous
 		if self.total_downloaded_size < 0:
 			self.total_downloaded_size = 0
-		self.emit_progress()
+		self.emit_progress(phase='size_update')
 
 	def update_bytes(self, byte_count: int) -> None:
 		"""Increment downloaded bytes and emit progress for partial file download."""
@@ -75,11 +82,11 @@ class DownloadTqdm(BaseTqdm):
 		self.downloaded_size += byte_count
 		if self.total_downloaded_size and self.downloaded_size > self.total_downloaded_size:
 			self.downloaded_size = self.total_downloaded_size
-		self.emit_progress()
+		self.emit_progress(phase='chunk')
 
 	def update(self, n=1):
 		super().update(n)
-		self.emit_progress()
+		self.emit_progress(phase='file_complete')
 
 	def close(self):
 		super().close()
@@ -121,7 +128,13 @@ class DownloadService:
 		]
 
 		files_to_download.sort(key=lambda f: (f != 'model_index.json', f))
-		file_sizes = [file_sizes_map.get(filename, 0) for filename in files_to_download]
+		file_sizes: List[int] = []
+		for filename in files_to_download:
+			size = file_sizes_map.get(filename, 0)
+			if size <= 0:
+				size = self.fetch_remote_file_size(id, filename, revision=revision)
+				file_sizes_map[filename] = size
+			file_sizes.append(size)
 
 		total = len(files_to_download)
 		if total == 0:
@@ -143,6 +156,7 @@ class DownloadService:
 
 		try:
 			for index, filename in enumerate(files_to_download):
+				progress.start_file(filename)
 				progress.set_file_size(index, file_sizes_map.get(filename, 0))
 				local_path = self.download_file(
 					repo_id=id,
@@ -283,6 +297,29 @@ class DownloadService:
 		final_size = os.path.getsize(local_path)
 		progress.set_file_size(file_index, final_size)
 		return local_path
+
+	def fetch_remote_file_size(
+		self,
+		repo_id: str,
+		filename: str,
+		revision: str,
+		token: Optional[str] = None,
+	) -> int:
+		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
+		headers = {}
+		if token:
+			headers['authorization'] = f'Bearer {token}'
+
+		try:
+			response = requests.head(url, headers=headers, timeout=30, allow_redirects=True)
+			response.raise_for_status()
+			content_length = response.headers.get('Content-Length')
+			if not content_length:
+				return 0
+			return max(int(content_length), 0)
+		except (requests.RequestException, ValueError) as error:
+			logger.debug('Unable to determine size for %s: %s', filename, error)
+			return 0
 
 
 download_service = DownloadService()

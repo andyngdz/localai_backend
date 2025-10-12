@@ -37,6 +37,11 @@ class DownloadStepProgressResponse(BaseModel):
 	total: int = Field(..., description='The total number of steps in the download.')
 	downloaded_size: int = Field(..., description='Total downloaded bytes so far.')
 	total_downloaded_size: int = Field(..., description='Total number of bytes to download.')
+	phase: str = Field(..., description='Progress phase indicator (chunk, file_complete, etc.).')
+	current_file: Optional[str] = Field(
+		default=None,
+		description='Name of the file currently being downloaded, if applicable.',
+	)
 
 
 class DownloadModelResponse(BaseModel):

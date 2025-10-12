@@ -71,6 +71,8 @@ def test_download_step_progress_response_coerces_int_fields_from_str() -> None:
 		total='3',
 		downloaded_size='10',
 		total_downloaded_size='30',
+		phase='chunk',
+		current_file='weights.bin',
 	)  # type: ignore[arg-type]
 
 	# Assert
