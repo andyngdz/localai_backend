@@ -22,6 +22,7 @@ class DownloadProgress(BaseTqdm):
 		self.logger = kwargs.pop('logger')
 		self.downloaded_size = 0
 		self.total_downloaded_size = sum(self.file_sizes)
+		self.completed_files_size = 0
 		self.current_file: Optional[str] = None
 
 		kwargs.setdefault('disable', None)
@@ -64,10 +65,17 @@ class DownloadProgress(BaseTqdm):
 		if previous == size:
 			return
 
+		delta = size - previous
 		self.file_sizes[index] = size
-		self.total_downloaded_size += size - previous
+		self.total_downloaded_size += delta
 		if self.total_downloaded_size < 0:
 			self.total_downloaded_size = 0
+
+		if index < self.n:
+			self.completed_files_size += delta
+			if self.completed_files_size < 0:
+				self.completed_files_size = 0
+
 		self.emit_progress('size_update')
 
 	def update_bytes(self, byte_count: int) -> None:
@@ -82,10 +90,13 @@ class DownloadProgress(BaseTqdm):
 
 	def update(self, n=1):
 		super().update(n)
-		if self.n > 0:
-			completed = sum(self.file_sizes[: self.n])
-			if self.downloaded_size < completed:
-				self.downloaded_size = completed
+		for i in range(max(0, self.n - n), self.n):
+			if i < len(self.file_sizes):
+				self.completed_files_size += self.file_sizes[i]
+
+		if self.downloaded_size < self.completed_files_size:
+			self.downloaded_size = self.completed_files_size
+
 		self.emit_progress('file_complete')
 
 	def close(self):

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -193,9 +194,45 @@ class DownloadService:
 		progress: DownloadTqdm,
 		token: Optional[str] = None,
 	):
-		os.makedirs(snapshot_dir, exist_ok=True)
-		local_path = os.path.join(snapshot_dir, filename)
-		os.makedirs(os.path.dirname(local_path), exist_ok=True)
+		"""
+		Download a single file from HuggingFace Hub with streaming and progress tracking.
+
+		Args:
+			repo_id: HuggingFace repository ID
+			filename: Relative path of file within repository (validated for path traversal)
+			revision: Git revision/commit hash
+			snapshot_dir: Local directory to store downloaded files
+			file_index: Zero-based index in progress.file_sizes list (must align with file order)
+			file_size: Expected file size in bytes (updated from Content-Length if available)
+			progress: Progress tracker for websocket updates
+			token: Optional HuggingFace authentication token
+
+		Returns:
+			str: Absolute path to the downloaded file
+
+		Side Effects:
+			- Creates snapshot_dir and parent directories if needed
+			- Skips download if file already exists with matching size
+			- Downloads to temporary .part file, then atomically renames on success
+			- Updates progress.file_size() with actual Content-Length
+			- Calls progress.update_bytes() for each downloaded chunk
+			- Cleans up .part file on error
+		"""
+		# Security: Prevent path traversal attacks
+		snapshot_path = Path(snapshot_dir).resolve()
+		local_path = (snapshot_path / filename).resolve()
+
+		# Validate that the resolved path is under snapshot_dir
+		try:
+			local_path.relative_to(snapshot_path)
+		except ValueError:
+			raise ValueError(f'Invalid filename: {filename} attempts to escape snapshot directory')
+
+		# Create directories with validated paths
+		os.makedirs(snapshot_path, exist_ok=True)
+		os.makedirs(local_path.parent, exist_ok=True)
+
+		local_path = str(local_path)
 
 		if os.path.exists(local_path):
 			actual_size = os.path.getsize(local_path)
