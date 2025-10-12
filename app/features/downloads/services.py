@@ -41,6 +41,10 @@ class DownloadService:
 		return local_dir
 
 	def download_model(self, id: str, db: Session):
+		"""Download a model from HuggingFace Hub with progress tracking."""
+		if not id or not id.strip():
+			raise ValueError('Model ID cannot be empty')
+
 		repo_info = self.api.repo_info(id)
 		revision = getattr(repo_info, 'sha', 'main')
 		# Build the list of candidate files and initial size map up-front so byte totals remain monotonic.
@@ -91,7 +95,6 @@ class DownloadService:
 				# Emit a start event so the client can show which file is currently in-flight.
 				progress.start_file(filename)
 				logger.info('Downloading %s (%s/%s)', filename, index + 1, total)
-				progress.set_file_size(index, file_sizes_map.get(filename, 0))
 				local_path = self.download_file(
 					repo_id=id,
 					filename=filename,

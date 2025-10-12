@@ -46,11 +46,7 @@ class DownloadProgress(BaseTqdm):
 		)
 
 		if phase in {'file_start', 'file_complete'}:
-			self.log_boundary()
-			
-	def log_boundary(self) -> None:
-		"""Log progress updates for file boundaries."""
-		self.logger.info('%s %s/%s', self.desc, self.n, self.total)
+			self.logger.info('%s %s/%s', self.desc, self.n, self.total)
 
 	def start_file(self, filename: str) -> None:
 		"""Mark the beginning of a file download so the UI can show file-level progress."""
@@ -80,7 +76,7 @@ class DownloadProgress(BaseTqdm):
 			return
 
 		self.downloaded_size += byte_count
-		if self.total_downloaded_size and self.downloaded_size > self.total_downloaded_size:
+		if self.total_downloaded_size > 0 and self.downloaded_size > self.total_downloaded_size:
 			self.downloaded_size = self.total_downloaded_size
 		self.emit_progress('chunk')
 
@@ -93,4 +89,6 @@ class DownloadProgress(BaseTqdm):
 		self.emit_progress('file_complete')
 
 	def close(self):
+		"""Close the progress bar and emit final completion event."""
+		self.emit_progress('complete')
 		super().close()
