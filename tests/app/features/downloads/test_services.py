@@ -279,7 +279,7 @@ def test_download_model_handles_database_exception(
 
 	# Arrange: Mock file discovery and download
 	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])
-	monkeypatch.setattr(service, 'list_files', lambda _id: ['unet/model.bin'])
+	monkeypatch.setattr(service, 'list_files', lambda _id, repo_info=None: ['unet/model.bin'])
 	model_root = tmp_path / 'cache-db'
 	monkeypatch.setattr(services.storage_service, 'get_model_dir', lambda _id: str(model_root))
 
@@ -358,11 +358,11 @@ def test_download_model_handles_download_exception(
 
 	# Arrange: Mock file discovery
 	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])
-	monkeypatch.setattr(service, 'list_files', lambda _id: ['unet/model.bin'])
+	monkeypatch.setattr(service, 'list_files', lambda _id, repo_info=None: ['unet/model.bin'])
 	monkeypatch.setattr(
 		service,
 		'get_file_sizes_map',
-		lambda _id: {'unet/model.bin': 25},
+		lambda _id, repo_info=None: {'unet/model.bin': 25},
 	)
 
 	model_root = tmp_path / 'cache-failure'
@@ -445,7 +445,7 @@ def test_download_model_when_no_files_to_download(
 
 	# Arrange: Mock dependencies to return empty file list
 	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: [])
-	monkeypatch.setattr(service, 'list_files', lambda _id: [])
+	monkeypatch.setattr(service, 'list_files', lambda _id, repo_info=None: [])
 
 	# Arrange: Spy on the logger
 	mock_logger = MagicMock()
@@ -648,7 +648,7 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet', 'vae'])  # type: ignore[misc]
 
 	# File listing contains one safetensors/bin pair under unet, and only bin under vae
-	def fake_list_files(_id: str) -> List[str]:
+	def fake_list_files(_id: str, repo_info=None) -> List[str]:
 		return [
 			'README.md',  # should be ignored (not in components scopes)
 			'model_index.json',  # always included
@@ -661,7 +661,7 @@ def test_download_model_downloads_expected_files_and_returns_dir(
 	monkeypatch.setattr(
 		service,
 		'get_file_sizes_map',
-		lambda _id: {
+		lambda _id, repo_info=None: {
 			'model_index.json': 10,
 			'unet/model.safetensors': 20,
 			'vae/model.bin': 30,
@@ -763,11 +763,8 @@ def test_download_model_fetches_remote_sizes_when_missing(
 
 	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])  # type: ignore[misc]
 
-	def fake_list_files(_id: str) -> List[str]:
-		return ['model_index.json', 'unet/model.bin']
-
-	monkeypatch.setattr(service, 'list_files', fake_list_files)  # type: ignore[misc]
-	monkeypatch.setattr(service, 'get_file_sizes_map', lambda _id: {
+	monkeypatch.setattr(service, 'list_files', lambda _id, repo_info=None: ['model_index.json', 'unet/model.bin'])  # type: ignore[misc]
+	monkeypatch.setattr(service, 'get_file_sizes_map', lambda _id, repo_info=None: {
 		'model_index.json': 0,
 		'unet/model.bin': 0,
 	})
@@ -881,7 +878,7 @@ def test_download_model_sorts_files_with_model_index_first(
 	mock_db = MagicMock()
 	
 	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])
-	monkeypatch.setattr(service, 'list_files', lambda _id: [
+	monkeypatch.setattr(service, 'list_files', lambda _id, repo_info=None: [
 		'unet/config.json',
 		'model_index.json',
 		'unet/model.bin',
@@ -889,7 +886,7 @@ def test_download_model_sorts_files_with_model_index_first(
 	monkeypatch.setattr(
 		service,
 		'get_file_sizes_map',
-		lambda _id: {
+		lambda _id, repo_info=None: {
 			'model_index.json': 8,
 			'unet/config.json': 12,
 			'unet/model.bin': 16,
@@ -954,7 +951,7 @@ def test_download_model_handles_file_filtering_logic(
 	
 	# Mock components and files to test filtering
 	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet', 'vae'])
-	monkeypatch.setattr(service, 'list_files', lambda _id: [
+	monkeypatch.setattr(service, 'list_files', lambda _id, repo_info=None: [
 		'README.md',  # should be filtered out
 		'model_index.json',  # always included
 		'unet/model.bin',
@@ -965,7 +962,7 @@ def test_download_model_handles_file_filtering_logic(
 	monkeypatch.setattr(
 		service,
 		'get_file_sizes_map',
-		lambda _id: {
+		lambda _id, repo_info=None: {
 			'model_index.json': 5,
 			'unet/model.safetensors': 15,
 			'vae/config.json': 7,
@@ -1058,7 +1055,7 @@ def test_download_model_progress_tracking_increments_correctly(
 	mock_db = MagicMock()
 	
 	monkeypatch.setattr(service, 'get_components', lambda _id, revision=None: ['unet'])
-	monkeypatch.setattr(service, 'list_files', lambda _id: [
+	monkeypatch.setattr(service, 'list_files', lambda _id, repo_info=None: [
 		'model_index.json',
 		'unet/model1.bin',
 		'unet/model2.bin',
@@ -1066,7 +1063,7 @@ def test_download_model_progress_tracking_increments_correctly(
 	monkeypatch.setattr(
 		service,
 		'get_file_sizes_map',
-		lambda _id: {
+		lambda _id, repo_info=None: {
 			'model_index.json': 5,
 			'unet/model1.bin': 10,
 			'unet/model2.bin': 15,

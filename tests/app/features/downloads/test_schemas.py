@@ -80,6 +80,8 @@ def test_download_step_progress_response_coerces_int_fields_from_str() -> None:
 	assert model.total == 3
 	assert model.downloaded_size == 10
 	assert model.total_downloaded_size == 30
+	assert model.phase == 'chunk'
+	assert model.current_file == 'weights.bin'
 
 
 # DownloadModelResponse

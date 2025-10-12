@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 from huggingface_hub import HfApi, hf_hub_download, hf_hub_url
@@ -39,6 +39,7 @@ class DownloadTqdm(BaseTqdm):
 		self.emit_progress(phase='init')
 
 	def emit_progress(self, phase: str, *, current_file: Optional[str] = None):
+		"""Push the latest cumulative byte totals to all websocket clients."""
 		socket_service.download_step_progress(
 			DownloadStepProgressResponse(
 				id=self.id,
@@ -51,9 +52,11 @@ class DownloadTqdm(BaseTqdm):
 			)
 		)
 
-		logger.info(f'{self.desc} {self.n}/{self.total}')
+		if phase in {'file_start', 'file_complete'}:
+			logger.info('%s %s/%s', self.desc, self.n, self.total)
 
 	def start_file(self, filename: str):
+		"""Mark the beginning of a file download so the UI can show file-level progress."""
 		self.current_file = filename
 		self.emit_progress(phase='file_start', current_file=filename)
 
@@ -114,11 +117,12 @@ class DownloadService:
 	def download_model(self, id: str, db: Session):
 		repo_info = self.api.repo_info(id)
 		revision = getattr(repo_info, 'sha', 'main')
+		# Build the list of candidate files and initial size map up-front so byte totals remain monotonic.
 		components = self.get_components(id, revision=revision)
 		components_scopes = [f'{c}/*' for c in components]
-		files = self.list_files(id)
+		files = self.list_files(id, repo_info=repo_info)
 		ignore_components = self.get_ignore_components(files, components_scopes)
-		file_sizes_map = self.get_file_sizes_map(id)
+		file_sizes_map = self.get_file_sizes_map(id, repo_info=repo_info)
 
 		files_to_download = [
 			f
@@ -128,6 +132,7 @@ class DownloadService:
 		]
 
 		files_to_download.sort(key=lambda f: (f != 'model_index.json', f))
+		# Ensure every file has a deterministic size before streaming begins; fall back to HEAD when hub metadata is missing.
 		file_sizes: List[int] = []
 		for filename in files_to_download:
 			size = file_sizes_map.get(filename, 0)
@@ -156,6 +161,7 @@ class DownloadService:
 
 		try:
 			for index, filename in enumerate(files_to_download):
+				# Emit a start event so the client can show which file is currently in-flight.
 				progress.start_file(filename)
 				progress.set_file_size(index, file_sizes_map.get(filename, 0))
 				local_path = self.download_file(
@@ -206,16 +212,16 @@ class DownloadService:
 		# Return .bin files that have a matching .safetensors base
 		return [f for f in in_scope if f.endswith('.bin') and f.removesuffix('.bin') in safetensors_bases]
 
-	def list_files(self, id: str):
-		info = self.api.repo_info(id)
+	def list_files(self, id: str, repo_info: Optional[Any] = None) -> List[str]:
+		info = repo_info or self.api.repo_info(id)
 
 		if not info.siblings:
 			return []
 
 		return [s.rfilename for s in info.siblings]
 
-	def get_file_sizes_map(self, id: str):
-		info = self.api.repo_info(id)
+	def get_file_sizes_map(self, id: str, repo_info: Optional[Any] = None) -> Dict[str, int]:
+		info = repo_info or self.api.repo_info(id)
 
 		if not info.siblings:
 			return {}
@@ -291,6 +297,7 @@ class DownloadService:
 					if not chunk:
 						continue
 					dest.write(chunk)
+					# Emit partial progress as bytes accumulate for the current file.
 					progress.update_bytes(len(chunk))
 
 		os.replace(temp_path, local_path)
@@ -305,6 +312,7 @@ class DownloadService:
 		revision: str,
 		token: Optional[str] = None,
 	) -> int:
+		"""Best-effort size lookup for repositories that do not publish sibling metadata."""
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
 		headers = {}
 		if token:
