@@ -196,7 +196,6 @@ class DownloadService:
 			actual_size = os.path.getsize(local_path)
 			if actual_size > 0:
 				progress.set_file_size(file_index, actual_size)
-				progress.update_bytes(actual_size)
 				logger.debug('Skipping download for %s; already complete', filename)
 				return local_path
 			os.remove(local_path)
@@ -208,29 +207,33 @@ class DownloadService:
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
 		headers = {}
 		if token:
-			headers['authorization'] = f'Bearer {token}'
+			headers['Authorization'] = f'Bearer {token}'
 
-		with requests.get(url, stream=True, headers=headers, timeout=60) as response:
-			response.raise_for_status()
-			content_length = response.headers.get('Content-Length')
-			if content_length:
-				try:
-					progress.set_file_size(file_index, int(content_length))
-				except ValueError:
-					pass
+		try:
+			with requests.get(url, stream=True, headers=headers, timeout=60) as response:
+				response.raise_for_status()
+				content_length = response.headers.get('Content-Length')
+				if content_length:
+					try:
+						progress.set_file_size(file_index, int(content_length))
+					except ValueError:
+						pass
 
-			with open(temp_path, 'wb') as dest:
-				for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
-					if not chunk:
-						continue
-					dest.write(chunk)
-					# Emit partial progress as bytes accumulate for the current file.
-					progress.update_bytes(len(chunk))
+				with open(temp_path, 'wb') as dest:
+					for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
+						if not chunk:
+							continue
+						dest.write(chunk)
+						# Emit partial progress as bytes accumulate for the current file.
+						progress.update_bytes(len(chunk))
 
-		os.replace(temp_path, local_path)
-		final_size = os.path.getsize(local_path)
-		progress.set_file_size(file_index, final_size)
-		return local_path
+			os.replace(temp_path, local_path)
+			final_size = os.path.getsize(local_path)
+			progress.set_file_size(file_index, final_size)
+			return local_path
+		finally:
+			if os.path.exists(temp_path):
+				os.remove(temp_path)
 
 	def fetch_remote_file_size(
 		self,
@@ -243,7 +246,7 @@ class DownloadService:
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
 		headers = {}
 		if token:
-			headers['authorization'] = f'Bearer {token}'
+			headers['Authorization'] = f'Bearer {token}'
 
 		try:
 			response = requests.head(url, headers=headers, timeout=30, allow_redirects=True)
