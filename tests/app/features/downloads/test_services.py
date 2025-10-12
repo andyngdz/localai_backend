@@ -215,6 +215,10 @@ def import_services_with_stubs(dummy_socket: 'DummySocket | None' = None):
 
 		def update(self, n=1):
 			self.n += n
+			if self.n > 0:
+				completed = sum(self.file_sizes[: self.n])
+				if self.downloaded_size < completed:
+					self.downloaded_size = completed
 			self.emit_progress('file_complete')
 
 		def set_file_size(self, index: int, size: int):

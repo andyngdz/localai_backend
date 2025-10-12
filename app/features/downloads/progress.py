@@ -21,7 +21,6 @@ class DownloadProgress(BaseTqdm):
 		self.file_sizes = kwargs.pop('file_sizes')
 		self.logger = kwargs.pop('logger')
 		self.downloaded_size = 0
-		self.completed_size = 0
 		self.total_downloaded_size = sum(self.file_sizes)
 		self.current_file: Optional[str] = None
 
@@ -48,7 +47,7 @@ class DownloadProgress(BaseTqdm):
 
 		if phase in {'file_start', 'file_complete'}:
 			self.log_boundary()
-
+			
 	def log_boundary(self) -> None:
 		"""Log progress updates for file boundaries."""
 		self.logger.info('%s %s/%s', self.desc, self.n, self.total)
@@ -88,11 +87,9 @@ class DownloadProgress(BaseTqdm):
 	def update(self, n=1):
 		super().update(n)
 		if self.n > 0:
-			file_size = self.file_sizes[self.n - 1]
-			target = self.completed_size + file_size
-			if self.downloaded_size < target:
-				self.downloaded_size = target
-			self.completed_size = target
+			completed = sum(self.file_sizes[: self.n])
+			if self.downloaded_size < completed:
+				self.downloaded_size = completed
 		self.emit_progress('file_complete')
 
 	def close(self):

@@ -90,6 +90,7 @@ class DownloadService:
 			for index, filename in enumerate(files_to_download):
 				# Emit a start event so the client can show which file is currently in-flight.
 				progress.start_file(filename)
+				logger.info('Downloading %s (%s/%s)', filename, index + 1, total)
 				progress.set_file_size(index, file_sizes_map.get(filename, 0))
 				local_path = self.download_file(
 					repo_id=id,
@@ -103,6 +104,7 @@ class DownloadService:
 				if local_dir is None:
 					local_dir = os.path.dirname(local_path)
 				progress.update(1)
+				logger.info('Finished %s (%s/%s)', filename, index + 1, total)
 		except Exception:
 			logger.exception('Failed during download of %s', id)
 			raise
