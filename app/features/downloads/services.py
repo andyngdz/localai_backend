@@ -102,7 +102,6 @@ class DownloadService:
 					revision=revision,
 					snapshot_dir=snapshot_dir,
 					file_index=index,
-					file_size=file_sizes_map.get(filename, 0),
 					progress=progress,
 				)
 				if local_dir is None:
@@ -197,7 +196,6 @@ class DownloadService:
 		revision: str,
 		snapshot_dir: str,
 		file_index: int,
-		file_size: int,
 		progress: DownloadTqdm,
 		token: Optional[str] = None,
 	):
@@ -210,7 +208,6 @@ class DownloadService:
 			revision: Git revision/commit hash
 			snapshot_dir: Local directory to store downloaded files
 			file_index: Zero-based index in progress.file_sizes list (must align with file order)
-			file_size: Expected file size in bytes (updated from Content-Length if available)
 			progress: Progress tracker for websocket updates
 			token: Optional HuggingFace authentication token
 
