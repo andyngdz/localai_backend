@@ -155,3 +155,43 @@ dependencies = [
     "zipp==3.23.0",
     "zstandard==0.23.0",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.setuptools.package-data]
+app = ["py.typed"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = ["slow: slow tests", "integration: integration tests"]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "alembic/*",
+    "static/*",
+    "*/__pycache__/*",
+]
+relative_files = true
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+  "if __name__ == .__main__.:",
+  "pragma: no cover",
+  "raise NotImplementedError",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"
