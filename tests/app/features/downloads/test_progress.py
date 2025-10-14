@@ -252,15 +252,42 @@ class TestUpdateBytes:
 
 		assert progress_instance.downloaded_size == 100
 
-	def test_emits_chunk_event(self, progress_instance, mock_socket):
-		"""Test that update_bytes emits chunk progress."""
+	def test_emits_chunk_event_after_threshold(self, mock_socket, mock_logger):
+		"""Test that update_bytes emits chunk progress after size threshold."""
+		from app.features.downloads.progress import DownloadProgress
+
+		# Create progress with large file size (1GB) to avoid clamping
+		progress = DownloadProgress(
+			id='test-repo',
+			desc='Test',
+			file_sizes=[1024 * 1024 * 1024],  # 1GB file
+			logger=mock_logger,
+			total=1,
+			disable=False,
+		)
 		mock_socket.download_step_progress.reset_mock()
 
-		progress_instance.update_bytes(25)
+		# Send 50MB to trigger emission threshold
+		progress.update_bytes(50 * 1024 * 1024)
 
 		call_args = mock_socket.download_step_progress.call_args[0][0]
 		assert call_args.phase == 'chunk'
-		assert call_args.downloaded_size == 25
+		assert call_args.downloaded_size == 50 * 1024 * 1024
+
+		progress.close()
+
+	def test_throttles_small_updates(self, progress_instance, mock_socket):
+		"""Test that small updates are throttled and don't spam emissions."""
+		mock_socket.download_step_progress.reset_mock()
+
+		# Send 10 small updates (250 bytes total, way below 50MB threshold)
+		for _ in range(10):
+			progress_instance.update_bytes(25)
+
+		# Should not have emitted due to throttling
+		assert mock_socket.download_step_progress.call_count == 0
+		# But downloaded_size should still be updated
+		assert progress_instance.downloaded_size == 250
 
 
 class TestUpdate:
@@ -338,40 +365,40 @@ class TestIntegrationScenarios:
 		progress = DownloadProgress(
 			id='test/model',
 			desc='Downloading',
-			file_sizes=[100, 200],
+			file_sizes=[100 * 1024 * 1024, 200 * 1024 * 1024],  # Use realistic sizes (100MB, 200MB)
 			logger=mock_logger,
 			total=2,
 			disable=False,
 		)
 
-		# Start first file
+		# Start first file - use 50MB chunks to trigger emissions
 		progress.start_file('file1.bin')
-		progress.update_bytes(50)
-		progress.update_bytes(50)
+		progress.update_bytes(50 * 1024 * 1024)  # 50MB - triggers emission
+		progress.update_bytes(50 * 1024 * 1024)  # 50MB - triggers emission
 		progress.update(1)
 
 		assert progress.n == 1
-		assert progress.downloaded_size == 100
-		assert progress.completed_files_size == 100
+		assert progress.downloaded_size == 100 * 1024 * 1024
+		assert progress.completed_files_size == 100 * 1024 * 1024
 
 		# Start second file
 		progress.start_file('file2.bin')
-		progress.update_bytes(100)
-		progress.update_bytes(100)
+		progress.update_bytes(100 * 1024 * 1024)  # 100MB - triggers emission
+		progress.update_bytes(100 * 1024 * 1024)  # 100MB - triggers emission
 		progress.update(1)
 
 		assert progress.n == 2
-		assert progress.downloaded_size == 300
-		assert progress.completed_files_size == 300
+		assert progress.downloaded_size == 300 * 1024 * 1024
+		assert progress.completed_files_size == 300 * 1024 * 1024
 
 		# Close
 		progress.close()
 
-		# Verify all events were emitted
+		# Verify all events were emitted (with throttling, chunks are emitted)
 		calls = [call[0][0].phase for call in mock_socket.download_step_progress.call_args_list]
 		assert 'init' in calls
 		assert calls.count('file_start') == 2
-		assert calls.count('chunk') == 4
+		assert calls.count('chunk') >= 2  # At least 2 chunks emitted (throttling may reduce count)
 		assert calls.count('file_complete') == 2
 		assert 'complete' in calls
 

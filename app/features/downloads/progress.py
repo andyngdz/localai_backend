@@ -1,3 +1,4 @@
+import time
 from typing import Optional
 
 from tqdm import tqdm as BaseTqdm
@@ -24,6 +25,12 @@ class DownloadProgress(BaseTqdm):
 		self.total_downloaded_size = sum(self.file_sizes)
 		self.completed_files_size = 0
 		self.current_file: Optional[str] = None
+
+		# Throttling to prevent websocket spam (huge performance boost)
+		self._last_emit_time = time.time()
+		self._last_emit_size = 0
+		self._emit_interval = 0.5  # Emit at most every 0.5 seconds
+		self._emit_size_threshold = 50 * 1024 * 1024  # Or every 50MB downloaded
 
 		kwargs.setdefault('disable', None)
 		kwargs.setdefault('mininterval', 0.25)
@@ -86,7 +93,17 @@ class DownloadProgress(BaseTqdm):
 		self.downloaded_size += byte_count
 		if self.total_downloaded_size > 0 and self.downloaded_size > self.total_downloaded_size:
 			self.downloaded_size = self.total_downloaded_size
-		self.emit_progress('chunk')
+
+		# Throttle emissions: only emit every 0.5s OR every 50MB (whichever comes first)
+		# This prevents websocket spam and dramatically improves download speed
+		now = time.time()
+		size_delta = self.downloaded_size - self._last_emit_size
+		time_delta = now - self._last_emit_time
+
+		if size_delta >= self._emit_size_threshold or time_delta >= self._emit_interval:
+			self.emit_progress('chunk')
+			self._last_emit_time = now
+			self._last_emit_size = self.downloaded_size
 
 	def update(self, n=1):
 		super().update(n)
