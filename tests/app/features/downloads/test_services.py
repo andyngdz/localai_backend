@@ -253,7 +253,6 @@ class TestDownloadFileSecurity:
 				revision='main',
 				snapshot_dir='/tmp/test',
 				file_index=0,
-				file_size=100,
 				progress=mock_progress,
 			)
 
@@ -273,7 +272,6 @@ class TestDownloadFile:
 				revision='main',
 				snapshot_dir=str(snapshot_dir),
 				file_index=0,
-				file_size=100,
 				progress=mock_progress,
 			)
 
@@ -301,7 +299,6 @@ class TestDownloadFile:
 				revision='main',
 				snapshot_dir=str(snapshot_dir),
 				file_index=0,
-				file_size=5,
 				progress=mock_progress,
 			)
 
@@ -325,7 +322,6 @@ class TestDownloadFile:
 				revision='main',
 				snapshot_dir=str(snapshot_dir),
 				file_index=0,
-				file_size=8,
 				progress=mock_progress,
 			)
 
@@ -351,7 +347,6 @@ class TestDownloadFile:
 					revision='main',
 					snapshot_dir=str(snapshot_dir),
 					file_index=0,
-					file_size=10,
 					progress=mock_progress,
 				)
 
