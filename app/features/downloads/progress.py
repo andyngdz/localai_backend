@@ -1,11 +1,63 @@
+import threading
 import time
-from typing import Optional
+from typing import Dict, Optional
 
 from tqdm import tqdm as BaseTqdm
 
 from app.socket import socket_service
 
 from .schemas import DownloadStepProgressResponse
+
+
+class ChunkEmitter:
+	"""Background worker that coalesces chunk events before emitting over the socket."""
+
+	def __init__(self, interval: float = 0.25):
+		self.interval = interval
+		self.lock = threading.Lock()
+		self.latest: Dict[str, DownloadStepProgressResponse] = {}
+		self.event = threading.Event()
+		self.thread = threading.Thread(
+			target=self.drain,
+			name='download-progress-emitter',
+			daemon=True,
+		)
+		self.thread.start()
+
+	def enqueue(self, payload: DownloadStepProgressResponse) -> None:
+		with self.lock:
+			self.latest[payload.id] = payload
+			self.event.set()
+
+	def flush(self, model_id: str) -> None:
+		with self.lock:
+			payload = self.latest.pop(model_id, None)
+			if not self.latest:
+				self.event.clear()
+		if payload is not None:
+			self.emit(payload)
+
+	def drain(self) -> None:
+		while True:
+			self.event.wait()
+			time.sleep(self.interval)
+			with self.lock:
+				payloads = list(self.latest.values())
+				self.latest.clear()
+				self.event.clear()
+			for payload in payloads:
+				self.emit(payload)
+
+	@staticmethod
+	def emit(payload: DownloadStepProgressResponse) -> None:
+		try:
+			socket_service.download_step_progress(payload)
+		except Exception:  # pragma: no cover - guard against socket errors
+			# Logging lives inside socket_service; avoid double-logging here.
+			pass
+
+
+chunk_emitter = ChunkEmitter()
 
 
 class DownloadProgress(BaseTqdm):
@@ -41,17 +93,21 @@ class DownloadProgress(BaseTqdm):
 
 	def emit_progress(self, phase: str, *, current_file: Optional[str] = None) -> None:
 		"""Push the latest cumulative byte totals to all websocket clients."""
-		socket_service.download_step_progress(
-			DownloadStepProgressResponse(
-				id=self.id,
-				step=self.n,
-				total=self.total,
-				downloaded_size=self.downloaded_size,
-				total_downloaded_size=self.total_downloaded_size,
-				phase=phase,
-				current_file=current_file or self.current_file,
-			)
+		payload = DownloadStepProgressResponse(
+			id=self.id,
+			step=self.n,
+			total=self.total,
+			downloaded_size=self.downloaded_size,
+			total_downloaded_size=self.total_downloaded_size,
+			phase=phase,
+			current_file=current_file or self.current_file,
 		)
+
+		if phase == 'chunk':
+			chunk_emitter.enqueue(payload)
+		else:
+			chunk_emitter.flush(self.id)
+			socket_service.download_step_progress(payload)
 
 		if phase in {'file_start', 'file_complete'}:
 			self.logger.info('%s %s/%s', self.desc, self.n, self.total)

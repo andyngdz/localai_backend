@@ -1,3 +1,4 @@
+import time
 from unittest.mock import Mock, patch
 
 import pytest
@@ -11,12 +12,38 @@ def mock_socket():
 		yield mock_service
 
 
+@pytest.fixture(autouse=True)
+def fast_chunk_emitter():
+	"""Speed up chunk emitter flush interval for deterministic tests."""
+	from app.features.downloads import progress
+
+	emitter = progress.chunk_emitter
+	original_interval = emitter.interval
+	emitter.interval = 0.001
+	yield emitter
+	emitter.interval = original_interval
+	with emitter.lock:
+		emitter.latest.clear()
+		emitter.event.clear()
+
+
 @pytest.fixture
 def mock_logger():
 	"""Create mock logger."""
 	logger = Mock()
 	logger.info = Mock()
 	return logger
+
+
+def wait_for_chunk(mock_socket, emitter, expected=1, timeout=0.1):
+	"""Wait until the mocked socket records at least the expected number of calls."""
+	deadline = time.time() + timeout
+	interval = max(getattr(emitter, 'interval', 0.001), 0.001)
+	while time.time() < deadline:
+		if mock_socket.download_step_progress.call_count >= expected:
+			return
+		time.sleep(interval)
+	assert mock_socket.download_step_progress.call_count >= expected
 
 
 @pytest.fixture
@@ -81,23 +108,27 @@ class TestDownloadProgressInit:
 
 class TestEmitProgress:
 	@pytest.mark.parametrize('phase', ['init', 'file_start', 'file_complete', 'chunk', 'size_update', 'complete'])
-	def test_emits_with_correct_phase(self, progress_instance, mock_socket, phase):
+	def test_emits_with_correct_phase(self, progress_instance, mock_socket, fast_chunk_emitter, phase):
 		"""Test that emit_progress sends correct phase."""
 		mock_socket.download_step_progress.reset_mock()
 
 		progress_instance.emit_progress(phase)
 
+		if phase == 'chunk':
+			wait_for_chunk(mock_socket, fast_chunk_emitter)
+
 		mock_socket.download_step_progress.assert_called_once()
 		call_args = mock_socket.download_step_progress.call_args[0][0]
 		assert call_args.phase == phase
 
-	def test_includes_all_required_fields(self, progress_instance, mock_socket):
+	def test_includes_all_required_fields(self, progress_instance, mock_socket, fast_chunk_emitter):
 		"""Test that emitted progress includes all required fields."""
 		mock_socket.download_step_progress.reset_mock()
 		progress_instance.downloaded_size = 50
 		progress_instance.n = 1
 
 		progress_instance.emit_progress('chunk')
+		wait_for_chunk(mock_socket, fast_chunk_emitter)
 
 		call_args = mock_socket.download_step_progress.call_args[0][0]
 		assert call_args.id == 'test-repo'
@@ -252,7 +283,7 @@ class TestUpdateBytes:
 
 		assert progress_instance.downloaded_size == 100
 
-	def test_emits_chunk_event_after_threshold(self, mock_socket, mock_logger):
+	def test_emits_chunk_event_after_threshold(self, mock_socket, mock_logger, fast_chunk_emitter):
 		"""Test that update_bytes emits chunk progress after size threshold."""
 		from app.features.downloads.progress import DownloadProgress
 
@@ -269,6 +300,7 @@ class TestUpdateBytes:
 
 		# Send 50MB to trigger emission threshold
 		progress.update_bytes(50 * 1024 * 1024)
+		wait_for_chunk(mock_socket, fast_chunk_emitter)
 
 		call_args = mock_socket.download_step_progress.call_args[0][0]
 		assert call_args.phase == 'chunk'
@@ -276,7 +308,7 @@ class TestUpdateBytes:
 
 		progress.close()
 
-	def test_throttles_small_updates(self, progress_instance, mock_socket):
+	def test_throttles_small_updates(self, progress_instance, mock_socket, fast_chunk_emitter):
 		"""Test that small updates are throttled and don't spam emissions."""
 		mock_socket.download_step_progress.reset_mock()
 
@@ -284,7 +316,8 @@ class TestUpdateBytes:
 		for _ in range(10):
 			progress_instance.update_bytes(25)
 
-		# Should not have emitted due to throttling
+		# Give emitter time to process (should still be zero)
+		time.sleep(fast_chunk_emitter.interval * 2)
 		assert mock_socket.download_step_progress.call_count == 0
 		# But downloaded_size should still be updated
 		assert progress_instance.downloaded_size == 250
@@ -358,7 +391,7 @@ class TestClose:
 
 
 class TestIntegrationScenarios:
-	def test_complete_download_flow(self, mock_socket, mock_logger):
+	def test_complete_download_flow(self, mock_socket, mock_logger, fast_chunk_emitter):
 		"""Test a realistic download scenario with multiple files."""
 		from app.features.downloads.progress import DownloadProgress
 
@@ -393,6 +426,7 @@ class TestIntegrationScenarios:
 
 		# Close
 		progress.close()
+		time.sleep(fast_chunk_emitter.interval * 2)
 
 		# Verify all events were emitted (with throttling, chunks are emitted)
 		calls = [call[0][0].phase for call in mock_socket.download_step_progress.call_args_list]
@@ -401,6 +435,30 @@ class TestIntegrationScenarios:
 		assert calls.count('chunk') >= 2  # At least 2 chunks emitted (throttling may reduce count)
 		assert calls.count('file_complete') == 2
 		assert 'complete' in calls
+
+
+class TestChunkEmitterBehavior:
+	def test_coalesces_chunk_updates(self, mock_socket, fast_chunk_emitter):
+		"""Ensure the chunk emitter only forwards the latest payload per model."""
+		from app.features.downloads.progress import DownloadStepProgressResponse
+
+		mock_socket.download_step_progress.reset_mock()
+		payload1 = DownloadStepProgressResponse(
+			id='model',
+			step=1,
+			total=2,
+			downloaded_size=5,
+			total_downloaded_size=10,
+			phase='chunk',
+		)
+		payload2 = payload1.model_copy(update={'downloaded_size': 9})
+
+		fast_chunk_emitter.enqueue(payload1)
+		fast_chunk_emitter.enqueue(payload2)
+		wait_for_chunk(mock_socket, fast_chunk_emitter, expected=1)
+
+		assert mock_socket.download_step_progress.call_count == 1
+		assert mock_socket.download_step_progress.call_args[0][0].downloaded_size == 9
 
 	def test_file_size_adjustment_mid_download(self, mock_socket, mock_logger):
 		"""Test adjusting file size during download (e.g., from Content-Length header)."""
