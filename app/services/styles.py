@@ -1,28 +1,67 @@
+import logging
 import re
 from itertools import chain
+from types import SimpleNamespace
+from typing import Any, Optional, Protocol
 
 from transformers import CLIPTokenizer
 
 from app.styles import all_styles
 from app.styles.schemas import StyleItem
 
+logger = logging.getLogger(__name__)
+
 PROMPT_REMOVE_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
 CLIP_TOKENIZER_MODEL = 'openai/clip-vit-base-patch32'
 
 
+class TokenizerLike(Protocol):
+	def __call__(self, prompt: str) -> Any: ...
+	def decode(self, input_ids, skip_special_tokens: bool = True) -> str: ...
+
+
+class FallbackTokenizer:
+	def __call__(self, prompt: str):
+		# Minimal structure compatible with CLIP tokenizer output
+		return SimpleNamespace(input_ids=[ord(ch) % 256 for ch in prompt])
+
+	def decode(self, input_ids, skip_special_tokens: bool = True):
+		return ''.join(chr(token) for token in input_ids)
+
+
 class StylesService:
-	def __init__(self):
-		self.tokenizer = CLIPTokenizer.from_pretrained(CLIP_TOKENIZER_MODEL)
+	def __init__(self, tokenizer: Optional[TokenizerLike] = None):
+		self.tokenizer: Optional[TokenizerLike] = tokenizer
 		self.all_styles = chain.from_iterable(all_styles.values())
 
+	def _get_tokenizer(self) -> TokenizerLike:
+		if self.tokenizer is not None:
+			return self.tokenizer
+
+		try:
+			tokenizer: TokenizerLike = CLIPTokenizer.from_pretrained(
+				CLIP_TOKENIZER_MODEL,
+				local_files_only=True,
+			)
+		except Exception as error:
+			logger.warning(
+				'Falling back to no-op tokenizer for styles: %s',
+				error,
+			)
+			tokenizer = FallbackTokenizer()
+
+		self.tokenizer = tokenizer
+		return self.tokenizer
+
 	def truncate_clip_prompt(self, prompt: str, max_tokens: int = 77) -> str:
-		clip_tokenizer = self.tokenizer(prompt)
+		tokenizer = self._get_tokenizer()
+		clip_tokenizer = tokenizer(prompt)
 		input_ids = clip_tokenizer.input_ids
 
 		if len(input_ids) > max_tokens:
 			input_ids = input_ids[:max_tokens]
 
-		return self.tokenizer.decode(input_ids, skip_special_tokens=True)
+		return tokenizer.decode(input_ids, skip_special_tokens=True)
 
 	def combined_positive_prompt(self, prompt: str, styles: list[StyleItem]):
 		if not styles:
