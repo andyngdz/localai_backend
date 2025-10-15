@@ -6,7 +6,7 @@ from tqdm import tqdm as BaseTqdm
 
 from app.socket import socket_service
 
-from .schemas import DownloadStepProgressResponse
+from .schemas import DownloadPhase, DownloadStepProgressResponse
 
 
 class ChunkEmitter:
@@ -89,9 +89,9 @@ class DownloadProgress(BaseTqdm):
 		kwargs.setdefault('leave', False)
 
 		super().__init__(*args, **kwargs)
-		self.emit_progress('init')
+		self.emit_progress(DownloadPhase.INIT)
 
-	def emit_progress(self, phase: str, *, current_file: Optional[str] = None) -> None:
+	def emit_progress(self, phase: DownloadPhase, *, current_file: Optional[str] = None) -> None:
 		"""Push the latest cumulative byte totals to all websocket clients."""
 		payload = DownloadStepProgressResponse(
 			id=self.id,
@@ -103,19 +103,19 @@ class DownloadProgress(BaseTqdm):
 			current_file=current_file or self.current_file,
 		)
 
-		if phase == 'chunk':
+		if phase == DownloadPhase.CHUNK:
 			chunk_emitter.enqueue(payload)
 		else:
 			chunk_emitter.flush(self.id)
 			socket_service.download_step_progress(payload)
 
-		if phase in {'file_start', 'file_complete'}:
+		if phase in {DownloadPhase.FILE_START, DownloadPhase.FILE_COMPLETE}:
 			self.logger.info('%s %s/%s', self.desc, self.n, self.total)
 
 	def start_file(self, filename: str) -> None:
 		"""Mark the beginning of a file download so the UI can show file-level progress."""
 		self.current_file = filename
-		self.emit_progress('file_start', current_file=filename)
+		self.emit_progress(DownloadPhase.FILE_START, current_file=filename)
 
 	def set_file_size(self, index: int, size: int) -> None:
 		"""Update the recorded size for a file and adjust totals accordingly."""
@@ -139,7 +139,7 @@ class DownloadProgress(BaseTqdm):
 			if self.completed_files_size < 0:
 				self.completed_files_size = 0
 
-		self.emit_progress('size_update')
+		self.emit_progress(DownloadPhase.SIZE_UPDATE)
 
 	def update_bytes(self, byte_count: int) -> None:
 		"""Increment downloaded bytes and emit progress for partial file download."""
@@ -157,7 +157,7 @@ class DownloadProgress(BaseTqdm):
 		time_delta = now - self.last_emit_time
 
 		if size_delta >= self.emit_size_threshold or time_delta >= self.emit_interval:
-			self.emit_progress('chunk')
+			self.emit_progress(DownloadPhase.CHUNK)
 			self.last_emit_time = now
 			self.last_emit_size = self.downloaded_size
 
@@ -172,9 +172,9 @@ class DownloadProgress(BaseTqdm):
 		if self.downloaded_size < self.completed_files_size:
 			self.downloaded_size = self.completed_files_size
 
-		self.emit_progress('file_complete')
+		self.emit_progress(DownloadPhase.FILE_COMPLETE)
 
 	def close(self):
 		"""Close the progress bar and emit final completion event."""
-		self.emit_progress('complete')
+		self.emit_progress(DownloadPhase.COMPLETE)
 		super().close()

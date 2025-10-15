@@ -1,8 +1,20 @@
 """Downloads Feature Schemas"""
 
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+
+class DownloadPhase(str, Enum):
+	"""Download progress phase indicators"""
+
+	INIT = 'init'
+	CHUNK = 'chunk'
+	FILE_START = 'file_start'
+	FILE_COMPLETE = 'file_complete'
+	SIZE_UPDATE = 'size_update'
+	COMPLETE = 'complete'
 
 
 class DownloadModelRequest(BaseModel):
@@ -37,7 +49,7 @@ class DownloadStepProgressResponse(BaseModel):
 	total: int = Field(..., description='The total number of steps in the download.')
 	downloaded_size: int = Field(default=0, description='Total downloaded bytes so far.')
 	total_downloaded_size: int = Field(default=0, description='Total number of bytes to download.')
-	phase: str = Field(default='chunk', description='Progress phase indicator (chunk, file_complete, etc.).')
+	phase: DownloadPhase = Field(default=DownloadPhase.CHUNK, description='Progress phase indicator.')
 	current_file: Optional[str] = Field(
 		default=None,
 		description='Name of the file currently being downloaded, if applicable.',
