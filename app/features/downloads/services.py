@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
-import requests.adapters
+from requests.adapters import HTTPAdapter
 from huggingface_hub import HfApi, hf_hub_download, hf_hub_url
 from sqlalchemy.orm import Session
 
@@ -28,18 +28,35 @@ class DownloadService:
 
 	CHUNK_SIZE = 4 * 1024 * 1024
 
-	def __init__(self):
-		self.executor = ThreadPoolExecutor()
-		self.api = HfApi()
-		# Reuse HTTPS connections for 20-30% faster downloads
-		self.session = requests.Session()
-		# Configure connection pool (HTTPS only for security)
-		adapter = requests.adapters.HTTPAdapter(
+	def __init__(
+		self,
+		api: Optional[HfApi] = None,
+		executor: Optional[ThreadPoolExecutor] = None,
+		session: Optional[requests.Session] = None,
+	):
+		self.executor = executor or ThreadPoolExecutor()
+		self._api: Optional[HfApi] = api
+		self.session = session or self._build_session()
+
+	@property
+	def api(self) -> HfApi:
+		if self._api is None:
+			self._api = HfApi()
+		return self._api
+
+	@api.setter
+	def api(self, value: HfApi) -> None:
+		self._api = value
+
+	def _build_session(self) -> requests.Session:
+		session = requests.Session()
+		adapter = HTTPAdapter(
 			pool_connections=10,
 			pool_maxsize=20,
-			max_retries=3
+			max_retries=3,
 		)
-		self.session.mount('https://', adapter)
+		session.mount('https://', adapter)
+		return session
 
 	async def start(self, id: str, db: Session):
 		loop = asyncio.get_event_loop()
@@ -113,6 +130,7 @@ class DownloadService:
 					snapshot_dir=snapshot_dir,
 					file_index=index,
 					progress=progress,
+					file_size=file_sizes[index],
 				)
 				if local_dir is None:
 					local_dir = os.path.dirname(local_path)
@@ -207,6 +225,7 @@ class DownloadService:
 		snapshot_dir: str,
 		file_index: int,
 		progress: DownloadTqdm,
+		file_size: Optional[int] = None,
 		token: Optional[str] = None,
 	):
 		"""
@@ -219,6 +238,7 @@ class DownloadService:
 			snapshot_dir: Local directory to store downloaded files
 			file_index: Zero-based index in progress.file_sizes list (must align with file order)
 			progress: Progress tracker for websocket updates
+			file_size: Expected size for the file (used to seed progress totals)
 			token: Optional HuggingFace authentication token
 
 		Returns:
@@ -264,15 +284,17 @@ class DownloadService:
 		headers = self.auth_headers(token)
 
 		try:
-			# Use session for connection pooling (20-30% faster)
 			with self.session.get(url, stream=True, headers=headers, timeout=60) as response:
 				response.raise_for_status()
+				target_size = file_size
 				content_length = response.headers.get('Content-Length')
 				if content_length:
 					try:
-						progress.set_file_size(file_index, int(content_length))
-					except ValueError:
-						pass
+						target_size = int(content_length)
+					except (TypeError, ValueError):
+						target_size = file_size
+				if target_size and target_size > 0:
+					progress.set_file_size(file_index, target_size)
 
 				with open(temp_path, 'wb') as dest:
 					for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
@@ -302,7 +324,6 @@ class DownloadService:
 		headers = self.auth_headers(token)
 
 		try:
-			# Use session for connection pooling
 			response = self.session.head(url, headers=headers, timeout=30, allow_redirects=True)
 			response.raise_for_status()
 			content_length = response.headers.get('Content-Length')

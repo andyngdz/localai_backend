@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 import requests
+from requests import Session
 
 
 @pytest.fixture
@@ -20,6 +21,7 @@ def mock_service():
 		from app.features.downloads.services import DownloadService
 		service = DownloadService()
 		service.api = mock_api
+		service.session = MagicMock(spec=Session)
 
 		yield service, mock_model_service, mock_storage_service
 
@@ -273,6 +275,7 @@ class TestDownloadFile:
 				snapshot_dir=str(snapshot_dir),
 				file_index=0,
 				progress=mock_progress,
+				file_size=5,
 			)
 
 		assert result == str(existing)
@@ -292,15 +295,16 @@ class TestDownloadFile:
 		mock_response.__enter__ = lambda self: mock_response
 		mock_response.__exit__ = lambda *args: None
 
-		with patch('app.features.downloads.services.requests.get', return_value=mock_response):
-			result = service.download_file(
-				repo_id='test/repo',
-				filename='model.bin',
-				revision='main',
-				snapshot_dir=str(snapshot_dir),
-				file_index=0,
-				progress=mock_progress,
-			)
+		service.session.get.return_value = mock_response
+		result = service.download_file(
+			repo_id='test/repo',
+			filename='model.bin',
+			revision='main',
+			snapshot_dir=str(snapshot_dir),
+			file_index=0,
+			progress=mock_progress,
+			file_size=8,
+		)
 
 		assert Path(result).read_bytes() == b'hello'
 
@@ -315,15 +319,16 @@ class TestDownloadFile:
 		mock_response.__enter__ = lambda self: mock_response
 		mock_response.__exit__ = lambda *args: None
 
-		with patch('app.features.downloads.services.requests.get', return_value=mock_response):
-			result = service.download_file(
-				repo_id='test/repo',
-				filename='model.bin',
-				revision='main',
-				snapshot_dir=str(snapshot_dir),
-				file_index=0,
-				progress=mock_progress,
-			)
+		service.session.get.return_value = mock_response
+		result = service.download_file(
+			repo_id='test/repo',
+			filename='model.bin',
+			revision='main',
+			snapshot_dir=str(snapshot_dir),
+			file_index=0,
+			progress=mock_progress,
+			file_size=8,
+		)
 
 		assert Path(result).read_bytes() == b'helloworld'
 		assert mock_progress.update_bytes.call_count == 2
@@ -339,16 +344,17 @@ class TestDownloadFile:
 		mock_response.__enter__ = lambda self: mock_response
 		mock_response.__exit__ = lambda *args: None
 
-		with patch('app.features.downloads.services.requests.get', return_value=mock_response):
-			with pytest.raises(ConnectionError):
-				service.download_file(
-					repo_id='test/repo',
-					filename='model.bin',
-					revision='main',
-					snapshot_dir=str(snapshot_dir),
-					file_index=0,
-					progress=mock_progress,
-				)
+		service.session.get.return_value = mock_response
+		with pytest.raises(ConnectionError):
+			service.download_file(
+				repo_id='test/repo',
+				filename='model.bin',
+				revision='main',
+				snapshot_dir=str(snapshot_dir),
+				file_index=0,
+				progress=mock_progress,
+				file_size=10,
+			)
 
 		assert not (snapshot_dir / 'model.bin.part').exists()
 
@@ -359,8 +365,8 @@ class TestFetchRemoteFileSize:
 		mock_response = Mock()
 		mock_response.headers.get.return_value = '12345'
 
-		with patch('app.features.downloads.services.requests.head', return_value=mock_response):
-			size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
+		service.session.head.return_value = mock_response
+		size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
 
 		assert size == 12345
 
@@ -374,15 +380,15 @@ class TestFetchRemoteFileSize:
 		mock_response = Mock()
 		mock_response.headers.get.return_value = header_value
 
-		with patch('app.features.downloads.services.requests.head', return_value=mock_response):
-			size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
+		service.session.head.return_value = mock_response
+		size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
 
 		assert size == expected
 
 	def test_handles_http_error(self, mock_service):
 		service, _, _ = mock_service
 
-		with patch('app.features.downloads.services.requests.head', side_effect=requests.RequestException('HTTP 404')):
-			size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
+		service.session.head.side_effect = requests.RequestException('HTTP 404')
+		size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
 
 		assert size == 0
