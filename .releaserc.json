@@ -1,6 +1,6 @@
 {
 	"branches": [
-		"main",
+		"stable",
 		{
 			"name": "main",
 			"prerelease": true
