@@ -286,8 +286,8 @@ def test_model_loader_environment_error_fallback_success(mock_dependencies, capl
     mock_pipe = mock_dependencies['mock_pipe']
     model_loader = mock_dependencies['model_loader']
 
-    # First call raises EnvironmentError, second returns pipe (fallback path)
-    call_sequence: list[MagicMock | Exception] = [EnvironmentError('safetensors not available'), mock_pipe]
+    # First call raises EnvironmentError, second returns pipe (fallback to strategy 2)
+    call_sequence: list[MagicMock | Exception] = [EnvironmentError('variant not available'), mock_pipe]
 
     def side_effect(*args, **kwargs):
         result = call_sequence.pop(0)
@@ -303,9 +303,11 @@ def test_model_loader_environment_error_fallback_success(mock_dependencies, capl
     # Assert
     assert result is mock_pipe
     assert mock_auto_pipeline.from_pretrained.call_count == 2
-    # Verify the second call used use_safetensors=False
+    # Verify the second call used use_safetensors=True (strategy 2 after strategy 1 fails)
     _, second_kwargs = mock_auto_pipeline.from_pretrained.call_args
-    assert second_kwargs.get('use_safetensors') is False
+    assert second_kwargs.get('use_safetensors') is True
+    # Strategy 2 should not have 'variant' parameter
+    assert 'variant' not in second_kwargs
     mock_socket_service.model_load_completed.assert_called_once()
 
 
@@ -316,23 +318,31 @@ def test_model_loader_environment_error_then_failure(mock_dependencies):
     mock_socket_service = mock_dependencies['mock_socket_service']
     model_loader = mock_dependencies['model_loader']
 
-    # First call raises EnvironmentError, second raises a generic Exception
+    # All 4 strategies fail, last one raises RuntimeError
+    call_sequence = [
+        EnvironmentError('strategy 1 failed'),
+        EnvironmentError('strategy 2 failed'),
+        EnvironmentError('strategy 3 failed'),
+        RuntimeError('all strategies failed'),
+    ]
+
     def side_effect(*args, **kwargs):
-        if mock_auto_pipeline.from_pretrained.call_count == 0:
-            raise EnvironmentError('first attempt failed')
-        raise RuntimeError('second attempt failed')
+        result = call_sequence.pop(0)
+        raise result
 
     mock_auto_pipeline.from_pretrained.side_effect = side_effect
 
     # Act & Assert
-    with pytest.raises(RuntimeError, match='second attempt failed'):
+    with pytest.raises(RuntimeError, match='all strategies failed'):
         model_loader(model_id)
 
+    # Ensure all 4 strategies were attempted
+    assert mock_auto_pipeline.from_pretrained.call_count == 4
     # Ensure failure was emitted with correct payload
     mock_socket_service.model_load_failed.assert_called_once()
     args, _ = mock_socket_service.model_load_failed.call_args
     assert args[0].id == model_id
-    assert args[0].error == 'second attempt failed'
+    assert args[0].error == 'all strategies failed'
 
 
 def test_model_loader_calls_reset_device_map_when_available(mock_dependencies, caplog: pytest.LogCaptureFixture):
