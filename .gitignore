@@ -50,3 +50,10 @@ static/generated_images
 # ENVIRONMENTS / SECRETS
 # ------------------------------------------------------------------
 .env                    # Environment variables (e.g., API keys, device settings)
+
+# ------------------------------------------------------------------
+# SEMANTIC RELEASE
+# ------------------------------------------------------------------
+node_modules/           # Node.js dependencies for semantic-release
+package-lock.json       # NPM lock file
+.VERSION                # Temporary version file

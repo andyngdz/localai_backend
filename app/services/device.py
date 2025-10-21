@@ -89,5 +89,45 @@ class DeviceService:
 			return torch.backends.mps.is_available()
 		return False
 
+	def get_recommended_batch_size(self) -> int:
+		"""
+		Calculate recommended maximum batch size based on available GPU memory.
+
+		Returns:
+			int: Recommended maximum number of images to generate in a single batch
+
+		Memory tiers:
+			- < 4GB: 1 image
+			- 4-8GB: 2 images
+			- 8-12GB: 3 images
+			- 12-16GB: 4 images
+			- >= 16GB: 6 images
+		"""
+		from app.cores.constants.batch_size import BATCH_SIZE_THRESHOLDS
+
+		if not self.is_available:
+			return 1  # CPU only - be conservative
+
+		# Get total GPU memory in GB
+		if self.is_cuda:
+			props = self.get_device_properties(0)
+			if props:
+				total_memory_gb = props.total_memory / (1024**3)
+			else:
+				return 1
+		elif self.is_mps:
+			# MPS shares memory between CPU and GPU, be more conservative
+			return 2
+		else:
+			return 1
+
+		# Find appropriate threshold based on available memory
+		for memory_threshold, batch_size in BATCH_SIZE_THRESHOLDS:
+			if total_memory_gb < memory_threshold:
+				return batch_size
+
+		# Fallback to largest batch size if memory exceeds all thresholds
+		return BATCH_SIZE_THRESHOLDS[-1][1]
+
 
 device_service = DeviceService()

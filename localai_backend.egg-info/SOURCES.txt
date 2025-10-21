@@ -1,0 +1,9 @@
+LICENSE
+README.md
+pyproject.toml
+app/__init__.py
+localai_backend.egg-info/PKG-INFO
+localai_backend.egg-info/SOURCES.txt
+localai_backend.egg-info/dependency_links.txt
+localai_backend.egg-info/requires.txt
+localai_backend.egg-info/top_level.txt
