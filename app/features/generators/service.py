@@ -139,9 +139,11 @@ class GeneratorService:
 			logger.info('Cleared CUDA cache before generation')
 
 		# Validate batch size to prevent OOM errors
-		if config.number_of_images > 3:
+		recommended_batch = device_service.get_recommended_batch_size()
+		if config.number_of_images > recommended_batch:
 			logger.warning(
 				f'Generating {config.number_of_images} images may cause out of memory errors. '
+				f'Your GPU supports up to {recommended_batch} images at once. '
 				'Consider reducing batch size or generating sequentially.'
 			)
 
