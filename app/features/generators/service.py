@@ -133,11 +133,25 @@ class GeneratorService:
 			logger.warning('Attempted to generate image, but no model is loaded.')
 			raise ValueError('No model is currently loaded')
 
+		# Clear CUDA cache before generation to maximize available memory
+		if device_service.is_cuda:
+			torch.cuda.empty_cache()
+			logger.info('Cleared CUDA cache before generation')
+
+		# Validate batch size to prevent OOM errors
+		recommended_batch = device_service.get_recommended_batch_size()
+		if config.number_of_images > recommended_batch:
+			logger.warning(
+				f'Generating {config.number_of_images} images may cause out of memory errors. '
+				f'Your GPU supports up to {recommended_batch} images at once. '
+				'Consider reducing batch size or generating sequentially.'
+			)
+
 		try:
 			logger.info(
 				f"Generating image(s) for prompt: '{config.prompt}' "
 				f'with steps={config.steps}, CFG={config.cfg_scale}, '
-				f'size={config.width}x{config.height}'
+				f'size={config.width}x{config.height}, batch={config.number_of_images}'
 			)
 
 			model_manager.set_sampler(config.sampler)
@@ -203,13 +217,24 @@ class GeneratorService:
 			raise ValueError(f'Model files not found: {error}')
 		except torch.cuda.OutOfMemoryError as error:
 			logger.error(f'Out of memory error during image generation: {error}')
+			# Clear cache to recover from OOM
+			if device_service.is_cuda:
+				torch.cuda.empty_cache()
+				logger.info('Cleared CUDA cache after OOM error')
+
 			raise ValueError(
-				'Out of memory error during image generation. '
-				'Please try again with fewer images or a smaller resolution.'
+				f'Out of memory error: tried to allocate memory but GPU is full. '
+				f'Current batch: {config.number_of_images} images at {config.width}x{config.height}. '
+				f'Try: (1) Reduce number of images to 1-2, (2) Lower resolution to 512x512, '
+				f'or (3) Restart the model to clear memory.'
 			)
 		except Exception as error:
 			logger.exception(f'Failed to generate image for prompt: "{config.prompt}"')
 			raise ValueError(f'Failed to generate image: {error}')
+		finally:
+			# Always clear cache after generation to prevent memory buildup
+			if device_service.is_cuda:
+				torch.cuda.empty_cache()
 
 
 generator_service = GeneratorService()
