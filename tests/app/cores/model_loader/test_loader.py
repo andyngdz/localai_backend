@@ -77,6 +77,9 @@ def mock_dependencies():
         @classmethod
         def from_pretrained(cls, *args, **kwargs):  # will be patched
             return MagicMock(name='AutoPipelinePipe')
+        @classmethod
+        def from_single_file(cls, *args, **kwargs):  # will be patched
+            return MagicMock(name='AutoPipelinePipeFromSingleFile')
 
     class _StableDiffusionSafetyChecker:  # minimal placeholder
         @classmethod
@@ -119,6 +122,7 @@ def mock_dependencies():
         patch.object(target_module, 'SessionLocal') as mock_session,
         patch.object(target_module, 'MaxMemoryConfig') as mock_max_memory,
         patch.object(target_module, 'device_service') as mock_device_service,
+        patch.object(target_module, 'storage_service') as mock_storage_service,
         patch.object(target_module, 'CLIPImageProcessor') as mock_clip_processor,
         patch.object(target_module, 'StableDiffusionSafetyChecker') as mock_safety_checker,
         patch.object(target_module, 'AutoPipelineForText2Image') as mock_auto_pipeline,
@@ -133,8 +137,11 @@ def mock_dependencies():
 
         mock_max_memory.return_value.to_dict.return_value = {'cpu_offload': True}
 
+        mock_storage_service.get_model_dir.return_value = '/fake/cache/path'
+
         mock_pipe = MagicMock()
         mock_auto_pipeline.from_pretrained.return_value = mock_pipe
+        mock_auto_pipeline.from_single_file.return_value = mock_pipe
         # Set up to_empty to return the same mock_pipe
         mock_pipe.to_empty.return_value = mock_pipe
         # Set up to as fallback
@@ -144,6 +151,7 @@ def mock_dependencies():
             'mock_session': mock_session,
             'mock_max_memory': mock_max_memory,
             'mock_device_service': mock_device_service,
+            'mock_storage_service': mock_storage_service,
             'mock_clip_processor': mock_clip_processor,
             'mock_safety_checker': mock_safety_checker,
             'mock_auto_pipeline': mock_auto_pipeline,
@@ -153,6 +161,7 @@ def mock_dependencies():
             'module': target_module,
             'model_loader': getattr(target_module, 'model_loader'),
             'move_to_device': getattr(target_module, 'move_to_device'),
+            'find_single_file_checkpoint': getattr(target_module, 'find_single_file_checkpoint'),
         }
 
 
@@ -433,3 +442,258 @@ def test_move_to_device_logs_fallback_type_error(mock_dependencies, caplog: pyte
     # Assert
     messages = [str(call.args[0]) for call in mock_logger.info.call_args_list]
     assert any('moved to cpu device using to()' in m for m in messages)
+
+
+class TestFindSingleFileCheckpoint:
+    """Test the find_single_file_checkpoint function for detecting single-file checkpoints."""
+
+    def test_returns_checkpoint_path_when_safetensors_exists(self, mock_dependencies, tmp_path):
+        # Arrange
+        find_single_file_checkpoint = mock_dependencies['find_single_file_checkpoint']
+        model_dir = tmp_path / 'model'
+        model_dir.mkdir()
+        checkpoint_file = model_dir / 'model.safetensors'
+        checkpoint_file.touch()
+
+        # Act
+        result = find_single_file_checkpoint(str(model_dir))
+
+        # Assert
+        assert result is not None
+        assert result == str(checkpoint_file)
+        assert result.endswith('.safetensors')
+
+    def test_returns_none_when_no_checkpoint_files_exist(self, mock_dependencies, tmp_path):
+        # Arrange
+        find_single_file_checkpoint = mock_dependencies['find_single_file_checkpoint']
+        model_dir = tmp_path / 'model'
+        model_dir.mkdir()
+        # Create a non-checkpoint file
+        (model_dir / 'config.json').touch()
+
+        # Act
+        result = find_single_file_checkpoint(str(model_dir))
+
+        # Assert
+        assert result is None
+
+    def test_returns_none_when_model_path_does_not_exist(self, mock_dependencies):
+        # Arrange
+        find_single_file_checkpoint = mock_dependencies['find_single_file_checkpoint']
+        non_existent_path = '/non/existent/path'
+
+        # Act
+        result = find_single_file_checkpoint(non_existent_path)
+
+        # Assert
+        assert result is None
+
+    def test_returns_first_checkpoint_when_multiple_exist(self, mock_dependencies, tmp_path):
+        # Arrange
+        find_single_file_checkpoint = mock_dependencies['find_single_file_checkpoint']
+        model_dir = tmp_path / 'model'
+        model_dir.mkdir()
+        checkpoint1 = model_dir / 'model_v1.safetensors'
+        checkpoint2 = model_dir / 'model_v2.safetensors'
+        checkpoint1.touch()
+        checkpoint2.touch()
+
+        # Act
+        result = find_single_file_checkpoint(str(model_dir))
+
+        # Assert
+        assert result is not None
+        assert result.endswith('.safetensors')
+        # Should return one of the checkpoint files
+        assert result in [str(checkpoint1), str(checkpoint2)]
+
+
+class TestModelLoadingStrategies:
+    """Test model loading strategies including single-file checkpoint support and enum usage."""
+
+    def test_uses_single_file_strategy_when_checkpoint_found(self, mock_dependencies, tmp_path):
+        # Arrange
+        model_loader = mock_dependencies['model_loader']
+        mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
+        mock_storage_service = mock_dependencies['mock_storage_service']
+        mock_pipe = mock_dependencies['mock_pipe']
+
+        # Create a fake checkpoint in snapshots directory
+        model_dir = tmp_path / 'models--org--model'
+        snapshots_dir = model_dir / 'snapshots' / 'abc123'
+        snapshots_dir.mkdir(parents=True)
+        checkpoint_file = snapshots_dir / 'model.safetensors'
+        checkpoint_file.touch()
+
+        mock_storage_service.get_model_dir.return_value = str(model_dir)
+
+        # Act
+        result = model_loader('test-model')
+
+        # Assert
+        assert result == mock_pipe
+        # from_single_file should be called since checkpoint was found
+        mock_auto_pipeline.from_single_file.assert_called_once()
+        call_args, call_kwargs = mock_auto_pipeline.from_single_file.call_args
+        assert call_args[0] == str(checkpoint_file)
+
+    def test_uses_pretrained_strategies_when_no_checkpoint_found(self, mock_dependencies):
+        # Arrange
+        model_loader = mock_dependencies['model_loader']
+        mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
+        mock_storage_service = mock_dependencies['mock_storage_service']
+        mock_pipe = mock_dependencies['mock_pipe']
+
+        # No checkpoint exists
+        mock_storage_service.get_model_dir.return_value = '/non/existent/path'
+
+        # Act
+        result = model_loader('test-model')
+
+        # Assert
+        assert result == mock_pipe
+        # from_single_file should NOT be called
+        mock_auto_pipeline.from_single_file.assert_not_called()
+        # from_pretrained should be called
+        mock_auto_pipeline.from_pretrained.assert_called()
+
+    def test_uses_model_loading_strategy_enum(self, mock_dependencies, tmp_path):
+        # Arrange
+        from app.cores.constants.model_loader import ModelLoadingStrategy
+        model_loader = mock_dependencies['model_loader']
+        mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
+        mock_storage_service = mock_dependencies['mock_storage_service']
+        mock_logger = mock_dependencies['mock_logger']
+
+        # Create a fake checkpoint
+        model_dir = tmp_path / 'models--org--model'
+        snapshots_dir = model_dir / 'snapshots' / 'abc123'
+        snapshots_dir.mkdir(parents=True)
+        checkpoint_file = snapshots_dir / 'model.safetensors'
+        checkpoint_file.touch()
+
+        mock_storage_service.get_model_dir.return_value = str(model_dir)
+
+        # Act
+        _ = model_loader('test-model')
+
+        # Assert - check logger was called with enum value
+        log_messages = [str(call.args[0]) for call in mock_logger.info.call_args_list]
+        # Should log the single_file strategy type
+        assert any(ModelLoadingStrategy.SINGLE_FILE in msg for msg in log_messages)
+
+    def test_fallback_to_pretrained_when_single_file_fails(self, mock_dependencies, tmp_path):
+        # Arrange
+        model_loader = mock_dependencies['model_loader']
+        mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
+        mock_storage_service = mock_dependencies['mock_storage_service']
+        mock_pipe = mock_dependencies['mock_pipe']
+
+        # Create a fake checkpoint
+        model_dir = tmp_path / 'models--org--model'
+        snapshots_dir = model_dir / 'snapshots' / 'abc123'
+        snapshots_dir.mkdir(parents=True)
+        checkpoint_file = snapshots_dir / 'model.safetensors'
+        checkpoint_file.touch()
+
+        mock_storage_service.get_model_dir.return_value = str(model_dir)
+
+        # from_single_file fails, from_pretrained succeeds
+        mock_auto_pipeline.from_single_file.side_effect = EnvironmentError('Single file failed')
+        mock_auto_pipeline.from_pretrained.return_value = mock_pipe
+
+        # Act
+        result = model_loader('test-model')
+
+        # Assert
+        assert result == mock_pipe
+        # Both methods should be called
+        mock_auto_pipeline.from_single_file.assert_called_once()
+        mock_auto_pipeline.from_pretrained.assert_called()
+
+    def test_all_five_strategies_attempted_on_failure(self, mock_dependencies, tmp_path):
+        # Arrange
+        model_loader = mock_dependencies['model_loader']
+        mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
+        mock_storage_service = mock_dependencies['mock_storage_service']
+
+        # Create a fake checkpoint to trigger 5 strategies (1 single-file + 4 pretrained)
+        model_dir = tmp_path / 'models--org--model'
+        snapshots_dir = model_dir / 'snapshots' / 'abc123'
+        snapshots_dir.mkdir(parents=True)
+        checkpoint_file = snapshots_dir / 'model.safetensors'
+        checkpoint_file.touch()
+
+        mock_storage_service.get_model_dir.return_value = str(model_dir)
+
+        # All strategies fail
+        mock_auto_pipeline.from_single_file.side_effect = EnvironmentError('Single file failed')
+        mock_auto_pipeline.from_pretrained.side_effect = [
+            EnvironmentError('Strategy 2 failed'),
+            EnvironmentError('Strategy 3 failed'),
+            EnvironmentError('Strategy 4 failed'),
+            RuntimeError('All strategies failed'),
+        ]
+
+        # Act & Assert
+        with pytest.raises(RuntimeError, match='All strategies failed'):
+            model_loader('test-model')
+
+        # Should try single-file once + pretrained 4 times = 5 total attempts
+        assert mock_auto_pipeline.from_single_file.call_count == 1
+        assert mock_auto_pipeline.from_pretrained.call_count == 4
+
+
+def test_model_loader_uses_storage_service_get_model_dir(mock_dependencies):
+    """Test that model_loader uses storage_service.get_model_dir() to get model cache path."""
+    # Arrange
+    model_id = 'test-model-id'
+    model_loader = mock_dependencies['model_loader']
+    mock_storage_service = mock_dependencies['mock_storage_service']
+    mock_storage_service.get_model_dir.return_value = '/fake/cache/models--org--model'
+
+    # Act
+    _ = model_loader(model_id)
+
+    # Assert
+    mock_storage_service.get_model_dir.assert_called_once_with(model_id)
+
+
+def test_model_loader_does_not_use_device_map_parameter(mock_dependencies):
+    """Test that model_loader does NOT use device_map parameter in loading calls."""
+    # Arrange
+    model_id = 'test-model-id'
+    model_loader = mock_dependencies['model_loader']
+    mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
+
+    # Act
+    _ = model_loader(model_id)
+
+    # Assert - check all calls to from_pretrained
+    for call_args in mock_auto_pipeline.from_pretrained.call_args_list:
+        _, kwargs = call_args
+        assert 'device_map' not in kwargs, 'device_map should not be in kwargs'
+
+
+def test_model_loader_does_not_mutate_strategy_dictionaries(mock_dependencies):
+    """Test that model_loader does not mutate the original strategy dictionaries."""
+    # Arrange
+    model_id = 'test-model-id'
+    model_loader = mock_dependencies['model_loader']
+    mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
+
+    # Track all kwargs passed to from_pretrained to ensure 'type' is never present
+    kwargs_list = []
+
+    def capture_kwargs(*args, **kwargs):
+        kwargs_list.append(kwargs.copy())
+        return mock_dependencies['mock_pipe']
+
+    mock_auto_pipeline.from_pretrained.side_effect = capture_kwargs
+
+    # Act
+    _ = model_loader(model_id)
+
+    # Assert - 'type' should never be in kwargs (it should be filtered out, not popped)
+    for kwargs in kwargs_list:
+        assert 'type' not in kwargs, "'type' should be filtered out, not present in kwargs"
