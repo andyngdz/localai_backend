@@ -6,7 +6,11 @@ from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
 
-from app.cores.constants.model_loader import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
+from app.cores.constants.model_loader import (
+	CLIP_IMAGE_PROCESSOR_MODEL,
+	SAFETY_CHECKER_MODEL,
+	ModelLoadingStrategy,
+)
 from app.cores.max_memory import MaxMemoryConfig
 from app.database.service import SessionLocal
 from app.services import device_service, storage_service
@@ -89,33 +93,33 @@ def model_loader(id: str):
 	# Strategy 0: Single-file checkpoint (highest priority for community models)
 	if checkpoint_path:
 		loading_strategies.append({
-			'type': 'single_file',
+			'type': ModelLoadingStrategy.SINGLE_FILE,
 			'checkpoint_path': checkpoint_path,
 		})
 
 	# Strategy 1: FP16 safetensors (diffusers format)
 	loading_strategies.append({
-		'type': 'pretrained',
+		'type': ModelLoadingStrategy.PRETRAINED,
 		'use_safetensors': True,
 		'variant': 'fp16',
 	})
 
 	# Strategy 2: Standard safetensors (diffusers format)
 	loading_strategies.append({
-		'type': 'pretrained',
+		'type': ModelLoadingStrategy.PRETRAINED,
 		'use_safetensors': True,
 	})
 
 	# Strategy 3: FP16 without safetensors (diffusers format)
 	loading_strategies.append({
-		'type': 'pretrained',
+		'type': ModelLoadingStrategy.PRETRAINED,
 		'use_safetensors': False,
 		'variant': 'fp16',
 	})
 
 	# Strategy 4: Standard without safetensors (diffusers format)
 	loading_strategies.append({
-		'type': 'pretrained',
+		'type': ModelLoadingStrategy.PRETRAINED,
 		'use_safetensors': False,
 	})
 
@@ -124,10 +128,10 @@ def model_loader(id: str):
 
 	for strategy_idx, strategy_params in enumerate(loading_strategies, 1):
 		try:
-			strategy_type = strategy_params.pop('type')
+			strategy_type = strategy_params.get('type')
 			logger.info(f'Trying loading strategy {strategy_idx}/{len(loading_strategies)} ({strategy_type}): {strategy_params}')
 
-			if strategy_type == 'single_file':
+			if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
 				# Load from single-file checkpoint
 				checkpoint = strategy_params['checkpoint_path']
 				pipe = AutoPipelineForText2Image.from_single_file(
@@ -140,6 +144,8 @@ def model_loader(id: str):
 				)
 			else:
 				# Load from pretrained (diffusers format)
+				# Create clean params dict without 'type' key for unpacking
+				load_params = {k: v for k, v in strategy_params.items() if k != 'type'}
 				pipe = AutoPipelineForText2Image.from_pretrained(
 					id,
 					cache_dir=CACHE_FOLDER,
@@ -147,7 +153,7 @@ def model_loader(id: str):
 					torch_dtype=device_service.torch_dtype,
 					safety_checker=safety_checker_instance,
 					feature_extractor=feature_extractor,
-					**strategy_params,
+					**load_params,
 				)
 
 			logger.info(f'Successfully loaded model using strategy {strategy_idx}')
