@@ -29,6 +29,13 @@ def mock_database():
 
 
 @pytest.fixture
+def mock_add_generated_image():
+	"""Mock add_generated_image to prevent database operations."""
+	with patch('app.features.img2img.api.add_generated_image') as mock:
+		yield mock
+
+
+@pytest.fixture
 def sample_img2img_request():
 	"""Create sample img2img request payload."""
 	base64_image = (
@@ -55,7 +62,9 @@ def sample_img2img_request():
 
 
 class TestImg2ImgEndpoint:
-	def test_successful_img2img_generation(self, mock_img2img_service, mock_database, sample_img2img_request):
+	def test_successful_img2img_generation(
+		self, mock_img2img_service, mock_database, mock_add_generated_image, sample_img2img_request
+	):
 		"""Test successful img2img generation."""
 		mock_db, mock_session = mock_database
 
@@ -75,7 +84,9 @@ class TestImg2ImgEndpoint:
 		assert data['items'][0]['path'] == '/static/test.png'
 		assert data['nsfw_content_detected'] == [False]
 
-	def test_img2img_with_no_model_loaded(self, mock_img2img_service, mock_database, sample_img2img_request):
+	def test_img2img_with_no_model_loaded(
+		self, mock_img2img_service, mock_database, mock_add_generated_image, sample_img2img_request
+	):
 		"""Test img2img when no model is loaded."""
 		mock_db, mock_session = mock_database
 		mock_img2img_service.generate_image_from_image = AsyncMock(side_effect=ValueError('No model is currently loaded'))
@@ -85,7 +96,9 @@ class TestImg2ImgEndpoint:
 		assert response.status_code == status.HTTP_400_BAD_REQUEST
 		assert 'No model is currently loaded' in response.json()['detail']
 
-	def test_img2img_with_invalid_base64(self, mock_img2img_service, mock_database, sample_img2img_request):
+	def test_img2img_with_invalid_base64(
+		self, mock_img2img_service, mock_database, mock_add_generated_image, sample_img2img_request
+	):
 		"""Test img2img with invalid base64 image."""
 		mock_db, mock_session = mock_database
 		mock_img2img_service.generate_image_from_image = AsyncMock(side_effect=ValueError('Failed to decode base64 image'))
