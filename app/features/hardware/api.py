@@ -117,8 +117,7 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 			)
 			info.overall_status = GPUDriverStatusStates.DRIVER_ISSUE
 			info.message = (
-				'NVIDIA GPU detected, but CUDA is not available or drivers are incompatible. Please update your '
-				'drivers.'
+				'NVIDIA GPU detected, but CUDA is not available or drivers are incompatible. Please update your drivers.'
 			)
 			info.troubleshooting_steps.insert(0, 'Check NVIDIA Control Panel/Settings for driver status.')
 		except (subprocess.CalledProcessError, FileNotFoundError):
@@ -152,9 +151,7 @@ def get_system_gpu_info() -> GPUDriverInfo:
 				get_mps_gpu_info(info)
 			else:
 				info.overall_status = GPUDriverStatusStates.NO_GPU
-				info.message = (
-					'No Apple Silicon (MPS) GPU detected or PyTorch MPS backend not available. Running on CPU.'
-				)
+				info.message = 'No Apple Silicon (MPS) GPU detected or PyTorch MPS backend not available. Running on CPU.'
 				info.macos_mps_available = False
 				info.troubleshooting_steps = [
 					'Ensure you are running on an Apple Silicon Mac (M1, M2, etc.).',

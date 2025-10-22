@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
-from requests.adapters import HTTPAdapter
 from huggingface_hub import HfApi, hf_hub_download, hf_hub_url
+from requests.adapters import HTTPAdapter
 from sqlalchemy.orm import Session
 
 from app.services.models import model_service
@@ -60,12 +60,7 @@ class DownloadService:
 
 	async def start(self, id: str, db: Session):
 		loop = asyncio.get_event_loop()
-		local_dir = await loop.run_in_executor(
-			self.executor, 
-			self.download_model, 
-			id, 
-			db
-		)
+		local_dir = await loop.run_in_executor(self.executor, self.download_model, id, db)
 		return local_dir
 
 	def download_model(self, id: str, db: Session):
@@ -186,10 +181,7 @@ class DownloadService:
 		if not info.siblings:
 			return {}
 
-		return {
-			s.rfilename: getattr(s, 'size', 0) or 0
-			for s in info.siblings
-		}
+		return {s.rfilename: getattr(s, 'size', 0) or 0 for s in info.siblings}
 
 	def get_components(self, id: str, revision: Optional[str] = None):
 		model_index = hf_hub_download(

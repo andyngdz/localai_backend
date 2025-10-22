@@ -22,5 +22,70 @@ class ImageService:
 
 		return image_base64
 
+	def from_base64(self, base64_string: str) -> Image.Image:
+		"""
+		Convert a base64 encoded string to a PIL Image.
+
+		Args:
+			base64_string (str): Base64 encoded image (with or without data URI prefix).
+
+		Returns:
+			Image.Image: PIL Image object.
+
+		Raises:
+			ValueError: If base64 string is invalid.
+		"""
+		try:
+			# Remove data URI prefix if present (e.g., 'data:image/png;base64,')
+			if ',' in base64_string:
+				base64_string = base64_string.split(',', 1)[1]
+
+			image_data = base64.b64decode(base64_string)
+			image = Image.open(io.BytesIO(image_data))
+
+			# Convert to RGB to ensure compatibility
+			if image.mode != 'RGB':
+				image = image.convert('RGB')
+
+			return image
+		except Exception as error:
+			raise ValueError(f'Failed to decode base64 image: {error}')
+
+	def resize_image(self, image: Image.Image, width: int, height: int, mode: str = 'resize') -> Image.Image:
+		"""
+		Resize image to target dimensions.
+
+		Args:
+			image: Source PIL Image
+			width: Target width
+			height: Target height
+			mode: 'resize' (stretch) or 'crop' (center crop)
+
+		Returns:
+			Resized PIL Image
+		"""
+		if mode == 'resize':
+			# Simple resize (may change aspect ratio)
+			return image.resize((width, height), Image.Resampling.LANCZOS)
+		elif mode == 'crop':
+			# Center crop to maintain aspect ratio
+			aspect = width / height
+			img_aspect = image.width / image.height
+
+			if img_aspect > aspect:
+				# Image is wider, crop width
+				new_width = int(image.height * aspect)
+				offset = (image.width - new_width) // 2
+				image = image.crop((offset, 0, offset + new_width, image.height))
+			else:
+				# Image is taller, crop height
+				new_height = int(image.width / aspect)
+				offset = (image.height - new_height) // 2
+				image = image.crop((0, offset, image.width, offset + new_height))
+
+			return image.resize((width, height), Image.Resampling.LANCZOS)
+		else:
+			raise ValueError(f'Invalid resize mode: {mode}')
+
 
 image_service = ImageService()

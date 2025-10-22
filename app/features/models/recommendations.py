@@ -75,8 +75,7 @@ class ModelRecommendationService:
 				sections.append(section)
 
 		logger.info(
-			f'Generated {len(sections)} recommendation sections for '
-			f'device capabilities: max_gpu_gb={capabilities.max_gpu_gb}'
+			f'Generated {len(sections)} recommendation sections for device capabilities: max_gpu_gb={capabilities.max_gpu_gb}'
 		)
 
 		return sections

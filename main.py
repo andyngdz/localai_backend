@@ -21,6 +21,7 @@ from app.features.downloads import downloads
 from app.features.generators import generators
 from app.features.hardware import hardware
 from app.features.histories import histories
+from app.features.img2img import img2img
 from app.features.models import models
 from app.features.resizes import resizes
 from app.features.styles import styles
@@ -32,29 +33,29 @@ from config import STATIC_FOLDER
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup event"""
+	"""Startup event"""
 
-    logger_service.init()
-    storage_service.init()
-    platform_service.init()
-    database_service.init()
+	logger_service.init()
+	storage_service.init()
+	platform_service.init()
+	database_service.init()
 
-    # Attach the running ASGI loop to the socket service for thread-safe emits
-    socket_service.attach_loop(asyncio.get_running_loop())
+	# Attach the running ASGI loop to the socket service for thread-safe emits
+	socket_service.attach_loop(asyncio.get_running_loop())
 
-    db = SessionLocal()
-    model_manager.unload_model()
+	db = SessionLocal()
+	model_manager.unload_model()
 
-    yield
+	yield
 
-    db.close()
+	db.close()
 
 
 app = FastAPI(
-    description='Backend for Local AI operations.',
-    title='LocalAI Backend',
-    version='0.1.0',
-    lifespan=lifespan,
+	description='Backend for Local AI operations.',
+	title='LocalAI Backend',
+	version='0.1.0',
+	lifespan=lifespan,
 )
 app.mount('/static', StaticFiles(directory='static'), name='static')
 app.mount('/socket.io', app=socket_service.sio_app)
@@ -63,26 +64,27 @@ app.include_router(models)
 app.include_router(downloads)
 app.include_router(hardware)
 app.include_router(generators)
+app.include_router(img2img)
 app.include_router(styles)
 app.include_router(histories)
 app.include_router(resizes)
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=['*'],
-    allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*'],
+	CORSMiddleware,
+	allow_origins=['*'],
+	allow_credentials=True,
+	allow_methods=['*'],
+	allow_headers=['*'],
 )
 
 
 @app.get('/favicon.ico')
 async def favicon():
-    static_folder = STATIC_FOLDER
-    favicon_path = os.path.join(static_folder, 'favicon.ico')
-    return FileResponse(favicon_path, media_type='image/vnd.microsoft.icon')
+	static_folder = STATIC_FOLDER
+	favicon_path = os.path.join(static_folder, 'favicon.ico')
+	return FileResponse(favicon_path, media_type='image/vnd.microsoft.icon')
 
 
 @app.get('/')
 def health_check():
-    """Health check endpoint to verify if the server is running."""
-    return {'status': 'healthy', 'message': 'LocalAI Backend is running!'}
+	"""Health check endpoint to verify if the server is running."""
+	return {'status': 'healthy', 'message': 'LocalAI Backend is running!'}

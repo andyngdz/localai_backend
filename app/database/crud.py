@@ -39,7 +39,6 @@ def is_model_downloaded(db: Session, model_id: str) -> bool:
 	return model is not None
 
 
-
 def add_history(db: Session, model: str, config: GeneratorConfig):
 	"""Add a history entry to the database."""
 
@@ -89,8 +88,6 @@ def delete_history_entry(db: Session, history_id: int):
 			raise ValueError(f'Error deleting history entry: {str(error)}')
 
 	return history_id
-
-
 
 
 def add_generated_image(db: Session, history_id: int, response: ImageGenerationResponse):
