@@ -9,6 +9,8 @@ from app.features.generators.schemas import (
 	ImageGenerationStepEndResponse,
 )
 
+from .constants import IMG2IMG_DEFAULT_STRENGTH
+
 
 class Img2ImgConfig(BaseModel):
 	"""Configuration for image-to-image generation."""
@@ -16,7 +18,10 @@ class Img2ImgConfig(BaseModel):
 	# Image-specific parameters
 	init_image: str = Field(..., description='Base64 encoded source image.')
 	strength: float = Field(
-		default=0.75, ge=0.0, le=1.0, description='Strength of transformation (0=no change, 1=complete change).'
+		default=IMG2IMG_DEFAULT_STRENGTH,
+		ge=0.0,
+		le=1.0,
+		description='Strength of transformation (0=no change, 1=complete change).',
 	)
 	resize_mode: str = Field(
 		default='resize', description='How to handle image size: "resize" (stretch) or "crop" (center crop).'

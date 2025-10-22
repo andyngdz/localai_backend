@@ -41,16 +41,13 @@ class Img2ImgService:
 		"""
 		logger.info(f'Received img2img request: prompt="{config.prompt}", strength={config.strength}')
 
-		pipe = model_manager.pipe
-
-		if pipe is None:
+		if model_manager.pipe is None:
 			logger.warning('Attempted img2img generation, but no model is loaded.')
 			raise ValueError('No model is currently loaded')
 
 		# Convert pipeline to img2img mode
-		converted_pipe = pipeline_converter.convert_to_img2img(model_manager.pipe)
-		model_manager.pipe = converted_pipe
-		pipe = model_manager.pipe
+		pipe = pipeline_converter.convert_to_img2img(model_manager.pipe)
+		model_manager.pipe = pipe
 
 		# Clear CUDA cache before generation
 		memory_manager.clear_cache()

@@ -31,8 +31,8 @@ class PipelineConverter:
 
 		logger.info('Converting pipeline to img2img mode')
 
-		# Check if already in img2img mode
-		if hasattr(pipe, 'image'):
+		# Check if already in img2img mode using type checking
+		if isinstance(pipe, AutoPipelineForImage2Image):
 			logger.info('Pipeline is already in img2img mode.')
 			return pipe
 
@@ -65,8 +65,8 @@ class PipelineConverter:
 
 		logger.info('Converting pipeline to text2img mode')
 
-		# Check if already in text2img mode
-		if not hasattr(pipe, 'image'):
+		# Check if already in text2img mode using type checking
+		if isinstance(pipe, AutoPipelineForText2Image):
 			logger.info('Pipeline is already in text2img mode.')
 			return pipe
 

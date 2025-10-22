@@ -63,7 +63,16 @@ class ImageService:
 
 		Returns:
 			Resized PIL Image
+
+		Raises:
+			ValueError: If mode is not in supported modes
 		"""
+		from app.features.img2img.constants import IMG2IMG_RESIZE_MODES
+
+		# Validate mode against supported modes
+		if mode not in IMG2IMG_RESIZE_MODES:
+			raise ValueError(f'Invalid resize mode: {mode}. Supported modes: {IMG2IMG_RESIZE_MODES}')
+
 		if mode == 'resize':
 			# Simple resize (may change aspect ratio)
 			return image.resize((width, height), Image.Resampling.LANCZOS)
@@ -84,8 +93,6 @@ class ImageService:
 				image = image.crop((0, offset, image.width, offset + new_height))
 
 			return image.resize((width, height), Image.Resampling.LANCZOS)
-		else:
-			raise ValueError(f'Invalid resize mode: {mode}')
 
 
 image_service = ImageService()
