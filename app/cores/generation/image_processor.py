@@ -15,6 +15,59 @@ logger = logging.getLogger(__name__)
 class ImageProcessor:
 	"""Processes generated images: saving, NSFW detection, preview generation."""
 
+	def __init__(self):
+		"""Initialize ImageProcessor with cached weight tensors."""
+		# Cache for weight tensors to avoid recreating them every time
+		self.cached_weights = {}
+		self.cached_biases = {}
+
+		# Define the weight matrix (constant across all conversions)
+		self.weights_data = (
+			(60, -60, 25, -70),
+			(60, -5, 15, -50),
+			(60, 10, -5, -35),
+		)
+		self.biases_data = (150, 140, 130)
+
+	def get_cached_tensors(self, device, dtype):
+		"""Get or create cached weight/bias tensors for the given device and dtype.
+
+		Args:
+			device: torch.device to place tensors on
+			dtype: torch.dtype for the tensors
+
+		Returns:
+			Tuple of (weights_tensor, biases_tensor)
+		"""
+		cache_key = (str(device), str(dtype))
+
+		if cache_key not in self.cached_weights:
+			with torch.no_grad():
+				# Create and cache the tensors
+				weights_tensor = torch.t(torch.tensor(self.weights_data, dtype=dtype).to(device))
+				biases_tensor = torch.tensor(self.biases_data, dtype=dtype).to(device)
+
+				self.cached_weights[cache_key] = weights_tensor
+				self.cached_biases[cache_key] = biases_tensor
+
+		return self.cached_weights[cache_key], self.cached_biases[cache_key]
+
+	def clear_tensor_cache(self):
+		"""Clear cached weight/bias tensors to free GPU memory."""
+		with torch.no_grad():
+			# Delete all cached tensors
+			for tensor in self.cached_weights.values():
+				del tensor
+			for tensor in self.cached_biases.values():
+				del tensor
+
+			self.cached_weights.clear()
+			self.cached_biases.clear()
+
+			# Force GPU memory cleanup
+			if torch.cuda.is_available():
+				torch.cuda.empty_cache()
+
 	def is_nsfw_content_detected(self, output) -> list[bool]:
 		"""Check if NSFW content was detected in the output.
 
@@ -67,7 +120,7 @@ class ImageProcessor:
 		return static_path, file_name
 
 	def latents_to_rgb(self, latents: torch.Tensor) -> Image.Image:
-		"""Convert latents to RGB image for preview.
+		"""Convert latents to RGB image for preview with efficient memory usage.
 
 		Args:
 			latents: Latent tensor from diffusion pipeline.
@@ -75,18 +128,20 @@ class ImageProcessor:
 		Returns:
 			PIL Image in RGB format.
 		"""
-		weights = (
-			(60, -60, 25, -70),
-			(60, -5, 15, -50),
-			(60, 10, -5, -35),
-		)
+		with torch.no_grad():  # Prevent gradient computation
+			# Get cached tensors instead of creating new ones
+			weights_tensor, biases_tensor = self.get_cached_tensors(latents.device, latents.dtype)
 
-		weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
-		biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
-		rgb_tensor = torch.einsum('...lxy,lr -> ...rxy', latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
-			-1
-		)
-		image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
+			# Compute RGB tensor
+			rgb_tensor = torch.einsum('...lxy,lr -> ...rxy', latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
+				-1
+			)
+
+			# Move to CPU with explicit detach to break computation graph
+			image_array = rgb_tensor.clamp(0, 255).byte().detach().cpu().numpy().transpose(1, 2, 0)
+
+			# Only delete the intermediate tensor, not the cached ones
+			del rgb_tensor
 
 		return Image.fromarray(image_array)
 
