@@ -39,7 +39,7 @@ class DummySocketService:
 class DummyDownloadService:
 	"""Dummy download service with configurable behavior across attempts."""
 
-	def __init__(self, side_effects: Optional[List[Exception]] = None) -> None:
+	def __init__(self, side_effects: Optional[List[BaseException]] = None) -> None:
 		self.calls: List[str] = []
 		self._side_effects = side_effects or []
 		self._attempt = 0

@@ -54,6 +54,6 @@ static/generated_images
 # ------------------------------------------------------------------
 # SEMANTIC RELEASE
 # ------------------------------------------------------------------
-node_modules/           # Node.js dependencies for semantic-release
-package-lock.json       # NPM lock file
-.VERSION                # Temporary version file
+node_modules/          # Node.js dependencies for semantic-release
+package-lock.json      # NPM lock file
+.VERSION               # Temporary version file

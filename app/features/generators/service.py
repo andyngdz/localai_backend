@@ -55,6 +55,10 @@ class GeneratorService:
 		# Clear CUDA cache before generation to maximize available memory
 		memory_manager.clear_cache()
 
+		# Reset progress callback state for new generation
+		if hasattr(progress_callback, 'reset'):
+			progress_callback.reset()
+
 		# Validate batch size to prevent OOM errors
 		memory_manager.validate_batch_size(config.number_of_images, config.width, config.height)
 
@@ -108,15 +112,36 @@ class GeneratorService:
 
 			logger.info(f'Image generation completed successfully: {output}')
 
+			# Clear preview generation cache immediately after generation completes
+			if hasattr(image_processor, 'clear_tensor_cache'):
+				image_processor.clear_tensor_cache()
+
+			# Clear CUDA cache before accessing final images to maximize available memory
+			memory_manager.clear_cache()
+
+			# Now safe to access images with more memory available
 			nsfw_content_detected = image_processor.is_nsfw_content_detected(output)
 
-			generated_image = output.get('images', [])
+			generated_images = output.get('images', [])
 			items: list[ImageGenerationItem] = []
 
-			for image in generated_image:
+			# Process and save images one at a time to minimize memory usage
+			for i, image in enumerate(generated_images):
 				if isinstance(image, Image.Image):
+					# Save image to disk (preserves file for history)
 					path, file_name = image_processor.save_image(image)
 					items.append(ImageGenerationItem(path=path, file_name=file_name))
+
+					# Delete the image from memory after saving
+					del image
+
+					# Clear cache after each image to prevent buildup
+					if i < len(generated_images) - 1:  # Skip on last iteration
+						memory_manager.clear_cache()
+
+			# Final cleanup of the output dictionary
+			del output
+			memory_manager.clear_cache()
 
 			return ImageGenerationResponse(
 				items=items,
@@ -131,6 +156,10 @@ class GeneratorService:
 			# Clear cache to recover from OOM
 			memory_manager.clear_cache()
 
+			# Clear tensor cache if available
+			if hasattr(image_processor, 'clear_tensor_cache'):
+				image_processor.clear_tensor_cache()
+
 			raise ValueError(
 				f'Out of memory error: tried to allocate memory but GPU is full. '
 				f'Current batch: {config.number_of_images} images at {config.width}x{config.height}. '
@@ -141,8 +170,12 @@ class GeneratorService:
 			logger.exception(f'Failed to generate image for prompt: "{config.prompt}"')
 			raise ValueError(f'Failed to generate image: {error}')
 		finally:
-			# Always clear cache after generation to prevent memory buildup
+			# Final safety cleanup
 			memory_manager.clear_cache()
+
+			# Reset callback state
+			if hasattr(progress_callback, 'reset'):
+				progress_callback.reset()
 
 
 generator_service = GeneratorService()

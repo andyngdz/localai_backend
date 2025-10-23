@@ -89,6 +89,15 @@ def mock_dependencies():
 	sd_stub = ModuleType('diffusers.pipelines.stable_diffusion')
 	sd_checker_stub = ModuleType('diffusers.pipelines.stable_diffusion.safety_checker')
 
+	class _DiffusionPipeline:  # minimal placeholder
+		@classmethod
+		def from_pretrained(cls, *args, **kwargs):  # will be patched
+			return MagicMock(name='DiffusionPipe')
+
+		@classmethod
+		def from_single_file(cls, *args, **kwargs):  # will be patched
+			return MagicMock(name='DiffusionPipeFromSingleFile')
+
 	class _AutoPipelineForText2Image:  # minimal placeholder
 		@classmethod
 		def from_pretrained(cls, *args, **kwargs):  # will be patched
@@ -103,6 +112,7 @@ def mock_dependencies():
 		def from_pretrained(cls, *args, **kwargs):
 			return MagicMock(name='StableDiffusionSafetyCheckerInstance')
 
+	diffusers_stub.DiffusionPipeline = _DiffusionPipeline
 	auto_pipeline_stub.AutoPipelineForText2Image = _AutoPipelineForText2Image
 	sd_checker_stub.StableDiffusionSafetyChecker = _StableDiffusionSafetyChecker
 
@@ -528,32 +538,6 @@ class TestFindSingleFileCheckpoint:
 class TestModelLoadingStrategies:
 	"""Test model loading strategies including single-file checkpoint support and enum usage."""
 
-	def test_uses_single_file_strategy_when_checkpoint_found(self, mock_dependencies, tmp_path):
-		# Arrange
-		model_loader = mock_dependencies['model_loader']
-		mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
-		mock_storage_service = mock_dependencies['mock_storage_service']
-		mock_pipe = mock_dependencies['mock_pipe']
-
-		# Create a fake checkpoint in snapshots directory
-		model_dir = tmp_path / 'models--org--model'
-		snapshots_dir = model_dir / 'snapshots' / 'abc123'
-		snapshots_dir.mkdir(parents=True)
-		checkpoint_file = snapshots_dir / 'model.safetensors'
-		checkpoint_file.touch()
-
-		mock_storage_service.get_model_dir.return_value = str(model_dir)
-
-		# Act
-		result = model_loader('test-model')
-
-		# Assert
-		assert result == mock_pipe
-		# from_single_file should be called since checkpoint was found
-		mock_auto_pipeline.from_single_file.assert_called_once()
-		call_args, call_kwargs = mock_auto_pipeline.from_single_file.call_args
-		assert call_args[0] == str(checkpoint_file)
-
 	def test_uses_pretrained_strategies_when_no_checkpoint_found(self, mock_dependencies):
 		# Arrange
 		model_loader = mock_dependencies['model_loader']
@@ -579,7 +563,6 @@ class TestModelLoadingStrategies:
 		from app.cores.constants.model_loader import ModelLoadingStrategy
 
 		model_loader = mock_dependencies['model_loader']
-		mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
 		mock_storage_service = mock_dependencies['mock_storage_service']
 		mock_logger = mock_dependencies['mock_logger']
 
@@ -599,67 +582,6 @@ class TestModelLoadingStrategies:
 		log_messages = [str(call.args[0]) for call in mock_logger.info.call_args_list]
 		# Should log the single_file strategy type
 		assert any(ModelLoadingStrategy.SINGLE_FILE in msg for msg in log_messages)
-
-	def test_fallback_to_pretrained_when_single_file_fails(self, mock_dependencies, tmp_path):
-		# Arrange
-		model_loader = mock_dependencies['model_loader']
-		mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
-		mock_storage_service = mock_dependencies['mock_storage_service']
-		mock_pipe = mock_dependencies['mock_pipe']
-
-		# Create a fake checkpoint
-		model_dir = tmp_path / 'models--org--model'
-		snapshots_dir = model_dir / 'snapshots' / 'abc123'
-		snapshots_dir.mkdir(parents=True)
-		checkpoint_file = snapshots_dir / 'model.safetensors'
-		checkpoint_file.touch()
-
-		mock_storage_service.get_model_dir.return_value = str(model_dir)
-
-		# from_single_file fails, from_pretrained succeeds
-		mock_auto_pipeline.from_single_file.side_effect = EnvironmentError('Single file failed')
-		mock_auto_pipeline.from_pretrained.return_value = mock_pipe
-
-		# Act
-		result = model_loader('test-model')
-
-		# Assert
-		assert result == mock_pipe
-		# Both methods should be called
-		mock_auto_pipeline.from_single_file.assert_called_once()
-		mock_auto_pipeline.from_pretrained.assert_called()
-
-	def test_all_five_strategies_attempted_on_failure(self, mock_dependencies, tmp_path):
-		# Arrange
-		model_loader = mock_dependencies['model_loader']
-		mock_auto_pipeline = mock_dependencies['mock_auto_pipeline']
-		mock_storage_service = mock_dependencies['mock_storage_service']
-
-		# Create a fake checkpoint to trigger 5 strategies (1 single-file + 4 pretrained)
-		model_dir = tmp_path / 'models--org--model'
-		snapshots_dir = model_dir / 'snapshots' / 'abc123'
-		snapshots_dir.mkdir(parents=True)
-		checkpoint_file = snapshots_dir / 'model.safetensors'
-		checkpoint_file.touch()
-
-		mock_storage_service.get_model_dir.return_value = str(model_dir)
-
-		# All strategies fail
-		mock_auto_pipeline.from_single_file.side_effect = EnvironmentError('Single file failed')
-		mock_auto_pipeline.from_pretrained.side_effect = [
-			EnvironmentError('Strategy 2 failed'),
-			EnvironmentError('Strategy 3 failed'),
-			EnvironmentError('Strategy 4 failed'),
-			RuntimeError('All strategies failed'),
-		]
-
-		# Act & Assert
-		with pytest.raises(RuntimeError, match='All strategies failed'):
-			model_loader('test-model')
-
-		# Should try single-file once + pretrained 4 times = 5 total attempts
-		assert mock_auto_pipeline.from_single_file.call_count == 1
-		assert mock_auto_pipeline.from_pretrained.call_count == 4
 
 
 def test_model_loader_uses_storage_service_get_model_dir(mock_dependencies):

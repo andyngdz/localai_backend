@@ -1,65 +1,109 @@
 """Tests for progress_callback module."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
-from PIL import Image
 
 
 @pytest.fixture
-def mock_progress_callback():
-	"""Create ProgressCallback with mocked dependencies."""
-	with (
-		patch('app.cores.generation.progress_callback.image_processor') as mock_image_processor,
-		patch('app.cores.generation.progress_callback.image_service') as mock_image_service,
-		patch('app.cores.generation.progress_callback.socket_service') as mock_socket_service,
-	):
-		# Configure mocks
-		test_image = Image.new('RGB', (8, 8), color='blue')
-		mock_image_processor.latents_to_rgb.return_value = test_image
-		mock_image_service.to_base64.return_value = 'base64_encoded_image'
+def progress_callback():
+	"""Get a fresh ProgressCallback instance."""
+	from app.cores.generation.progress_callback import ProgressCallback
 
-		from app.cores.generation.progress_callback import ProgressCallback
+	return ProgressCallback()
 
-		callback = ProgressCallback()
 
-		yield callback, mock_image_processor, mock_image_service, mock_socket_service
+class TestProgressCallbackReset:
+	"""Test reset() method."""
+
+	def test_reset_clears_step_count(self, progress_callback):
+		"""Test that reset clears step count (line 21)."""
+		# Setup
+		progress_callback.step_count = 5
+
+		# Execute
+		progress_callback.reset()
+
+		# Verify
+		assert progress_callback.step_count == 0
+
+	def test_reset_calls_clear_tensor_cache_if_available(self, progress_callback):
+		"""Test that reset calls clear_tensor_cache if method exists (lines 22-24)."""
+		# Setup - add clear_tensor_cache method to image_processor
+		progress_callback.image_processor.clear_tensor_cache = MagicMock()
+
+		# Execute
+		progress_callback.reset()
+
+		# Verify
+		progress_callback.image_processor.clear_tensor_cache.assert_called_once()
+
+	def test_reset_handles_missing_clear_tensor_cache(self, progress_callback):
+		"""Test that reset handles when clear_tensor_cache doesn't exist."""
+		# Setup - ensure clear_tensor_cache doesn't exist
+		if hasattr(progress_callback.image_processor, 'clear_tensor_cache'):
+			delattr(progress_callback.image_processor, 'clear_tensor_cache')
+
+		# Execute - should not raise
+		progress_callback.reset()
+
+		# Verify
+		assert progress_callback.step_count == 0
 
 
 class TestCallbackOnStepEnd:
-	def test_processes_latents_and_emits_socket_events(self, mock_progress_callback):
-		callback, mock_image_processor, mock_image_service, mock_socket_service = mock_progress_callback
+	"""Test callback_on_step_end() method."""
 
-		# Create mock pipe and latents
-		mock_pipe = Mock()
-		latents = [torch.randn(4, 8, 8), torch.randn(4, 8, 8)]  # 2 images in batch
-		callback_kwargs = {'latents': latents}
+	@patch('app.cores.generation.progress_callback.socket_service')
+	@patch('app.cores.generation.progress_callback.image_service')
+	def test_callback_processes_latents_and_emits_socket_event(
+		self, mock_image_service, mock_socket_service, progress_callback
+	):
+		"""Test callback processes latents and emits socket event."""
+		# Setup
+		mock_pipe = MagicMock()
+		mock_latents = torch.randn(1, 4, 64, 64)
+		callback_kwargs = {'latents': mock_latents}
 
-		result = callback.callback_on_step_end(mock_pipe, current_step=5, timestep=0.5, callback_kwargs=callback_kwargs)
+		mock_image = MagicMock()
+		progress_callback.image_processor.latents_to_rgb = MagicMock(return_value=mock_image)
+		mock_image_service.to_base64.return_value = 'base64_encoded_image'
 
-		# Verify latents_to_rgb was called for each latent
-		assert mock_image_processor.latents_to_rgb.call_count == 2
+		# Execute
+		result = progress_callback.callback_on_step_end(mock_pipe, 5, 0.5, callback_kwargs)
 
-		# Verify image_service.to_base64 was called for each image
-		assert mock_image_service.to_base64.call_count == 2
-
-		# Verify socket emissions
-		assert mock_socket_service.image_generation_step_end.call_count == 2
-
-		# Verify callback_kwargs is returned unchanged
+		# Verify
 		assert result == callback_kwargs
+		progress_callback.image_processor.latents_to_rgb.assert_called_once()
+		mock_image_service.to_base64.assert_called_once_with(mock_image)
+		mock_socket_service.image_generation_step_end.assert_called_once()
 
-	def test_handles_single_image_batch(self, mock_progress_callback):
-		callback, mock_image_processor, mock_image_service, mock_socket_service = mock_progress_callback
+	@patch('torch.cuda')
+	@patch('app.cores.generation.progress_callback.socket_service')
+	@patch('app.cores.generation.progress_callback.image_service')
+	def test_callback_performs_periodic_cache_cleanup(
+		self, mock_image_service, mock_socket_service, mock_cuda, progress_callback
+	):
+		"""Test that callback performs periodic cache cleanup every 5 steps (lines 74-78)."""
+		# Setup
+		mock_pipe = MagicMock()
+		mock_latents = torch.randn(1, 4, 64, 64)
+		callback_kwargs = {'latents': mock_latents}
+		mock_cuda.is_available.return_value = True
 
-		mock_pipe = Mock()
-		latents = [torch.randn(4, 8, 8)]  # Single image
-		callback_kwargs = {'latents': latents}
+		progress_callback.image_processor.latents_to_rgb = MagicMock(return_value=MagicMock())
+		mock_image_service.to_base64.return_value = 'base64'
 
-		result = callback.callback_on_step_end(mock_pipe, current_step=1, timestep=0.9, callback_kwargs=callback_kwargs)
+		# Execute steps 1-4 (no cleanup)
+		for step in range(1, 5):
+			progress_callback.callback_on_step_end(mock_pipe, step, 0.5, callback_kwargs)
 
-		# Verify single image processing
-		assert mock_image_processor.latents_to_rgb.call_count == 1
-		assert mock_socket_service.image_generation_step_end.call_count == 1
-		assert result == callback_kwargs
+		# Verify no cache clear yet
+		mock_cuda.empty_cache.assert_not_called()
+
+		# Execute step 5 (should trigger cleanup)
+		progress_callback.callback_on_step_end(mock_pipe, 5, 0.5, callback_kwargs)
+
+		# Verify cache was cleared
+		mock_cuda.empty_cache.assert_called()

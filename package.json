@@ -6,12 +6,16 @@
     "type": "git",
     "url": "https://github.com/andyngdz/localai_backend.git"
   },
+  "scripts": {
+    "prepare": "husky"
+  },
   "devDependencies": {
     "@semantic-release/commit-analyzer": "^13.0.0",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^11.0.0",
     "@semantic-release/release-notes-generator": "^14.0.0",
     "conventional-changelog-conventionalcommits": "^8.0.0",
+    "husky": "^9.1.7",
     "semantic-release": "^24.0.0"
   }
 }

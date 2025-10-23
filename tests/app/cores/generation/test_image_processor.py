@@ -2,9 +2,11 @@
 
 import os
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 import torch
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
 
@@ -18,21 +20,21 @@ def image_processor():
 
 class TestIsNsfwContentDetected:
 	def test_returns_nsfw_flags_when_detected(self, image_processor):
-		output = {'nsfw_content_detected': [True, False, True], 'images': [None, None, None]}
+		output = StableDiffusionPipelineOutput(nsfw_content_detected=[True, False, True], images=[None, None, None])
 
 		result = image_processor.is_nsfw_content_detected(output)
 
 		assert result == [True, False, True]
 
 	def test_returns_false_list_when_no_nsfw(self, image_processor):
-		output = {'nsfw_content_detected': None, 'images': [None, None]}
+		output = StableDiffusionPipelineOutput(nsfw_content_detected=None, images=[None, None])
 
 		result = image_processor.is_nsfw_content_detected(output)
 
 		assert result == [False, False]
 
 	def test_handles_empty_images_list(self, image_processor):
-		output = {'nsfw_content_detected': None, 'images': []}
+		output = StableDiffusionPipelineOutput(nsfw_content_detected=None, images=[])
 
 		result = image_processor.is_nsfw_content_detected(output)
 
@@ -68,7 +70,6 @@ class TestSaveImage:
 
 		# Monkeypatch at config level
 		import sys
-		import app.cores.generation.image_processor
 
 		img_proc_module = sys.modules['app.cores.generation.image_processor']
 		monkeypatch.setattr(img_proc_module, 'GENERATED_IMAGES_FOLDER', str(generated_folder))
@@ -103,3 +104,47 @@ class TestLatentsToRgb:
 
 		assert isinstance(result, Image.Image)
 		assert result.size == (16, 16)
+
+
+class TestClearTensorCache:
+	"""Test clear_tensor_cache() method."""
+
+	def test_clears_cached_weights_and_biases(self, image_processor):
+		"""Test clearing cached tensors (lines 58-70)."""
+		# Setup - add cached tensors
+		image_processor.cached_weights['layer1'] = torch.randn(10, 10)
+		image_processor.cached_weights['layer2'] = torch.randn(20, 20)
+		image_processor.cached_biases['bias1'] = torch.randn(10)
+
+		# Execute
+		image_processor.clear_tensor_cache()
+
+		# Verify caches are empty
+		assert len(image_processor.cached_weights) == 0
+		assert len(image_processor.cached_biases) == 0
+
+	@patch('app.cores.generation.image_processor.torch')
+	def test_clears_cuda_cache_when_available(self, mock_torch, image_processor):
+		"""Test CUDA cache clearing when CUDA is available (lines 69-70)."""
+		# Setup
+		mock_torch.cuda.is_available.return_value = True
+		image_processor.cached_weights['test'] = torch.randn(5, 5)
+
+		# Execute
+		image_processor.clear_tensor_cache()
+
+		# Verify CUDA cache was cleared
+		mock_torch.cuda.empty_cache.assert_called_once()
+
+	@patch('app.cores.generation.image_processor.torch')
+	def test_skips_cuda_cache_when_not_available(self, mock_torch, image_processor):
+		"""Test skips CUDA cache clearing when CUDA not available."""
+		# Setup
+		mock_torch.cuda.is_available.return_value = False
+		image_processor.cached_weights['test'] = torch.randn(5, 5)
+
+		# Execute
+		image_processor.clear_tensor_cache()
+
+		# Verify CUDA cache was NOT cleared
+		mock_torch.cuda.empty_cache.assert_not_called()
