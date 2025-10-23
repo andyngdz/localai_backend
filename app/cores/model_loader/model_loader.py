@@ -147,6 +147,10 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 		CancellationException: If loading is cancelled via cancel_token
 	"""
 	db = SessionLocal()
+	# Initialize pipe to None for exception handler scope (lines 341, 348)
+	# Without this, if an exception occurs before pipe is assigned (e.g., during
+	# SessionLocal, MaxMemoryConfig, or early checkpoints), cleanup_partial_load(pipe)
+	# in exception handlers would raise NameError
 	pipe = None
 
 	try:

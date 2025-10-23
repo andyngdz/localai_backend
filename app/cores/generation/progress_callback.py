@@ -2,6 +2,8 @@
 
 import logging
 
+import torch
+
 from app.cores.generation.image_processor import image_processor
 from app.services import image_service
 from app.socket import socket_service
@@ -71,8 +73,6 @@ class ProgressCallback:
 
 		# Periodically clear CUDA cache (every 5 steps) to prevent memory buildup
 		if self.step_count % 5 == 0:
-			import torch
-
 			if torch.cuda.is_available():
 				torch.cuda.empty_cache()
 				logger.debug(f'Cleared CUDA cache at step {current_step} (every 5 steps)')
