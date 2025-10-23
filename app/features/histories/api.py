@@ -65,4 +65,7 @@ async def delete_history(history_id: int, db: Session = Depends(database_service
 	except Exception as error:
 		# Handle unexpected server-side errors
 		logger.error(f'Error deleting history entry: {error}')
-		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='An unexpected error occurred while deleting the history entry')
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail='An unexpected error occurred while deleting the history entry',
+		)

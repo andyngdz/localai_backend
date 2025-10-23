@@ -88,9 +88,7 @@ def test_post_download_success(monkeypatch: pytest.MonkeyPatch) -> None:
 	assert dummy_socket.download_start_calls[0].id == 'test-model'
 
 	# Verify download_completed was called with correct payload
-	assert hasattr(dummy_socket, 'download_completed_calls'), (
-		'Socket service missing download_completed_calls attribute'
-	)
+	assert hasattr(dummy_socket, 'download_completed_calls'), 'Socket service missing download_completed_calls attribute'
 	assert len(dummy_socket.download_completed_calls) == 1
 	assert dummy_socket.download_completed_calls[0].id == 'test-model'
 	assert dummy_socket.download_completed_calls[0].message == 'Download completed and saved to database'

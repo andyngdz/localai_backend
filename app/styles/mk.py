@@ -292,7 +292,7 @@ mk_styles = [
 		id='mk_scrimshaw',
 		name='Mk Scrimshaw',
 		origin='Fooocus',
-		positive='A Scrimshaw engraving of {prompt}. Intricate engravings on a spermwhale\'s teeth, marine motifs, detailed scenes, nautical themes, black and white contrasts, historical craftsmanship, artisanal carving, storytelling compositions, maritime heritage.',
+		positive="A Scrimshaw engraving of {prompt}. Intricate engravings on a spermwhale's teeth, marine motifs, detailed scenes, nautical themes, black and white contrasts, historical craftsmanship, artisanal carving, storytelling compositions, maritime heritage.",
 		negative='colorful, modern.',
 		image='styles/mk/scrimshaw.jpg',
 	),

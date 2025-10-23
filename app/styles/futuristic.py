@@ -53,7 +53,7 @@ futuristic_styles = [
 		id='futuristic_retro-cyberpunk',
 		name='Futuristic Retro Cyberpunk',
 		origin='Fooocus',
-		positive='retro cyberpunk {prompt} . 80\'s inspired, synthwave, neon, vibrant, detailed, retro futurism',
+		positive="retro cyberpunk {prompt} . 80's inspired, synthwave, neon, vibrant, detailed, retro futurism",
 		negative='modern, desaturated, black and white, realism, low contrast',
 		image='styles/futuristic/retro-cyberpunk.jpg',
 	),

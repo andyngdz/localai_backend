@@ -1,8 +1,7 @@
 import json
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
 from types import SimpleNamespace
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import requests
@@ -12,13 +11,15 @@ from requests import Session
 @pytest.fixture
 def mock_service():
 	"""Create DownloadService with mocked dependencies."""
-	with patch('app.features.downloads.services.HfApi') as mock_api, \
-		 patch('app.features.downloads.services.model_service') as mock_model_service, \
-		 patch('app.features.downloads.services.storage_service') as mock_storage_service:
-
+	with (
+		patch('app.features.downloads.services.HfApi') as mock_api,
+		patch('app.features.downloads.services.model_service') as mock_model_service,
+		patch('app.features.downloads.services.storage_service') as mock_storage_service,
+	):
 		mock_storage_service.get_model_dir.return_value = '/tmp/test-models'
 
 		from app.features.downloads.services import DownloadService
+
 		service = DownloadService()
 		service.api = mock_api
 		service.session = MagicMock(spec=Session)
@@ -59,10 +60,13 @@ class TestDownloadServiceStart:
 
 
 class TestDownloadModelValidation:
-	@pytest.mark.parametrize('model_id,error_msg', [
-		('', 'Model ID cannot be empty'),
-		('   ', 'Model ID cannot be empty'),
-	])
+	@pytest.mark.parametrize(
+		'model_id,error_msg',
+		[
+			('', 'Model ID cannot be empty'),
+			('   ', 'Model ID cannot be empty'),
+		],
+	)
 	def test_raises_error_for_invalid_model_id(self, mock_service, model_id, error_msg):
 		service, _, _ = mock_service
 		with pytest.raises(ValueError, match=error_msg):
@@ -89,8 +93,7 @@ class TestDownloadModel:
 		model_index.write_text(json.dumps({'unet': ['cfg']}))
 
 		service.api.repo_info.return_value = SimpleNamespace(
-			sha='main',
-			siblings=[SimpleNamespace(rfilename='unet/model.bin', size=10)]
+			sha='main', siblings=[SimpleNamespace(rfilename='unet/model.bin', size=10)]
 		)
 		monkeypatch.setattr(service, 'get_components', lambda *args, **kwargs: ['unet'])
 		monkeypatch.setattr(service, 'list_files', lambda *args, **kwargs: ['unet/model.bin'])
@@ -103,8 +106,10 @@ class TestDownloadModel:
 
 		monkeypatch.setattr(service, 'download_file', fake_download)
 
-		with patch('app.features.downloads.services.logger') as mock_logger, \
-			 patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)):
+		with (
+			patch('app.features.downloads.services.logger') as mock_logger,
+			patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)),
+		):
 			result = service.download_model('test/repo', Mock())
 			assert result is not None
 			mock_logger.error.assert_called_once()
@@ -117,16 +122,17 @@ class TestDownloadModel:
 		model_index.write_text(json.dumps({'unet': ['cfg']}))
 
 		service.api.repo_info.return_value = SimpleNamespace(
-			sha='main',
-			siblings=[SimpleNamespace(rfilename='unet/model.bin', size=10)]
+			sha='main', siblings=[SimpleNamespace(rfilename='unet/model.bin', size=10)]
 		)
 		monkeypatch.setattr(service, 'get_components', lambda *args, **kwargs: ['unet'])
 		monkeypatch.setattr(service, 'list_files', lambda *args, **kwargs: ['unet/model.bin'])
 		monkeypatch.setattr(service, 'download_file', Mock(side_effect=ConnectionError('Failed')))
 
 		mock_progress = Mock()
-		with patch('app.features.downloads.services.DownloadTqdm', return_value=mock_progress), \
-			 patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)):
+		with (
+			patch('app.features.downloads.services.DownloadTqdm', return_value=mock_progress),
+			patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)),
+		):
 			with pytest.raises(ConnectionError):
 				service.download_model('test/repo', Mock())
 
@@ -134,24 +140,15 @@ class TestDownloadModel:
 
 
 class TestGetIgnoreComponents:
-	@pytest.mark.parametrize('files,scopes,expected', [
-		(
-			['unet/model.bin', 'unet/model.safetensors', 'vae/model.bin'],
-			['unet/*', 'vae/*'],
-			['unet/model.bin']
-		),
-		(
-			['unet/model.bin', 'vae/model.bin'],
-			['unet/*', 'vae/*'],
-			[]
-		),
-		([], ['unet/*'], []),
-		(
-			['out_of_scope/model.bin', 'out_of_scope/model.safetensors'],
-			['unet/*'],
-			[]
-		),
-	])
+	@pytest.mark.parametrize(
+		'files,scopes,expected',
+		[
+			(['unet/model.bin', 'unet/model.safetensors', 'vae/model.bin'], ['unet/*', 'vae/*'], ['unet/model.bin']),
+			(['unet/model.bin', 'vae/model.bin'], ['unet/*', 'vae/*'], []),
+			([], ['unet/*'], []),
+			(['out_of_scope/model.bin', 'out_of_scope/model.safetensors'], ['unet/*'], []),
+		],
+	)
 	def test_filters_bin_files_correctly(self, mock_service, files, scopes, expected):
 		service, _, _ = mock_service
 		result = service.get_ignore_components(files, scopes)
@@ -161,10 +158,12 @@ class TestGetIgnoreComponents:
 class TestListFiles:
 	def test_returns_filenames_from_siblings(self, mock_service):
 		service, _, _ = mock_service
-		service.api.repo_info.return_value = SimpleNamespace(siblings=[
-			SimpleNamespace(rfilename='a.txt'),
-			SimpleNamespace(rfilename='b/c.bin'),
-		])
+		service.api.repo_info.return_value = SimpleNamespace(
+			siblings=[
+				SimpleNamespace(rfilename='a.txt'),
+				SimpleNamespace(rfilename='b/c.bin'),
+			]
+		)
 
 		result = service.list_files('test/repo')
 
@@ -182,10 +181,12 @@ class TestListFiles:
 class TestGetFileSizesMap:
 	def test_returns_size_dict(self, mock_service):
 		service, _, _ = mock_service
-		service.api.repo_info.return_value = SimpleNamespace(siblings=[
-			SimpleNamespace(rfilename='file1.bin', size=100),
-			SimpleNamespace(rfilename='file2.bin', size=200),
-		])
+		service.api.repo_info.return_value = SimpleNamespace(
+			siblings=[
+				SimpleNamespace(rfilename='file1.bin', size=100),
+				SimpleNamespace(rfilename='file2.bin', size=200),
+			]
+		)
 
 		result = service.get_file_sizes_map('test/repo')
 
@@ -193,11 +194,13 @@ class TestGetFileSizesMap:
 
 	def test_handles_missing_size_attribute(self, mock_service):
 		service, _, _ = mock_service
-		service.api.repo_info.return_value = SimpleNamespace(siblings=[
-			SimpleNamespace(rfilename='file1.bin', size=100),
-			SimpleNamespace(rfilename='file2.bin'),
-			SimpleNamespace(rfilename='file3.bin', size=None),
-		])
+		service.api.repo_info.return_value = SimpleNamespace(
+			siblings=[
+				SimpleNamespace(rfilename='file1.bin', size=100),
+				SimpleNamespace(rfilename='file2.bin'),
+				SimpleNamespace(rfilename='file3.bin', size=None),
+			]
+		)
 
 		result = service.get_file_sizes_map('test/repo')
 
@@ -208,11 +211,15 @@ class TestGetComponents:
 	def test_parses_model_index_json(self, mock_service, tmp_path):
 		service, _, _ = mock_service
 		model_index = tmp_path / 'model_index.json'
-		model_index.write_text(json.dumps({
-			'unet': ['config'],
-			'vae': [None],
-			'scheduler': 'not-a-list',
-		}))
+		model_index.write_text(
+			json.dumps(
+				{
+					'unet': ['config'],
+					'vae': [None],
+					'scheduler': 'not-a-list',
+				}
+			)
+		)
 
 		with patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)):
 			result = service.get_components('test/repo')
@@ -230,10 +237,13 @@ class TestGetComponents:
 
 
 class TestAuthHeaders:
-	@pytest.mark.parametrize('token,expected', [
-		(None, {}),
-		('test-token-123', {'Authorization': 'Bearer test-token-123'}),
-	])
+	@pytest.mark.parametrize(
+		'token,expected',
+		[
+			(None, {}),
+			('test-token-123', {'Authorization': 'Bearer test-token-123'}),
+		],
+	)
 	def test_builds_headers_correctly(self, mock_service, token, expected):
 		service, _, _ = mock_service
 		result = service.auth_headers(token)
@@ -241,10 +251,13 @@ class TestAuthHeaders:
 
 
 class TestDownloadFileSecurity:
-	@pytest.mark.parametrize('filename', [
-		'../../../etc/passwd',
-		'/etc/passwd',
-	])
+	@pytest.mark.parametrize(
+		'filename',
+		[
+			'../../../etc/passwd',
+			'/etc/passwd',
+		],
+	)
 	def test_blocks_path_traversal(self, mock_service, mock_progress, filename):
 		service, _, _ = mock_service
 
@@ -370,11 +383,14 @@ class TestFetchRemoteFileSize:
 
 		assert size == 12345
 
-	@pytest.mark.parametrize('header_value,expected', [
-		(None, 0),
-		('invalid', 0),
-		('-100', 0),
-	])
+	@pytest.mark.parametrize(
+		'header_value,expected',
+		[
+			(None, 0),
+			('invalid', 0),
+			('-100', 0),
+		],
+	)
 	def test_handles_invalid_content_length(self, mock_service, header_value, expected):
 		service, _, _ = mock_service
 		mock_response = Mock()
