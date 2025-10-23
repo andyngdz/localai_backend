@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union, cast
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -248,9 +248,15 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 					for pipeline_class in [StableDiffusionXLPipeline, StableDiffusionPipeline]:
 						try:
 							logger.debug(f'Trying {pipeline_class.__name__} for single-file checkpoint')
-							pipe = pipeline_class.from_single_file(  # type: ignore[attr-defined]
-								checkpoint,
-								torch_dtype=device_service.torch_dtype,
+							# from_single_file exists at runtime but mypy type stubs don't expose it on the class type
+							# Use getattr to call it and cast the result to the expected pipeline type
+							from_single_file = getattr(pipeline_class, 'from_single_file')
+							pipe = cast(
+								Union[StableDiffusionXLPipeline, StableDiffusionPipeline],
+								from_single_file(
+									checkpoint,
+									torch_dtype=device_service.torch_dtype,
+								),
 							)
 							# Attach safety checker and feature extractor
 							if hasattr(pipe, 'safety_checker'):

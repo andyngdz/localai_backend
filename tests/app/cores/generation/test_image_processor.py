@@ -5,6 +5,7 @@ from datetime import datetime
 
 import pytest
 import torch
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
 
@@ -18,21 +19,21 @@ def image_processor():
 
 class TestIsNsfwContentDetected:
 	def test_returns_nsfw_flags_when_detected(self, image_processor):
-		output = {'nsfw_content_detected': [True, False, True], 'images': [None, None, None]}
+		output = StableDiffusionPipelineOutput(nsfw_content_detected=[True, False, True], images=[None, None, None])
 
 		result = image_processor.is_nsfw_content_detected(output)
 
 		assert result == [True, False, True]
 
 	def test_returns_false_list_when_no_nsfw(self, image_processor):
-		output = {'nsfw_content_detected': None, 'images': [None, None]}
+		output = StableDiffusionPipelineOutput(nsfw_content_detected=None, images=[None, None])
 
 		result = image_processor.is_nsfw_content_detected(output)
 
 		assert result == [False, False]
 
 	def test_handles_empty_images_list(self, image_processor):
-		output = {'nsfw_content_detected': None, 'images': []}
+		output = StableDiffusionPipelineOutput(nsfw_content_detected=None, images=[])
 
 		result = image_processor.is_nsfw_content_detected(output)
 
@@ -68,7 +69,6 @@ class TestSaveImage:
 
 		# Monkeypatch at config level
 		import sys
-		import app.cores.generation.image_processor
 
 		img_proc_module = sys.modules['app.cores.generation.image_processor']
 		monkeypatch.setattr(img_proc_module, 'GENERATED_IMAGES_FOLDER', str(generated_folder))

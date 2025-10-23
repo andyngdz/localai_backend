@@ -140,7 +140,7 @@ class TestModelManagerCancellation:
 			# Clean up the load task - it should have been cancelled
 			try:
 				await load_task
-			except (CancellationException):
+			except CancellationException:
 				# Expected - load was cancelled
 				pass
 
@@ -188,7 +188,7 @@ class TestModelManagerCancellation:
 			# Clean up load task
 			try:
 				await load_task
-			except (CancellationException):
+			except CancellationException:
 				pass
 
 	@pytest.mark.asyncio
@@ -293,7 +293,7 @@ class TestReactDoubleMountScenario:
 			try:
 				await p1_task
 				assert False, 'P1 should have been cancelled'
-			except (CancellationException):
+			except CancellationException:
 				# Expected - P1 was cancelled
 				pass
 
@@ -357,7 +357,7 @@ class TestReactDoubleMountScenario:
 			# Clean up P1 task - it should have been cancelled
 			try:
 				await p1_task
-			except (CancellationException):
+			except CancellationException:
 				# Expected - P1 was auto-cancelled by P2
 				pass
 
@@ -404,7 +404,7 @@ class TestReactDoubleMountScenario:
 			# Clean up task1 first to ensure it's fully cancelled
 			try:
 				await task1
-			except (CancellationException):
+			except CancellationException:
 				# Expected - task1 was cancelled
 				pass
 

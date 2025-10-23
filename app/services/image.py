@@ -41,11 +41,12 @@ class ImageService:
 				base64_string = base64_string.split(',', 1)[1]
 
 			image_data = base64.b64decode(base64_string)
-			image = Image.open(io.BytesIO(image_data))  # type: ignore[assignment]
+			# Annotate as Image.Image to handle ImageFile subclass from Image.open
+			image: Image.Image = Image.open(io.BytesIO(image_data))
 
 			# Convert to RGB to ensure compatibility
 			if image.mode != 'RGB':
-				image = image.convert('RGB')  # type: ignore[assignment]
+				image = image.convert('RGB')
 
 			return image
 		except Exception as error:

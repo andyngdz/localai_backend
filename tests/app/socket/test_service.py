@@ -1,21 +1,27 @@
 import asyncio
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from pydantic import BaseModel, ConfigDict
 
 from app.socket.schemas import SocketEvents
 from app.socket.service import SocketService
 
 
-class PayloadModel:
-	"""Lightweight Pydantic-like object exposing model_dump()."""
+class PayloadModel(BaseModel):
+	"""Lightweight Pydantic model that accepts arbitrary fields."""
 
-	def __init__(self, **data: Any) -> None:
-		self._data = data
+	model_config = ConfigDict(extra='allow')
 
-	def model_dump(self) -> Dict[str, Any]:
-		return dict(self._data)
+	# Define all fields used across tests as optional
+	model: str | None = None
+	size: int | None = None
+	total: int | None = None
+	succeeded: int | None = None
+	step: int | None = None
+	of: int | None = None
+	status: str | None = None
 
 
 @pytest.mark.asyncio

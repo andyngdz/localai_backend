@@ -64,18 +64,21 @@ def test_download_step_progress_response_requires_all_fields() -> None:
 
 
 def test_download_step_progress_response_coerces_int_fields_from_str() -> None:
-	# Arrange & Act
-	model = DownloadStepProgressResponse(
-		id='org/model',
-		step='1',
-		total='3',
-		downloaded_size='10',
-		total_downloaded_size='30',
-		phase='chunk',
-		current_file='weights.bin',
-	)  # type: ignore[arg-type]
+	# Arrange & Act - Use dict unpacking to test Pydantic's type coercion
+	from typing import Any
 
-	# Assert
+	test_data: dict[str, Any] = {
+		'id': 'org/model',
+		'step': '1',
+		'total': '3',
+		'downloaded_size': '10',
+		'total_downloaded_size': '30',
+		'phase': 'chunk',
+		'current_file': 'weights.bin',
+	}
+	model = DownloadStepProgressResponse(**test_data)
+
+	# Assert - Verify strings were coerced to ints
 	assert model.step == 1
 	assert model.total == 3
 	assert model.downloaded_size == 10

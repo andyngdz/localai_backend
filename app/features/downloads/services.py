@@ -85,7 +85,7 @@ class DownloadService:
 		]
 
 		files_to_download.sort(key=lambda f: (f != 'model_index.json', f))
-		# Ensure every file has a deterministic size before streaming begins; fall back to HEAD when hub metadata is missing.
+		# Ensure every file has deterministic size before streaming; fall back to HEAD if missing.
 		file_sizes: List[int] = []
 		for filename in files_to_download:
 			size = file_sizes_map.get(filename, 0)
@@ -258,17 +258,18 @@ class DownloadService:
 		os.makedirs(snapshot_path, exist_ok=True)
 		os.makedirs(local_path.parent, exist_ok=True)
 
-		local_path = str(local_path)
+		# Convert Path to string for os.path operations
+		local_path_str = str(local_path)
 
-		if os.path.exists(local_path):
-			actual_size = os.path.getsize(local_path)
+		if os.path.exists(local_path_str):
+			actual_size = os.path.getsize(local_path_str)
 			if actual_size > 0:
 				progress.set_file_size(file_index, actual_size)
 				logger.debug('Skipping download for %s; already complete', filename)
-				return local_path
-			os.remove(local_path)
+				return local_path_str
+			os.remove(local_path_str)
 
-		temp_path = f'{local_path}.part'
+		temp_path = f'{local_path_str}.part'
 		if os.path.exists(temp_path):
 			os.remove(temp_path)
 
@@ -296,10 +297,10 @@ class DownloadService:
 						# Emit partial progress as bytes accumulate for the current file.
 						progress.update_bytes(len(chunk))
 
-			os.replace(temp_path, local_path)
-			final_size = os.path.getsize(local_path)
+			os.replace(temp_path, local_path_str)
+			final_size = os.path.getsize(local_path_str)
 			progress.set_file_size(file_index, final_size)
-			return local_path
+			return local_path_str
 		finally:
 			if os.path.exists(temp_path):
 				os.remove(temp_path)

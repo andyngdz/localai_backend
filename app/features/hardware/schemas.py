@@ -53,7 +53,7 @@ class GPUDriverInfo(BaseModel):
 		description='A URL for recommended driver downloads or troubleshooting.',
 	)
 	troubleshooting_steps: Optional[List[str]] = Field(
-		default_factory=list, description='Specific steps to resolve issues.'
+		default_factory=lambda: [], description='Specific steps to resolve issues.'
 	)
 
 

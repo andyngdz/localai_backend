@@ -1,275 +1,99 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with code in this repository.
 
 ## Development Commands
 
-### Switch to .venv
-
+**Running the application:**
 ```bash
-source .venv/bin/activate
+python main.py  # or: uvicorn main:app --reload
 ```
 
-### Running the Application
-
+**Testing:**
 ```bash
-python main.py
-# or
-uvicorn main:app --reload
+pytest                    # Run all tests
+pytest -q                 # Quiet mode
+pytest tests/path/to/file.py  # Specific file
+pytest -q --cov=app       # With coverage
 ```
+
+**Code quality:**
+```bash
+ruff format               # Format (tabs, single quotes)
+ruff check                # Lint
+ruff check --fix          # Lint and fix
+mypy app tests            # Type checking
+```
+
+**Database:** Standard Alembic migrations (`alembic upgrade head`, `alembic revision --autogenerate -m "msg"`)
+
+## Project Architecture
+
+**Stack:** FastAPI + SQLAlchemy 2.0 + Socket.IO | SQLite database | Pytest + pytest-asyncio
+
+**Structure:**
+- `app/features/` - Feature modules (generators, downloads, models, histories, etc.)
+- `app/cores/` - Core services (model_manager, model_loader, samplers, constants)
+- `app/services/` - Utilities (device, image, storage, logger, memory)
+- `app/database/` - SQLAlchemy models and CRUD operations
+
+**Key conventions:**
+- Tab indentation, single quotes (ruff.toml)
+- Async/await throughout
+- Pydantic schemas for all API responses (never raw dicts)
+- Type hints required (mypy enforced)
+
+**Pre-commit validation:** Husky runs `ruff format --check`, `ruff check`, `mypy`, and `pytest -q` on every commit. Commits are blocked if any check fails.
+
+## Engineering Principles
+
+### 1. Type Safety & Code Quality
+
+Fix type errors at their source—never use `# type: ignore` to bypass warnings. When mypy reports an error:
+- Define proper types (TypedDict, Pydantic models, Protocol)
+- Use `cast()` with explanatory comments for legitimate type narrowing
+- Add type annotations to function signatures when library stubs are incomplete
+
+Use public interfaces by default (`lock`, `set_state()`) and reserve underscores for truly private implementation details.
+
+### 2. Validation & Real-World Testing
+
+Understand code patterns before reusing them—ask "What problem does this solve?" and "Does this apply here?" Unit tests passing doesn't guarantee correctness or performance:
+- Test with realistic workloads
+- Check logs for warnings and timing issues
+- Verify fixes don't introduce new problems
+
+### 3. Communication & Workflow
+
+Ask clarifying questions for ambiguous or complex requests using the `AskUserQuestion` tool (max 4 options per question). Examples:
+- **Ambiguous:** "optimize this" → Ask: speed, memory, or readability?
+- **Complex:** "add authentication" → Ask: JWT, OAuth, session duration?
+- **Continuation:** "continue" → Ask: which specific task?
+
+Skip questions for trivial commands like "run tests" or "format code".
+
+Never create or amend commits without explicit permission—the user manages git operations.
+
+## Development Practices
 
 ### Testing
 
-```bash
-# Run all tests with coverage
-pytest -q --cov=app --cov-report=xml:coverage.xml --cov-report=term
-
-# Run tests with basic output
-pytest
-
-# Run specific test file
-pytest tests/app/features/downloads/test_api.py
-
-# Run with verbose output
-pytest -v
-```
-
-### Code Quality
-
-```bash
-# Format code (uses single quotes, tabs for indentation)
-ruff format
-
-# Lint code
-ruff check
-
-# Lint and fix issues
-ruff check --fix
-```
-
-### Database Operations
-
-```bash
-# Database migrations are handled via Alembic
-# Generate migration
-alembic revision --autogenerate -m "description"
-
-# Apply migrations
-alembic upgrade head
-
-# Downgrade migration
-alembic downgrade -1
-```
-
-### Dependencies
-
-```bash
-# Install production dependencies
-pip install -r requirements.txt
-
-# Install development dependencies
-pip install -r requirements-dev.txt
-
-# Install both
-pip install -r requirements.txt -r requirements-dev.txt
-```
-
-## Architecture Overview
-
-### Application Structure
-
-- **FastAPI Application**: Main entry point in `main.py` with lifespan management
-- **Feature-based Architecture**: Code organized by features under `app/features/`
-- **Core Services**: Shared business logic in `app/cores/`
-- **Database Layer**: SQLAlchemy models and CRUD operations in `app/database/`
-- **Service Layer**: Business logic services in `app/services/` (models, storage, etc.)
-- **WebSocket Support**: Real-time communication via Socket.IO
-
-### Key Components
-
-**Features** (`app/features/`):
-
-- `generators/` - AI image generation endpoints and logic
-- `downloads/` - Model download management
-- `hardware/` - System hardware information
-- `histories/` - Generation history tracking
-- `models/` - Model management APIs
-- `styles/` - Predefined image styles
-- `users/` - User management
-- `resizes/` - Image resizing functionality
-
-**Core Services** (`app/cores/`):
-
-- `model_manager/` - AI model loading and management
-- `model_loader/` - Model loading utilities with device optimization
-- `samplers/` - Sampling algorithms and schedulers
-- `constants/` - Shared constants and configurations
-
-**Database Models** (`app/database/models/`):
-
-- `Model` - AI model metadata (model_id, model_dir)
-- `GeneratedImage` - Generated image records
-- `History` - Generation history entries
-- `Config` - Application configuration
-
-### Service Layer
-
-- `app/services/` contains utility services:
-  - `device.py` - GPU/CPU device management
-  - `image.py` - Image processing utilities
-  - `storage.py` - File storage management
-  - `logger.py` - Logging configuration
-  - `memory.py` - Memory usage monitoring
-
-### Configuration
-
-- Database: SQLite (`localai_backend.db`)
-- Static files served from `static/` directory
-- Generated images stored in `static/generated_images/`
-- Cache directory: `.cache/`
-- CORS enabled for all origins
-
-### Development Notes
-
-- Uses tab indentation and single quotes (configured in `ruff.toml`)
-- Async/await patterns throughout FastAPI endpoints
-- SQLAlchemy 2.0 with declarative base
-- Comprehensive test coverage with pytest and pytest-asyncio
-- CI/CD pipeline includes code quality checks and SonarCloud analysis
-- **Always use Pydantic schemas for JSON responses, never return raw dict objects**
-
-### Pre-commit Validation
-
-This project uses **Husky** for pre-commit hooks to enforce code quality. Every commit automatically runs:
-
-1. **Code Formatting** - `ruff format --check`
-2. **Linting** - `ruff check`
-3. **Type Checking** - `mypy` (static type analysis)
-4. **Tests** - `pytest -q` (when core files or tests change)
-
-**IMPORTANT**: Commits will be **blocked** if any check fails. This prevents:
-- Type errors (Pylance warnings)
-- Linting issues
-- Formatting problems
-- Failing tests
-
-To manually run all checks before committing:
-```bash
-source .venv/bin/activate
-ruff format .
-ruff check .
-mypy app tests
-pytest -q
-```
-
-## Common Mistakes to Avoid
-
-**1. Never use underscore prefixes for methods/attributes**
-
-- Use public names by default: `lock` not `_lock`, `set_state()` not `_set_state()`
-- Only use underscores for truly private implementation details
-- The codebase preference is explicit public interfaces
-
-**2. Question every code pattern before copying it**
-
-- Don't cargo cult program (copy patterns without understanding why they exist)
-- Before adding code, ask:
-  - "What problem does this solve?"
-  - "Does this apply to my use case?"
-  - "What's the performance impact?"
-- Test with real workloads, not just unit tests
-
-**3. Test with real-world loads before claiming success**
-
-- Unit tests passing ≠ code is performant or correct
-- Check application logs for warnings and timing issues
-- Verify the solution doesn't introduce worse problems than it solves
-
-## Communication Guidelines
-
-**ALWAYS ask clarifying questions before proposing solutions. NEVER make assumptions about user intent.**
-
-- Use the `AskUserQuestion` tool to present questions as selectable options/checkboxes
-- Maximum 4 options per question (tool limitation)
-- Each option needs: `label` (short title), `description` (explanation)
-- Get full context before jumping into implementation
-
-**When to ask questions:**
-
-- Implementation tasks (new features, refactoring, bug fixes)
-- Ambiguous requests: "optimize this", "fix the error", "improve performance"
-- Complex requests: "add authentication", "integrate with API"
-- Continuation scenarios: "continue", "keep going" → Ask which specific task
-- Any request where multiple valid approaches exist
-
-**When NOT to ask (trivial commands):**
-
-- Simple test runs: "run tests", "pytest"
-- Code formatting: "format code", "ruff format"
-- Informational: "show me the logs", "what does this function do"
-- Explicit with clear intent: "run tests on file X", "read function Y at line Z"
-
-**Examples:**
-
-- User: "optimize this" → Ask: speed, memory, readability, or code size?
-- User: "fix the bug" → Ask: which bug, where, what's expected behavior?
-- User: "continue" → Ask: continue which task (list recent incomplete tasks)?
-- User: "add auth" → Ask: method (JWT/OAuth), token storage, session duration?
-
-## Testing Strategy
-
-**When to write tests:**
-
-- Always write tests for new features or bug fixes
-- Add tests before marking implementation as complete
-- Update existing tests when changing behavior
-
-**Test organization:**
-
-- Place tests in `tests/` directory mirroring `app/` structure
-- Use descriptive test class names: `TestFeatureName` format
-- Group related tests in classes (e.g., `TestLoadModelEndpoint`)
-- Each test method should test one specific behavior
-
-**Coverage expectations:**
-
-- Aim for high coverage on core business logic
-- Test happy paths and error cases
-- Include edge cases (cancellation, timeouts, race conditions)
-- Run tests with coverage: `pytest -q --cov=app`
+Write tests for all new features and bug fixes before marking work complete. Tests should mirror `app/` structure in `tests/` directory and use descriptive class names (`TestFeatureName`).
 
 **Test patterns:**
-
 - Use `pytest.mark.asyncio` for async tests
-- Mock external dependencies (database, network, GPU operations)
-- Use fixtures for common test setup
-- Verify both behavior and side effects (state changes, logs)
+- Mock external dependencies (database, GPU, network)
+- Cover happy paths, error cases, and edge cases (cancellation, timeouts, races)
+- Verify behavior and side effects (state changes, logs)
 
-## Error Handling Patterns
+### Error Handling
 
-**Exception hierarchy:**
-
-- Create custom exceptions for domain-specific errors
-- Use meaningful exception names: `ModelLoadCancelledException`, not `Error`
-- Include context in exceptions (reason, ids, etc.)
+**Exceptions:** Create domain-specific exceptions with meaningful names (`ModelLoadCancelledException`) and include context (ids, reasons).
 
 **HTTP status codes:**
+- `200` Success | `400` Bad input | `404` Not found | `409` Conflict | `500` Unexpected failure
 
-- `200 OK`: Success (including expected cancellations with status field)
-- `400 Bad Request`: Invalid input, validation errors
-- `404 Not Found`: Resource doesn't exist
-- `409 Conflict`: Resource in use, state conflict
-- `500 Internal Server Error`: Unexpected failures only
+**Logging:**
+- `.info()` Expected operations | `.warning()` Recoverable issues | `.error()` Failures | `.exception()` With stack trace
 
-**Logging levels:**
-
-- `logger.info()`: Expected operations (cancellations, state changes)
-- `logger.warning()`: Recoverable issues, degraded performance
-- `logger.error()`: Unexpected failures, exceptions
-- `logger.exception()`: Errors with full stack trace
-
-**Response patterns:**
-
-- Always return Pydantic schemas, never raw dicts
-- Include status/reason fields for non-standard responses
-- Provide helpful error messages with context
+**Responses:** Use Pydantic schemas (never raw dicts), include status/reason fields, provide context in error messages.

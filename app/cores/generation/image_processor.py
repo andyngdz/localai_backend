@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 
 import torch
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
 from config import GENERATED_IMAGES_FOLDER, GENERATED_IMAGES_STATIC_FOLDER
@@ -68,22 +69,24 @@ class ImageProcessor:
 			if torch.cuda.is_available():
 				torch.cuda.empty_cache()
 
-	def is_nsfw_content_detected(self, output) -> list[bool]:
+	def is_nsfw_content_detected(self, output: StableDiffusionPipelineOutput) -> list[bool]:
 		"""Check if NSFW content was detected in the output.
 
 		Args:
-			output: Pipeline output dictionary containing 'nsfw_content_detected' key.
+			output: Pipeline output from StableDiffusion containing images and NSFW detection results.
 
 		Returns:
 			List of boolean values indicating NSFW detection for each generated image.
 		"""
-		logger.info(f'Checking for NSFW content: {output.get("nsfw_content_detected")}')
+		nsfw_detected = output.nsfw_content_detected
+		logger.info(f'Checking for NSFW content: {nsfw_detected}')
 
-		if output.get('nsfw_content_detected'):
+		if nsfw_detected:
 			logger.warning('NSFW content detected')
-			return output.get('nsfw_content_detected')  # type: ignore[no-any-return]
+			return nsfw_detected
 
-		return [False] * len(output.get('images', []))
+		# Return False for each image if no NSFW detection was performed
+		return [False] * len(output.images)
 
 	def generate_file_name(self) -> str:
 		"""Generate a unique file name based on the current timestamp.
