@@ -1,10 +1,8 @@
-import gc
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-import torch
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
@@ -14,6 +12,7 @@ from app.cores.constants.model_loader import (
 	SAFETY_CHECKER_MODEL,
 	ModelLoadingStrategy,
 )
+from app.cores.gpu_utils import cleanup_gpu_model
 from app.cores.max_memory import MaxMemoryConfig
 from app.database.service import SessionLocal
 from app.services import device_service, storage_service
@@ -126,35 +125,12 @@ def cleanup_partial_load(pipe) -> None:
 	if pipe is None:
 		return
 
-	try:
-		logger.info('Cleaning up partially loaded model...')
-
-		# Move pipeline to CPU to free GPU memory
-		if hasattr(pipe, 'to'):
-			pipe.to('cpu')
-			logger.info('Moved partial pipeline to CPU')
-
-		# Delete pipeline components
-		for attr in ['unet', 'vae', 'text_encoder', 'text_encoder_2', 'tokenizer', 'tokenizer_2', 'scheduler']:
-			if hasattr(pipe, attr):
-				try:
-					delattr(pipe, attr)
-				except Exception as e:
-					logger.debug(f'Could not delete {attr}: {e}')
-
-		# Delete the pipeline
-		del pipe
-
-		# Force garbage collection
-		gc.collect()
-
-		# Clear CUDA cache if available
-		if torch.cuda.is_available():
-			torch.cuda.empty_cache()
-			logger.info('Cleared CUDA cache after partial load cleanup')
-
-	except Exception as e:
-		logger.warning(f'Error during partial load cleanup: {e}')
+	logger.info('Cleaning up partially loaded model...')
+	metrics = cleanup_gpu_model(pipe, name='partial pipeline')
+	logger.info(
+		f'Partial load cleanup complete: {metrics.time_ms:.1f}ms, '
+		f'{metrics.objects_collected} objects collected' + (f', error: {metrics.error}' if metrics.error else '')
+	)
 
 
 def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
@@ -203,7 +179,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 			cancel_token.check_cancelled()
 
 		# Build loading strategies based on whether we found a single-file checkpoint
-		loading_strategies = []
+		loading_strategies: list[dict[str, Any]] = []
 
 		# Strategy 0: Single-file checkpoint (highest priority for community models)
 		if checkpoint_path:
@@ -262,16 +238,34 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 				)
 
 				if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
-					# Load from single-file checkpoint
+					# Load from single-file checkpoint - try SDXL first, then SD 1.5
+					from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import StableDiffusionPipeline
+					from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import StableDiffusionXLPipeline
+
 					checkpoint = strategy_params['checkpoint_path']
-					pipe = AutoPipelineForText2Image.from_single_file(
-						checkpoint,
-						cache_dir=CACHE_FOLDER,
-						low_cpu_mem_usage=True,
-						torch_dtype=device_service.torch_dtype,
-						safety_checker=safety_checker_instance,
-						feature_extractor=feature_extractor,
-					)
+					single_file_errors = []
+
+					for pipeline_class in [StableDiffusionXLPipeline, StableDiffusionPipeline]:
+						try:
+							logger.debug(f'Trying {pipeline_class.__name__} for single-file checkpoint')
+							pipe = pipeline_class.from_single_file(  # type: ignore[attr-defined]
+								checkpoint,
+								torch_dtype=device_service.torch_dtype,
+							)
+							# Attach safety checker and feature extractor
+							if hasattr(pipe, 'safety_checker'):
+								pipe.safety_checker = safety_checker_instance
+							if hasattr(pipe, 'feature_extractor'):
+								pipe.feature_extractor = feature_extractor
+							logger.info(f'Successfully loaded with {pipeline_class.__name__}')
+							break
+						except Exception as e:
+							single_file_errors.append(f'{pipeline_class.__name__}: {e}')
+							continue
+
+					if not pipe:
+						error_msg = f'Failed to load single-file checkpoint {checkpoint}. Tried: {", ".join(single_file_errors)}'
+						raise ValueError(error_msg)
 				else:
 					# Load from pretrained (diffusers format)
 					# Create clean params dict without 'type' key for unpacking

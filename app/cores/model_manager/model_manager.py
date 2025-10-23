@@ -40,7 +40,7 @@ class ModelManager:
 	def __init__(self):
 		self.pipe = None
 		self.id = None
-		self.state = ModelState.IDLE
+		self.state: ModelState = ModelState.IDLE
 
 		# Asyncio lock to prevent concurrent model operations
 		self.lock = asyncio.Lock()

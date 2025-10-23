@@ -41,11 +41,11 @@ class ImageService:
 				base64_string = base64_string.split(',', 1)[1]
 
 			image_data = base64.b64decode(base64_string)
-			image = Image.open(io.BytesIO(image_data))
+			image = Image.open(io.BytesIO(image_data))  # type: ignore[assignment]
 
 			# Convert to RGB to ensure compatibility
 			if image.mode != 'RGB':
-				image = image.convert('RGB')
+				image = image.convert('RGB')  # type: ignore[assignment]
 
 			return image
 		except Exception as error:
@@ -76,7 +76,7 @@ class ImageService:
 		if mode == 'resize':
 			# Simple resize (may change aspect ratio)
 			return image.resize((width, height), Image.Resampling.LANCZOS)
-		elif mode == 'crop':
+		else:  # mode == 'crop'
 			# Center crop to maintain aspect ratio
 			aspect = width / height
 			img_aspect = image.width / image.height

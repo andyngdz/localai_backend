@@ -138,6 +138,30 @@ pip install -r requirements.txt -r requirements-dev.txt
 - CI/CD pipeline includes code quality checks and SonarCloud analysis
 - **Always use Pydantic schemas for JSON responses, never return raw dict objects**
 
+### Pre-commit Validation
+
+This project uses **Husky** for pre-commit hooks to enforce code quality. Every commit automatically runs:
+
+1. **Code Formatting** - `ruff format --check`
+2. **Linting** - `ruff check`
+3. **Type Checking** - `mypy` (static type analysis)
+4. **Tests** - `pytest -q` (when core files or tests change)
+
+**IMPORTANT**: Commits will be **blocked** if any check fails. This prevents:
+- Type errors (Pylance warnings)
+- Linting issues
+- Formatting problems
+- Failing tests
+
+To manually run all checks before committing:
+```bash
+source .venv/bin/activate
+ruff format .
+ruff check .
+mypy app tests
+pytest -q
+```
+
 ## Common Mistakes to Avoid
 
 **1. Never use underscore prefixes for methods/attributes**

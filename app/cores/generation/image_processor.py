@@ -81,7 +81,7 @@ class ImageProcessor:
 
 		if output.get('nsfw_content_detected'):
 			logger.warning('NSFW content detected')
-			return output.get('nsfw_content_detected')
+			return output.get('nsfw_content_detected')  # type: ignore[no-any-return]
 
 		return [False] * len(output.get('images', []))
 
