@@ -415,11 +415,7 @@ class TestReactDoubleMountScenario:
 			await asyncio.sleep(0.1)
 
 			# Load 2 (different model) - fresh load after cancellation cleanup
-			print(f'DEBUG: Before task2 - state={model_manager.state}, id={model_manager.id}, pipe={model_manager.pipe}')
 			result = await model_manager.load_model_async('model2')
-			print(f'DEBUG: After task2 await - state={model_manager.state}, id={model_manager.id}, pipe={model_manager.pipe}')
-			print(f'DEBUG: mock_load call count={mock_load.call_count}')
-			print(f'DEBUG: result={result}')
 
 			# Should succeed with model2
 			assert model_manager.state == ModelState.LOADED

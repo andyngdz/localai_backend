@@ -445,3 +445,164 @@ class TestGetSampleSize:
 
 		# Verify
 		assert result == DEFAULT_SAMPLE_SIZE
+
+
+class TestUnloadInternal:
+	"""Test unload_internal() method."""
+
+	def setup_method(self):
+		"""Reset model_manager state before each test."""
+		model_manager.pipe = None
+		model_manager.id = None
+		model_manager.state = ModelState.IDLE
+
+	def test_unload_internal_calls_release_resources(self):
+		"""Test that unload_internal calls release_resources when pipe is set."""
+		mock_pipe = MagicMock()
+		model_manager.pipe = mock_pipe
+		model_manager.id = 'test/model'
+
+		with patch.object(model_manager, 'release_resources') as mock_release:
+			# Execute
+			model_manager.unload_internal()
+
+			# Verify
+			mock_release.assert_called_once()
+
+	def test_unload_internal_does_nothing_when_no_pipe(self, caplog):
+		"""Test that unload_internal does nothing when pipe is None."""
+		import logging
+
+		model_manager.pipe = None
+		caplog.set_level(logging.INFO)
+
+		with patch.object(model_manager, 'release_resources') as mock_release:
+			# Execute
+			model_manager.unload_internal()
+
+			# Verify - should not call release_resources
+			mock_release.assert_not_called()
+
+
+class TestAsyncMethods:
+	"""Test async methods of ModelManager."""
+
+	def setup_method(self):
+		"""Reset model_manager state before each test."""
+		model_manager.pipe = None
+		model_manager.id = None
+		model_manager.state = ModelState.IDLE
+		model_manager.cancel_token = None
+		model_manager.loading_task = None
+
+	@pytest.mark.asyncio
+	async def test_load_model_async_raises_error_on_exception(self):
+		"""Test load_model_async error handling (lines 302-309)."""
+		with patch.object(model_manager, 'load_model', side_effect=ValueError('Load failed')):
+			with pytest.raises(ValueError, match='Load failed'):
+				await model_manager.load_model_async('test/model')
+
+			# Verify state transitioned to ERROR
+			assert model_manager.state == ModelState.ERROR
+
+	@pytest.mark.asyncio
+	async def test_unload_model_async_when_idle(self, caplog):
+		"""Test unload_model_async when state is IDLE (lines 349-351)."""
+		import logging
+
+		model_manager.state = ModelState.IDLE
+		caplog.set_level(logging.INFO)
+
+		# Execute
+		await model_manager.unload_model_async()
+
+		# Verify - should log and return early
+		assert 'No model loaded, nothing to unload' in caplog.text
+
+	@pytest.mark.asyncio
+	async def test_unload_model_async_when_loaded(self):
+		"""Test unload_model_async when state is LOADED (lines 353-365)."""
+		# Setup
+		mock_pipe = MagicMock()
+		model_manager.pipe = mock_pipe
+		model_manager.id = 'test/model'
+		model_manager.state = ModelState.LOADED
+
+		with patch.object(model_manager, 'unload_internal') as mock_unload:
+			# Execute
+			await model_manager.unload_model_async()
+
+			# Verify
+			mock_unload.assert_called_once()
+			assert model_manager.state == ModelState.IDLE
+
+	@pytest.mark.asyncio
+	async def test_unload_model_async_handles_error(self):
+		"""Test unload_model_async handles exceptions (lines 362-365)."""
+		# Setup
+		mock_pipe = MagicMock()
+		model_manager.pipe = mock_pipe
+		model_manager.state = ModelState.LOADED
+
+		with patch.object(model_manager, 'unload_internal', side_effect=RuntimeError('Unload failed')):
+			with pytest.raises(RuntimeError, match='Unload failed'):
+				await model_manager.unload_model_async()
+
+			# Verify state transitioned to ERROR
+			assert model_manager.state == ModelState.ERROR
+
+	@pytest.mark.asyncio
+	async def test_unload_model_async_resets_from_error_state(self):
+		"""Test unload_model_async resets from ERROR state (lines 367-371)."""
+		# Setup
+		model_manager.state = ModelState.ERROR
+		model_manager.pipe = None
+
+		with patch.object(model_manager, 'unload_internal') as mock_unload:
+			# Execute
+			await model_manager.unload_model_async()
+
+			# Verify
+			mock_unload.assert_called_once()
+			assert model_manager.state == ModelState.IDLE
+
+	@pytest.mark.asyncio
+	async def test_unload_model_async_resets_from_cancelling_state(self):
+		"""Test unload_model_async resets from CANCELLING state (lines 367-371)."""
+		# Setup
+		model_manager.state = ModelState.CANCELLING
+		model_manager.pipe = None
+
+		with patch.object(model_manager, 'unload_internal') as mock_unload:
+			# Execute
+			await model_manager.unload_model_async()
+
+			# Verify
+			mock_unload.assert_called_once()
+			assert model_manager.state == ModelState.IDLE
+
+
+class TestSetSamplerEdgeCases:
+	"""Test edge cases for set_sampler()."""
+
+	def setup_method(self):
+		"""Reset model_manager state before each test."""
+		model_manager.pipe = None
+		model_manager.id = None
+		model_manager.state = ModelState.IDLE
+
+	def test_set_sampler_raises_for_unsupported_sampler(self):
+		"""Test set_sampler raises ValueError for unsupported sampler (line 409)."""
+		# Setup
+		mock_pipe = MagicMock()
+		mock_pipe.scheduler.config = {}
+		model_manager.pipe = mock_pipe
+		model_manager.state = ModelState.LOADED
+
+		# Create a fake sampler type that's not in SCHEDULER_MAPPING
+		from app.cores.samplers import SamplerType
+
+		# Mock SCHEDULER_MAPPING to be empty
+		with patch('app.cores.model_manager.model_manager.SCHEDULER_MAPPING', {}):
+			with pytest.raises(ValueError, match='Unsupported sampler type'):
+				model_manager.set_sampler(SamplerType.EULER)
