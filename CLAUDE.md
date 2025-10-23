@@ -136,3 +136,116 @@ pip install -r requirements.txt -r requirements-dev.txt
 - SQLAlchemy 2.0 with declarative base
 - Comprehensive test coverage with pytest and pytest-asyncio
 - CI/CD pipeline includes code quality checks and SonarCloud analysis
+- **Always use Pydantic schemas for JSON responses, never return raw dict objects**
+
+## Common Mistakes to Avoid
+
+**1. Never use underscore prefixes for methods/attributes**
+
+- Use public names by default: `lock` not `_lock`, `set_state()` not `_set_state()`
+- Only use underscores for truly private implementation details
+- The codebase preference is explicit public interfaces
+
+**2. Question every code pattern before copying it**
+
+- Don't cargo cult program (copy patterns without understanding why they exist)
+- Before adding code, ask:
+  - "What problem does this solve?"
+  - "Does this apply to my use case?"
+  - "What's the performance impact?"
+- Test with real workloads, not just unit tests
+
+**3. Test with real-world loads before claiming success**
+
+- Unit tests passing ≠ code is performant or correct
+- Check application logs for warnings and timing issues
+- Verify the solution doesn't introduce worse problems than it solves
+
+## Communication Guidelines
+
+**ALWAYS ask clarifying questions before proposing solutions. NEVER make assumptions about user intent.**
+
+- Use the `AskUserQuestion` tool to present questions as selectable options/checkboxes
+- Maximum 4 options per question (tool limitation)
+- Each option needs: `label` (short title), `description` (explanation)
+- Get full context before jumping into implementation
+
+**When to ask questions:**
+
+- Implementation tasks (new features, refactoring, bug fixes)
+- Ambiguous requests: "optimize this", "fix the error", "improve performance"
+- Complex requests: "add authentication", "integrate with API"
+- Continuation scenarios: "continue", "keep going" → Ask which specific task
+- Any request where multiple valid approaches exist
+
+**When NOT to ask (trivial commands):**
+
+- Simple test runs: "run tests", "pytest"
+- Code formatting: "format code", "ruff format"
+- Informational: "show me the logs", "what does this function do"
+- Explicit with clear intent: "run tests on file X", "read function Y at line Z"
+
+**Examples:**
+
+- User: "optimize this" → Ask: speed, memory, readability, or code size?
+- User: "fix the bug" → Ask: which bug, where, what's expected behavior?
+- User: "continue" → Ask: continue which task (list recent incomplete tasks)?
+- User: "add auth" → Ask: method (JWT/OAuth), token storage, session duration?
+
+## Testing Strategy
+
+**When to write tests:**
+
+- Always write tests for new features or bug fixes
+- Add tests before marking implementation as complete
+- Update existing tests when changing behavior
+
+**Test organization:**
+
+- Place tests in `tests/` directory mirroring `app/` structure
+- Use descriptive test class names: `TestFeatureName` format
+- Group related tests in classes (e.g., `TestLoadModelEndpoint`)
+- Each test method should test one specific behavior
+
+**Coverage expectations:**
+
+- Aim for high coverage on core business logic
+- Test happy paths and error cases
+- Include edge cases (cancellation, timeouts, race conditions)
+- Run tests with coverage: `pytest -q --cov=app`
+
+**Test patterns:**
+
+- Use `pytest.mark.asyncio` for async tests
+- Mock external dependencies (database, network, GPU operations)
+- Use fixtures for common test setup
+- Verify both behavior and side effects (state changes, logs)
+
+## Error Handling Patterns
+
+**Exception hierarchy:**
+
+- Create custom exceptions for domain-specific errors
+- Use meaningful exception names: `ModelLoadCancelledException`, not `Error`
+- Include context in exceptions (reason, ids, etc.)
+
+**HTTP status codes:**
+
+- `200 OK`: Success (including expected cancellations with status field)
+- `400 Bad Request`: Invalid input, validation errors
+- `404 Not Found`: Resource doesn't exist
+- `409 Conflict`: Resource in use, state conflict
+- `500 Internal Server Error`: Unexpected failures only
+
+**Logging levels:**
+
+- `logger.info()`: Expected operations (cancellations, state changes)
+- `logger.warning()`: Recoverable issues, degraded performance
+- `logger.error()`: Unexpected failures, exceptions
+- `logger.exception()`: Errors with full stack trace
+
+**Response patterns:**
+
+- Always return Pydantic schemas, never raw dicts
+- Include status/reason fields for non-standard responses
+- Provide helpful error messages with context

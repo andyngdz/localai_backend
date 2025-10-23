@@ -16,9 +16,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Response, status
 from sqlalchemy.orm import Session
 
+from app.cores.model_loader.cancellation import CancellationException
 from app.features.models.api import (
 	delete_model_by_id,
 	get_model_recommendations,
@@ -26,7 +27,11 @@ from app.features.models.api import (
 	load_model,
 	unload_model,
 )
-from app.features.models.schemas import LoadModelRequest, LoadModelResponse, ModelAvailableResponse
+from app.features.models.schemas import (
+	LoadModelRequest,
+	LoadModelResponse,
+	ModelAvailableResponse,
+)
 from app.schemas.responses import JSONResponseMessage
 
 
@@ -157,30 +162,49 @@ class TestLoadModelEndpoint:
 		assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 		assert 'Failed to load model' in str(exc_info.value.detail)
 
+	@pytest.mark.asyncio
+	@patch('app.features.models.api.model_manager')
+	async def test_load_model_cancelled(self, mock_model_manager):
+		"""Test model loading cancelled (returns 204 No Content)."""
+		# Arrange
+		mock_model_manager.load_model_async = AsyncMock(side_effect=CancellationException('Cancelled'))
+
+		# Act
+		result = await load_model(self.request)
+
+		# Assert
+		assert isinstance(result, Response)
+		assert result.status_code == 204
+
 
 class TestUnloadModelEndpoint:
 	"""Test unload model endpoint."""
 
+	@pytest.mark.asyncio
 	@patch('app.features.models.api.model_manager')
-	def test_unload_model_success(self, mock_model_manager):
+	async def test_unload_model_success(self, mock_model_manager):
 		"""Test successful model unloading."""
+		# Arrange
+		mock_model_manager.unload_model_async = AsyncMock()
+
 		# Act
-		result = unload_model()
+		result = await unload_model()
 
 		# Assert
-		mock_model_manager.unload_model.assert_called_once()
+		mock_model_manager.unload_model_async.assert_called_once()
 		assert isinstance(result, JSONResponseMessage)
 		assert 'Model unloaded successfully' in result.body.decode()
 
+	@pytest.mark.asyncio
 	@patch('app.features.models.api.model_manager')
-	def test_unload_model_error(self, mock_model_manager):
+	async def test_unload_model_error(self, mock_model_manager):
 		"""Test error handling during model unloading."""
 		# Arrange
-		mock_model_manager.unload_model.side_effect = Exception('Failed to unload model')
+		mock_model_manager.unload_model_async = AsyncMock(side_effect=Exception('Failed to unload model'))
 
 		# Act & Assert
 		with pytest.raises(HTTPException) as exc_info:
-			unload_model()
+			await unload_model()
 
 		assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 		assert 'Failed to unload model' in str(exc_info.value.detail)

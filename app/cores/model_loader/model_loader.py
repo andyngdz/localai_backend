@@ -1,7 +1,10 @@
+import gc
 import logging
 import os
 from pathlib import Path
+from typing import Optional
 
+import torch
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
@@ -17,6 +20,7 @@ from app.services import device_service, storage_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
+from .cancellation import CancellationException, CancellationToken
 from .schemas import ModelLoadCompletedResponse, ModelLoadFailed
 
 logger = logging.getLogger(__name__)
@@ -113,131 +117,234 @@ def move_to_device(pipe, device, log_prefix):
 	return pipe
 
 
-def model_loader(id: str):
+def cleanup_partial_load(pipe) -> None:
+	"""Clean up partially loaded model resources on cancellation.
+
+	Args:
+		pipe: The partially loaded pipeline to clean up
+	"""
+	if pipe is None:
+		return
+
+	try:
+		logger.info('Cleaning up partially loaded model...')
+
+		# Move pipeline to CPU to free GPU memory
+		if hasattr(pipe, 'to'):
+			pipe.to('cpu')
+			logger.info('Moved partial pipeline to CPU')
+
+		# Delete pipeline components
+		for attr in ['unet', 'vae', 'text_encoder', 'text_encoder_2', 'tokenizer', 'tokenizer_2', 'scheduler']:
+			if hasattr(pipe, attr):
+				try:
+					delattr(pipe, attr)
+				except Exception as e:
+					logger.debug(f'Could not delete {attr}: {e}')
+
+		# Delete the pipeline
+		del pipe
+
+		# Force garbage collection
+		gc.collect()
+
+		# Clear CUDA cache if available
+		if torch.cuda.is_available():
+			torch.cuda.empty_cache()
+			logger.info('Cleared CUDA cache after partial load cleanup')
+
+	except Exception as e:
+		logger.warning(f'Error during partial load cleanup: {e}')
+
+
+def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
+	"""Load a model with optional cancellation support.
+
+	Args:
+		id: Model identifier to load
+		cancel_token: Optional cancellation token for aborting the load
+
+	Returns:
+		Loaded pipeline instance
+
+	Raises:
+		CancellationException: If loading is cancelled via cancel_token
+	"""
 	db = SessionLocal()
+	pipe = None
 
-	logger.info(f'Loading model {id} to {device_service.device}')
+	try:
+		logger.info(f'Loading model {id} to {device_service.device}')
 
-	max_memory = MaxMemoryConfig(db).to_dict()
-	logger.info(f'Max memory configuration: {max_memory}')
+		# Checkpoint 1: Before initialization
+		if cancel_token:
+			cancel_token.check_cancelled()
 
-	feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
-	safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
+		max_memory = MaxMemoryConfig(db).to_dict()
+		logger.info(f'Max memory configuration: {max_memory}')
 
-	# Check if the model exists in cache and look for single-file checkpoints
-	model_cache_path = storage_service.get_model_dir(id)
-	checkpoint_path = find_checkpoint_in_cache(model_cache_path)
+		# Checkpoint 2: Before loading feature extractor
+		if cancel_token:
+			cancel_token.check_cancelled()
 
-	# Build loading strategies based on whether we found a single-file checkpoint
-	loading_strategies = []
+		feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
+		safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
 
-	# Strategy 0: Single-file checkpoint (highest priority for community models)
-	if checkpoint_path:
+		# Checkpoint 3: Before cache lookup
+		if cancel_token:
+			cancel_token.check_cancelled()
+
+		# Check if the model exists in cache and look for single-file checkpoints
+		model_cache_path = storage_service.get_model_dir(id)
+		checkpoint_path = find_checkpoint_in_cache(model_cache_path)
+
+		# Checkpoint 4: Before building strategies
+		if cancel_token:
+			cancel_token.check_cancelled()
+
+		# Build loading strategies based on whether we found a single-file checkpoint
+		loading_strategies = []
+
+		# Strategy 0: Single-file checkpoint (highest priority for community models)
+		if checkpoint_path:
+			loading_strategies.append(
+				{
+					'type': ModelLoadingStrategy.SINGLE_FILE,
+					'checkpoint_path': checkpoint_path,
+				}
+			)
+
+		# Strategy 1: FP16 safetensors (diffusers format)
 		loading_strategies.append(
 			{
-				'type': ModelLoadingStrategy.SINGLE_FILE,
-				'checkpoint_path': checkpoint_path,
+				'type': ModelLoadingStrategy.PRETRAINED,
+				'use_safetensors': True,
+				'variant': 'fp16',
 			}
 		)
 
-	# Strategy 1: FP16 safetensors (diffusers format)
-	loading_strategies.append(
-		{
-			'type': ModelLoadingStrategy.PRETRAINED,
-			'use_safetensors': True,
-			'variant': 'fp16',
-		}
-	)
+		# Strategy 2: Standard safetensors (diffusers format)
+		loading_strategies.append(
+			{
+				'type': ModelLoadingStrategy.PRETRAINED,
+				'use_safetensors': True,
+			}
+		)
 
-	# Strategy 2: Standard safetensors (diffusers format)
-	loading_strategies.append(
-		{
-			'type': ModelLoadingStrategy.PRETRAINED,
-			'use_safetensors': True,
-		}
-	)
+		# Strategy 3: FP16 without safetensors (diffusers format)
+		loading_strategies.append(
+			{
+				'type': ModelLoadingStrategy.PRETRAINED,
+				'use_safetensors': False,
+				'variant': 'fp16',
+			}
+		)
 
-	# Strategy 3: FP16 without safetensors (diffusers format)
-	loading_strategies.append(
-		{
-			'type': ModelLoadingStrategy.PRETRAINED,
-			'use_safetensors': False,
-			'variant': 'fp16',
-		}
-	)
+		# Strategy 4: Standard without safetensors (diffusers format)
+		loading_strategies.append(
+			{
+				'type': ModelLoadingStrategy.PRETRAINED,
+				'use_safetensors': False,
+			}
+		)
 
-	# Strategy 4: Standard without safetensors (diffusers format)
-	loading_strategies.append(
-		{
-			'type': ModelLoadingStrategy.PRETRAINED,
-			'use_safetensors': False,
-		}
-	)
+		last_error = None
 
-	pipe = None
-	last_error = None
+		for strategy_idx, strategy_params in enumerate(loading_strategies, 1):
+			# Checkpoint 5: Before each loading strategy
+			if cancel_token:
+				cancel_token.check_cancelled()
 
-	for strategy_idx, strategy_params in enumerate(loading_strategies, 1):
-		try:
-			strategy_type = strategy_params.get('type')
-			logger.info(
-				f'Trying loading strategy {strategy_idx}/{len(loading_strategies)} ({strategy_type}): {strategy_params}'
-			)
-
-			if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
-				# Load from single-file checkpoint
-				checkpoint = strategy_params['checkpoint_path']
-				pipe = AutoPipelineForText2Image.from_single_file(
-					checkpoint,
-					cache_dir=CACHE_FOLDER,
-					low_cpu_mem_usage=True,
-					torch_dtype=device_service.torch_dtype,
-					safety_checker=safety_checker_instance,
-					feature_extractor=feature_extractor,
+			try:
+				strategy_type = strategy_params.get('type')
+				logger.info(
+					f'Trying loading strategy {strategy_idx}/{len(loading_strategies)} ({strategy_type}): {strategy_params}'
 				)
+
+				if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
+					# Load from single-file checkpoint
+					checkpoint = strategy_params['checkpoint_path']
+					pipe = AutoPipelineForText2Image.from_single_file(
+						checkpoint,
+						cache_dir=CACHE_FOLDER,
+						low_cpu_mem_usage=True,
+						torch_dtype=device_service.torch_dtype,
+						safety_checker=safety_checker_instance,
+						feature_extractor=feature_extractor,
+					)
+				else:
+					# Load from pretrained (diffusers format)
+					# Create clean params dict without 'type' key for unpacking
+					load_params = {k: v for k, v in strategy_params.items() if k != 'type'}
+					pipe = AutoPipelineForText2Image.from_pretrained(
+						id,
+						cache_dir=CACHE_FOLDER,
+						low_cpu_mem_usage=True,
+						torch_dtype=device_service.torch_dtype,
+						safety_checker=safety_checker_instance,
+						feature_extractor=feature_extractor,
+						**load_params,
+					)
+
+				logger.info(f'Successfully loaded model using strategy {strategy_idx}')
+				break
+			except Exception as error:
+				last_error = error
+				logger.warning(f'Strategy {strategy_idx} failed: {error}')
+				continue
+
+		if pipe is None:
+			error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
+			logger.error(error_msg)
+			socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(last_error)))
+			if last_error is not None:
+				raise last_error
 			else:
-				# Load from pretrained (diffusers format)
-				# Create clean params dict without 'type' key for unpacking
-				load_params = {k: v for k, v in strategy_params.items() if k != 'type'}
-				pipe = AutoPipelineForText2Image.from_pretrained(
-					id,
-					cache_dir=CACHE_FOLDER,
-					low_cpu_mem_usage=True,
-					torch_dtype=device_service.torch_dtype,
-					safety_checker=safety_checker_instance,
-					feature_extractor=feature_extractor,
-					**load_params,
-				)
+				raise RuntimeError(error_msg)
 
-			logger.info(f'Successfully loaded model using strategy {strategy_idx}')
-			break
-		except Exception as error:
-			last_error = error
-			logger.warning(f'Strategy {strategy_idx} failed: {error}')
-			continue
+		# Checkpoint 6: After pipeline loaded, before device operations
+		if cancel_token:
+			cancel_token.check_cancelled()
 
-	if pipe is None:
-		error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
-		logger.error(error_msg)
-		socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(last_error)))
-		if last_error is not None:
-			raise last_error
-		else:
-			raise RuntimeError(error_msg)
+		# Reset device map to allow explicit device placement, then move pipeline
+		if hasattr(pipe, 'reset_device_map'):
+			pipe.reset_device_map()
+			logger.info(f'Reset device map for pipeline {id}')
 
-	# Reset device map to allow explicit device placement, then move pipeline
-	if hasattr(pipe, 'reset_device_map'):
-		pipe.reset_device_map()
-		logger.info(f'Reset device map for pipeline {id}')
+		# Checkpoint 7: Before moving to device
+		if cancel_token:
+			cancel_token.check_cancelled()
 
-	# Move entire pipeline to target device using to_empty() for meta tensors
-	pipe = move_to_device(pipe, device_service.device, f'Pipeline {id}')
+		# Move entire pipeline to target device using to_empty() for meta tensors
+		pipe = move_to_device(pipe, device_service.device, f'Pipeline {id}')
 
-	# Apply device-specific optimizations
-	apply_device_optimizations(pipe)
+		# Checkpoint 8: Before optimizations
+		if cancel_token:
+			cancel_token.check_cancelled()
 
-	db.close()
+		# Apply device-specific optimizations
+		apply_device_optimizations(pipe)
 
-	socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
+		# Checkpoint 9: Before completion
+		if cancel_token:
+			cancel_token.check_cancelled()
 
-	return pipe
+		db.close()
+
+		socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
+
+		return pipe
+
+	except CancellationException:
+		# Clean up partially loaded model on cancellation
+		logger.info(f'Model loading cancelled for {id}, performing cleanup...')
+		cleanup_partial_load(pipe)
+		db.close()
+		raise
+
+	except Exception as e:
+		# Clean up on any other error
+		logger.error(f'Error loading model {id}: {e}')
+		cleanup_partial_load(pipe)
+		db.close()
+		raise
