@@ -287,3 +287,176 @@ class TestModelAvailabilityEndpoint:
 
 		assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 		assert exc_info.value.detail == error_message
+
+
+class TestListModelsEndpoint:
+	"""Test list_models endpoint."""
+
+	@patch('app.features.models.api.api')
+	def test_list_models_success(self, mock_api):
+		"""Test successful model listing from HuggingFace (lines 45-61)."""
+		# Arrange
+		mock_model1 = MagicMock()
+		mock_model1.__dict__ = {
+			'id': 'model1',
+			'author': 'user1',
+			'downloads': 100,
+			'likes': 50,
+			'tags': ['diffusion'],
+		}
+		mock_model2 = MagicMock()
+		mock_model2.__dict__ = {
+			'id': 'model2',
+			'author': 'user2',
+			'downloads': 200,
+			'likes': 75,
+			'tags': ['text-to-image'],
+		}
+
+		mock_api.list_models.return_value = iter([mock_model1, mock_model2])
+
+		# Act
+		from app.features.models.api import list_models
+
+		result = list_models(filter='diffusion', limit=20, model_name=None, sort='likes')
+
+		# Assert
+		mock_api.list_models.assert_called_once_with(
+			full=True,
+			filter='diffusion',
+			limit=20,
+			model_name=None,
+			pipeline_tag='text-to-image',
+			sort='likes',
+		)
+		assert len(result.models_search_info) == 2
+		assert result.models_search_info[0].id == 'model1'
+		assert result.models_search_info[1].id == 'model2'
+
+
+class TestGetModelInfoEndpoint:
+	"""Test get_model_info endpoint."""
+
+	@patch('app.features.models.api.api')
+	def test_get_model_info_success(self, mock_api):
+		"""Test successful model info retrieval (lines 67-75)."""
+		# Arrange
+		mock_model_info = {'id': 'test/model', 'author': 'test', 'pipeline_tag': 'text-to-image'}
+		mock_api.model_info.return_value = mock_model_info
+
+		# Act
+		from app.features.models.api import get_model_info
+
+		result = get_model_info(id='test/model')
+
+		# Assert
+		mock_api.model_info.assert_called_once_with('test/model', files_metadata=True)
+		assert result == mock_model_info
+
+	def test_get_model_info_missing_id(self):
+		"""Test error when ID is missing or empty."""
+		from app.features.models.api import get_model_info
+
+		# Test with empty string
+		with pytest.raises(HTTPException) as exc_info:
+			get_model_info(id='')
+
+		assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+		assert "Missing 'id' query parameter" in str(exc_info.value.detail)
+
+
+class TestGetDownloadedModelsEndpoint:
+	"""Test get_downloaded_models endpoint."""
+
+	@patch('app.features.models.api.model_service')
+	def test_get_downloaded_models_success(self, mock_model_service):
+		"""Test successful downloaded models retrieval (lines 81-88)."""
+		# Arrange
+		db_mock = MagicMock(spec=Session)
+		mock_models = [{'id': 'model1'}, {'id': 'model2'}]
+		mock_model_service.get_downloaded_models.return_value = mock_models
+
+		# Act
+		from app.features.models.api import get_downloaded_models
+
+		result = get_downloaded_models(db=db_mock)
+
+		# Assert
+		mock_model_service.get_downloaded_models.assert_called_once_with(db_mock)
+		assert result == mock_models
+
+	@patch('app.features.models.api.model_service')
+	def test_get_downloaded_models_error(self, mock_model_service):
+		"""Test error handling in get_downloaded_models."""
+		# Arrange
+		db_mock = MagicMock(spec=Session)
+		mock_model_service.get_downloaded_models.side_effect = Exception('Database error')
+
+		# Act & Assert
+		from app.features.models.api import get_downloaded_models
+
+		with pytest.raises(HTTPException) as exc_info:
+			get_downloaded_models(db=db_mock)
+
+		assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+class TestGetModelStatusEndpoint:
+	"""Test get_model_status endpoint."""
+
+	@patch('app.features.models.api.model_manager')
+	def test_get_model_status_success(self, mock_model_manager):
+		"""Test successful model status retrieval (lines 200-216)."""
+		# Arrange
+		from app.cores.model_manager import ModelState
+
+		mock_model_manager.get_state.return_value = ModelState.LOADED
+		mock_model_manager.id = 'test/model'
+		mock_model_manager.pipe = MagicMock()
+
+		# Act
+		from app.features.models.api import get_model_status
+
+		result = get_model_status()
+
+		# Assert
+		assert result['state'] == 'loaded'
+		assert result['loaded_model_id'] == 'test/model'
+		assert result['has_model'] is True
+		assert result['is_loading'] is False
+		assert result['is_cancelling'] is False
+
+	@patch('app.features.models.api.model_manager')
+	def test_get_model_status_loading_state(self, mock_model_manager):
+		"""Test model status when loading."""
+		# Arrange
+		from app.cores.model_manager import ModelState
+
+		mock_model_manager.get_state.return_value = ModelState.LOADING
+		mock_model_manager.id = None
+		mock_model_manager.pipe = None
+
+		# Act
+		from app.features.models.api import get_model_status
+
+		result = get_model_status()
+
+		# Assert
+		assert result['state'] == 'loading'
+		assert result['is_loading'] is True
+		assert result['has_model'] is False
+
+	@patch('app.features.models.api.model_manager')
+	def test_get_model_status_error(self, mock_model_manager):
+		"""Test error handling in get_model_status."""
+		# Arrange
+		mock_model_manager.get_state.side_effect = Exception('Failed to get state')
+
+		# Act & Assert
+		from app.features.models.api import get_model_status
+
+		with pytest.raises(HTTPException) as exc_info:
+			get_model_status()
+
+		assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+		assert 'Failed to get model status' in str(exc_info.value.detail)
