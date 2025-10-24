@@ -20,11 +20,14 @@ class LoaderService:
 	"""Orchestrates model loading with state management and cancellation."""
 
 	def __init__(
-		self, state_manager: StateManager, resource_manager: ResourceManager, pipeline_manager: PipelineManager
+		self,
+		state_manager: StateManager,
+		resource_manager: ResourceManager,
+		pipeline_manager: PipelineManager,
 	) -> None:
-		self.state = state_manager
-		self.resources = resource_manager
-		self.pipeline = pipeline_manager
+		self.state_manager = state_manager
+		self.resources_manager = resource_manager
+		self.pipeline_manager = pipeline_manager
 
 		self.lock = asyncio.Lock()
 		self.cancel_token: Optional[CancellationToken] = None
@@ -53,28 +56,25 @@ class LoaderService:
 			CancellationException: If loading is cancelled
 		"""
 		async with self.lock:
-			current_state = self.state.current_state
-			logger.info(f'[load_model_async] Request to load: {id}, current state: {current_state.value}')
-
-			if current_state == ModelState.LOADING:
+			if self.state_manager.current_state == ModelState.LOADING:
 				logger.info(f'Another load in progress, need to cancel for new load: {id}')
 
-		if current_state == ModelState.LOADING:
+		if self.state_manager.current_state == ModelState.LOADING:
 			await self.cancel_current_load()
-			async with self.lock:
-				current_state = self.state.current_state
 
 		async with self.lock:
-			if self.pipeline.model_id == id and self.pipeline.pipe is not None and current_state == ModelState.LOADED:
-				logger.info(f'Model {id} already loaded, returning config')
-				return dict(self.pipeline.pipe.config)
+			logger.info(f'[load_model_async] Request to load: {id}, current state: {self.state_manager.current_state.value}')
 
-			if not self.state.can_transition_to(ModelState.LOADING):
-				error_msg = f'Cannot load model in state {current_state.value}'
+			if self.pipeline_manager.model_id == id and self.pipeline_manager.pipe is not None and self.state_manager.current_state == ModelState.LOADED:
+				logger.info(f'Model {id} already loaded, returning config')
+				return dict(self.pipeline_manager.pipe.config)
+
+			if not self.state_manager.can_transition_to(ModelState.LOADING):
+				error_msg = f'Cannot load model in state {self.state_manager.current_state.value}'
 				logger.error(error_msg)
 				raise ValueError(error_msg)
 
-			self.state.set_state(ModelState.LOADING, StateTransitionReason.LOAD_REQUESTED)
+			self.state_manager.set_state(ModelState.LOADING, StateTransitionReason.LOAD_REQUESTED)
 			self.cancel_token = CancellationToken()
 			self.loading_task = asyncio.current_task()
 
@@ -83,7 +83,7 @@ class LoaderService:
 			config = await self.execute_load_in_background(id)
 
 			async with self.lock:
-				self.state.set_state(ModelState.LOADED, StateTransitionReason.LOAD_COMPLETED)
+				self.state_manager.set_state(ModelState.LOADED, StateTransitionReason.LOAD_COMPLETED)
 				self.loading_task = None
 				self.cancel_token = None
 				logger.info(f'[load_model_async] Successfully loaded {id}')
@@ -92,7 +92,7 @@ class LoaderService:
 
 		except CancellationException:
 			async with self.lock:
-				self.state.set_state(ModelState.IDLE, StateTransitionReason.LOAD_CANCELLED)
+				self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.LOAD_CANCELLED)
 				self.loading_task = None
 				self.cancel_token = None
 			logger.info(f'Model loading cancelled for {id}')
@@ -100,7 +100,7 @@ class LoaderService:
 
 		except Exception as error:
 			async with self.lock:
-				self.state.set_state(ModelState.ERROR, StateTransitionReason.LOAD_FAILED)
+				self.state_manager.set_state(ModelState.ERROR, StateTransitionReason.LOAD_FAILED)
 				self.loading_task = None
 				self.cancel_token = None
 			logger.error(f'[load_model_async] Error loading {id}: {error}')
@@ -113,41 +113,34 @@ class LoaderService:
 		It's safe to call during React useEffect cleanup.
 		"""
 		async with self.lock:
-			current_state = self.state.current_state
-			logger.info(f'[unload_model_async] Request to unload, current state: {current_state.value}')
+			logger.info(f'[unload_model_async] Request to unload, current state: {self.state_manager.current_state.value}')
 
-			if current_state == ModelState.LOADING:
+			if self.state_manager.current_state == ModelState.LOADING:
 				logger.info('Cancelling in-progress load before unload')
 
-		if current_state == ModelState.LOADING:
+		if self.state_manager.current_state == ModelState.LOADING:
 			await self.cancel_current_load()
-			async with self.lock:
-				current_state = self.state.current_state
-
-				if current_state in {ModelState.IDLE, ModelState.ERROR}:
-					logger.info(f'Load cancelled successfully, state: {current_state.value}')
-					return
 
 		async with self.lock:
-			if current_state == ModelState.IDLE:
+			if self.state_manager.current_state == ModelState.IDLE:
 				logger.info('No model loaded, nothing to unload')
 				return
 
-			if current_state == ModelState.LOADED:
-				self.state.set_state(ModelState.UNLOADING, StateTransitionReason.UNLOAD_REQUESTED)
+			if self.state_manager.current_state == ModelState.LOADED:
+				self.state_manager.set_state(ModelState.UNLOADING, StateTransitionReason.UNLOAD_REQUESTED)
 
 				try:
 					self.unload_model_sync()
-					self.state.set_state(ModelState.IDLE, StateTransitionReason.UNLOAD_COMPLETED)
+					self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.UNLOAD_COMPLETED)
 					logger.info('Model unloaded successfully')
 				except Exception as e:
-					self.state.set_state(ModelState.ERROR, StateTransitionReason.UNLOAD_FAILED)
+					self.state_manager.set_state(ModelState.ERROR, StateTransitionReason.UNLOAD_FAILED)
 					logger.error(f'Error unloading model: {e}')
 					raise
 
-			elif current_state == ModelState.ERROR:
+			elif self.state_manager.current_state == ModelState.ERROR:
 				self.unload_model_sync()
-				self.state.set_state(ModelState.IDLE, StateTransitionReason.RESET_FROM_ERROR)
+				self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.RESET_FROM_ERROR)
 				logger.info('Reset to IDLE state')
 
 	async def cancel_current_load(self) -> None:
@@ -194,15 +187,15 @@ class LoaderService:
 		"""
 		logger.info(f'[load_model_sync] Loading model: {id}')
 
-		if self.pipeline.pipe is not None:
-			logger.info(f'Unloading existing model {self.pipeline.model_id} before loading {id}')
+		if self.pipeline_manager.pipe is not None:
+			logger.info(f'Unloading existing model {self.pipeline_manager.model_id} before loading {id}')
 			self.unload_model_sync()
 
 		logger.info(f'Starting model_loader for {id}')
 		pipe = model_loader(id, self.cancel_token)
 
 		logger.info(f'Model {id} loaded successfully')
-		self.pipeline.set_pipeline(pipe, id)
+		self.pipeline_manager.set_pipeline(pipe, id)
 
 		socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
 
@@ -214,7 +207,7 @@ class LoaderService:
 		Cleans up pipeline resources and clears pipeline reference.
 		Safe to call even if no model is loaded.
 		"""
-		if self.pipeline.pipe is not None and self.pipeline.model_id is not None:
-			logger.info(f'[unload_model_sync] Unloading model: {self.pipeline.model_id}')
-			self.resources.cleanup_pipeline(self.pipeline.pipe, self.pipeline.model_id)
-			self.pipeline.clear_pipeline()
+		if self.pipeline_manager.pipe is not None and self.pipeline_manager.model_id is not None:
+			logger.info(f'[unload_model_sync] Unloading model: {self.pipeline_manager.model_id}')
+			self.resources_manager.cleanup_pipeline(self.pipeline_manager.pipe, self.pipeline_manager.model_id)
+			self.pipeline_manager.clear_pipeline()

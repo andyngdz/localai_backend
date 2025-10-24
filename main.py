@@ -48,6 +48,7 @@ async def lifespan(app: FastAPI):
 
 	yield
 
+	model_manager.loader_service.shutdown()
 	db.close()
 
 
