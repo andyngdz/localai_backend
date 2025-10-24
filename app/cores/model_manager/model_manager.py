@@ -24,8 +24,7 @@ class ModelManager:
 	- LoaderService: Async loading orchestration
 	"""
 
-	def __init__(self):
-		# Public managers - no underscores
+	def __init__(self) -> None:
 		self.state_manager: StateManager = StateManager()
 		self.resource_manager: ResourceManager = ResourceManager()
 		self.pipeline_manager: PipelineManager = PipelineManager()
@@ -33,8 +32,6 @@ class ModelManager:
 			state_manager=self.state_manager, resource_manager=self.resource_manager, pipeline_manager=self.pipeline_manager
 		)
 		logger.info('ModelManager initialized with modular architecture')
-
-	# ===== Public API - Delegates to internal managers =====
 
 	async def load_model_async(self, id: str) -> dict[str, object]:
 		"""Load model asynchronously with cancellation support.
@@ -118,8 +115,6 @@ class ModelManager:
 		"""
 		return self.sample_size
 
-	# ===== Properties for backward compatibility =====
-
 	@property
 	def pipe(self):
 		"""Get current pipeline (backward compatibility).
@@ -161,8 +156,6 @@ class ModelManager:
 			value: Model ID to set or None to clear
 		"""
 		self.pipeline_manager.model_id = value
-
-	# ===== Lock property for advanced usage =====
 
 	@property
 	def lock(self):

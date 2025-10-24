@@ -20,27 +20,22 @@ class ModelState(Enum):
 class StateTransitionReason(Enum):
 	"""Predefined reasons for state transitions."""
 
-	# Loading transitions
 	LOAD_REQUESTED = 'load requested'
 	LOAD_COMPLETED = 'load completed successfully'
 	LOAD_FAILED = 'load failed with error'
 	LOAD_CANCELLED = 'load cancelled by user'
 
-	# Unloading transitions
 	UNLOAD_REQUESTED = 'unload requested'
 	UNLOAD_COMPLETED = 'unload completed successfully'
 	UNLOAD_FAILED = 'unload failed with error'
 
-	# Cancellation transitions
 	CANCELLATION_REQUESTED = 'cancellation requested'
 	CANCELLATION_COMPLETED = 'cancellation completed'
 
-	# Error and recovery
 	ERROR_OCCURRED = 'error occurred'
 	RESET_FROM_ERROR = 'reset from error state'
 	RESET_FROM_CANCELLING = 'reset from cancelling state'
 
-	# Initialization
 	INITIALIZED = 'initialized'
 	ALREADY_LOADED = 'already loaded'
 
@@ -48,7 +43,7 @@ class StateTransitionReason(Enum):
 class StateManager:
 	"""Manages model loading state transitions with validation."""
 
-	def __init__(self):
+	def __init__(self) -> None:
 		self.state: ModelState = ModelState.IDLE
 
 	def get_state(self) -> ModelState:

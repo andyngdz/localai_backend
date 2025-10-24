@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 class PipelineManager:
 	"""Manages the active diffusion pipeline and its configuration."""
 
-	def __init__(self):
-		self.pipe: Any = None
-		self.model_id: Optional[str] = None
+	def __init__(self) -> None:
+		self.pipe: Any | None = None
+		self.model_id: str | None = None
 
 	def set_pipeline(self, pipe, model_id: str) -> None:
 		"""Store pipeline and model ID.

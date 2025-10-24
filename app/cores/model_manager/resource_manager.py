@@ -26,11 +26,9 @@ class ResourceManager:
 			del pipe
 			logger.info('Pipeline object deleted')
 
-		# Force garbage collection before clearing cache
 		gc.collect()
 		logger.info('Garbage collection completed (1st pass)')
 
-		# Synchronize device and clear cache
 		if device_service.is_available:
 			if device_service.is_cuda:
 				self.cleanup_cuda_resources()
@@ -39,7 +37,6 @@ class ResourceManager:
 		else:
 			logger.warning('GPU acceleration not available, cannot clear cache')
 
-		# Final garbage collection
 		gc.collect()
 		logger.info('Final garbage collection completed (2nd pass)')
 
@@ -48,18 +45,14 @@ class ResourceManager:
 		torch.cuda.synchronize()
 		logger.info('CUDA synchronized - all pending operations completed')
 
-		# Get memory stats before cleanup
 		allocated_before = torch.cuda.memory_allocated() / (1024**3)
 		reserved_before = torch.cuda.memory_reserved() / (1024**3)
 		logger.info(f'GPU memory before: {allocated_before:.2f}GB allocated, {reserved_before:.2f}GB reserved')
 
-		# Clear cache
 		torch.cuda.empty_cache()
 
-		# Force GC after cache clear
 		gc.collect()
 
-		# Get memory stats after cleanup
 		allocated_after = torch.cuda.memory_allocated() / (1024**3)
 		reserved_after = torch.cuda.memory_reserved() / (1024**3)
 		logger.info(f'GPU memory after: {allocated_after:.2f}GB allocated, {reserved_after:.2f}GB reserved')
