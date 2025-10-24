@@ -65,7 +65,11 @@ class LoaderService:
 		async with self.lock:
 			logger.info(f'[load_model_async] Request to load: {id}, current state: {self.state_manager.current_state.value}')
 
-			if self.pipeline_manager.model_id == id and self.pipeline_manager.pipe is not None and self.state_manager.current_state == ModelState.LOADED:
+			if (
+				self.pipeline_manager.model_id == id
+				and self.pipeline_manager.pipe is not None
+				and self.state_manager.current_state == ModelState.LOADED
+			):
 				logger.info(f'Model {id} already loaded, returning config')
 				return dict(self.pipeline_manager.pipe.config)
 
