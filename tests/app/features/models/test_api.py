@@ -13,7 +13,7 @@ Covers:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 from fastapi import HTTPException, Response, status
@@ -121,14 +121,13 @@ class TestLoadModelEndpoint:
 		# Arrange
 		# Create a proper AsyncMock for the async method
 		mock_model_manager.load_model_async = AsyncMock(return_value=self.model_config)
-		mock_model_manager.get_sample_size.return_value = self.sample_size
+		mock_model_manager.sample_size = self.sample_size
 
 		# Act
 		result = await load_model(self.request)
 
 		# Assert
 		mock_model_manager.load_model_async.assert_called_once_with(self.model_id)
-		mock_model_manager.get_sample_size.assert_called_once()
 		assert isinstance(result, LoadModelResponse)
 		assert result.id == self.model_id
 		assert result.config == self.model_config
@@ -410,7 +409,7 @@ class TestGetModelStatusEndpoint:
 		# Arrange
 		from app.cores.model_manager import ModelState
 
-		mock_model_manager.get_state.return_value = ModelState.LOADED
+		mock_model_manager.current_state = ModelState.LOADED
 		mock_model_manager.id = 'test/model'
 		mock_model_manager.pipe = MagicMock()
 
@@ -424,7 +423,6 @@ class TestGetModelStatusEndpoint:
 		assert result['loaded_model_id'] == 'test/model'
 		assert result['has_model'] is True
 		assert result['is_loading'] is False
-		assert result['is_cancelling'] is False
 
 	@patch('app.features.models.api.model_manager')
 	def test_get_model_status_loading_state(self, mock_model_manager):
@@ -432,7 +430,7 @@ class TestGetModelStatusEndpoint:
 		# Arrange
 		from app.cores.model_manager import ModelState
 
-		mock_model_manager.get_state.return_value = ModelState.LOADING
+		mock_model_manager.current_state = ModelState.LOADING
 		mock_model_manager.id = None
 		mock_model_manager.pipe = None
 
@@ -450,7 +448,8 @@ class TestGetModelStatusEndpoint:
 	def test_get_model_status_error(self, mock_model_manager):
 		"""Test error handling in get_model_status."""
 		# Arrange
-		mock_model_manager.get_state.side_effect = Exception('Failed to get state')
+		# Use PropertyMock to raise exception when current_state property is accessed
+		type(mock_model_manager).current_state = PropertyMock(side_effect=Exception('Failed to get state'))
 
 		# Act & Assert
 		from app.features.models.api import get_model_status

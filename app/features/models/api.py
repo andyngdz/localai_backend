@@ -120,7 +120,7 @@ async def load_model(request: LoadModelRequest):
 		id = request.id
 
 		config = await model_manager.load_model_async(id)
-		sample_size = model_manager.get_sample_size()
+		sample_size = model_manager.sample_size
 
 		return LoadModelResponse(id=id, config=config, sample_size=sample_size)
 
@@ -198,14 +198,13 @@ def get_model_status():
 	"""
 
 	try:
-		state = model_manager.get_state()
+		state = model_manager.current_state
 
 		response = {
 			'state': state.value,
 			'loaded_model_id': model_manager.id,
 			'has_model': model_manager.pipe is not None,
 			'is_loading': state == ModelState.LOADING,
-			'is_cancelling': state == ModelState.CANCELLING,
 		}
 
 		return response

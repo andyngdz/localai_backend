@@ -1,6 +1,7 @@
+import logging
 import threading
 import time
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from tqdm import tqdm as BaseTqdm
 
@@ -68,21 +69,21 @@ class DownloadProgress(BaseTqdm):
 	carries cumulative bytes so the UI can render an accurate percentage.
 	"""
 
-	def __init__(self, *args, **kwargs):
-		self.id = kwargs.pop('id')
-		self.desc = kwargs.pop('desc')
-		self.file_sizes = kwargs.pop('file_sizes')
-		self.logger = kwargs.pop('logger')
-		self.downloaded_size = 0
-		self.total_downloaded_size = sum(self.file_sizes)
-		self.completed_files_size = 0
-		self.current_file: Optional[str] = None
+	def __init__(self, *args: Any, **kwargs: Any) -> None:
+		self.id: str = kwargs.pop('id')
+		self.desc: str = kwargs.pop('desc')
+		self.file_sizes: list[int] = kwargs.pop('file_sizes')
+		self.logger: logging.Logger = kwargs.pop('logger')
+		self.downloaded_size: int = 0
+		self.total_downloaded_size: int = sum(self.file_sizes)
+		self.completed_files_size: int = 0
+		self.current_file: str | None = None
 
 		# Throttling to prevent websocket spam (huge performance boost)
-		self.last_emit_time = time.time()
-		self.last_emit_size = 0
-		self.emit_interval = 0.5  # Emit at most every 0.5 seconds
-		self.emit_size_threshold = 50 * 1024 * 1024  # Or every 50MB downloaded
+		self.last_emit_time: float = time.time()
+		self.last_emit_size: int = 0
+		self.emit_interval: float = 0.5  # Emit at most every 0.5 seconds
+		self.emit_size_threshold: int = 50 * 1024 * 1024  # Or every 50MB downloaded
 
 		kwargs.setdefault('disable', None)
 		kwargs.setdefault('mininterval', 0.25)

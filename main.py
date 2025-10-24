@@ -44,10 +44,11 @@ async def lifespan(app: FastAPI):
 	socket_service.attach_loop(asyncio.get_running_loop())
 
 	db = SessionLocal()
-	model_manager.unload_model()
+	await model_manager.unload_model_async()
 
 	yield
 
+	model_manager.loader_service.shutdown()
 	db.close()
 
 
