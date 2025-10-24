@@ -1,10 +1,10 @@
 """Comprehensive tests for StateManager class.
 
 This test suite covers:
-1. State retrieval (get_state)
+1. State retrieval (current_state property)
 2. State transitions (set_state) with all StateTransitionReason values
 3. State transition validation (can_transition_to)
-4. Edge cases (ERROR recovery, CANCELLING recovery)
+4. Edge cases (ERROR recovery)
 """
 
 import logging
@@ -21,15 +21,15 @@ class TestGetState:
 
 	def test_get_state_returns_initial_idle_state(self):
 		"""Test that get_state returns IDLE on initialization."""
-		assert self.state_manager.get_state() == ModelState.IDLE
+		assert self.state_manager.current_state == ModelState.IDLE
 
 	def test_get_state_returns_current_state_after_transition(self):
 		"""Test that get_state reflects state changes."""
-		self.state_manager.state = ModelState.LOADING
-		assert self.state_manager.get_state() == ModelState.LOADING
+		self.state_manager._state = ModelState.LOADING
+		assert self.state_manager.current_state == ModelState.LOADING
 
-		self.state_manager.state = ModelState.LOADED
-		assert self.state_manager.get_state() == ModelState.LOADED
+		self.state_manager._state = ModelState.LOADED
+		assert self.state_manager.current_state == ModelState.LOADED
 
 
 class TestSetState:
@@ -41,10 +41,10 @@ class TestSetState:
 
 	def test_set_state_updates_state(self):
 		"""Test that set_state updates the internal state."""
-		assert self.state_manager.state == ModelState.IDLE
+		assert self.state_manager._state == ModelState.IDLE
 
 		self.state_manager.set_state(ModelState.LOADING, StateTransitionReason.LOAD_REQUESTED)
-		assert self.state_manager.state == ModelState.LOADING
+		assert self.state_manager._state == ModelState.LOADING
 
 	def test_set_state_logs_transition_with_reason(self, caplog):
 		"""Test that set_state logs state transitions with reason."""
@@ -96,7 +96,7 @@ class TestSetState:
 		caplog.set_level(logging.INFO)
 
 		# Setup: get to LOADED state
-		self.state_manager.state = ModelState.LOADED
+		self.state_manager._state = ModelState.LOADED
 
 		# LOADED → UNLOADING (unload requested)
 		self.state_manager.set_state(ModelState.UNLOADING, StateTransitionReason.UNLOAD_REQUESTED)
@@ -112,43 +112,20 @@ class TestSetState:
 		caplog.set_level(logging.INFO)
 
 		# Setup: get to UNLOADING state
-		self.state_manager.state = ModelState.UNLOADING
+		self.state_manager._state = ModelState.UNLOADING
 
 		# UNLOADING → ERROR (unload failed)
 		self.state_manager.set_state(ModelState.ERROR, StateTransitionReason.UNLOAD_FAILED)
 		assert 'unloading → unload failed with error' in caplog.text
-
-	def test_set_state_cancellation_transitions(self, caplog):
-		"""Test cancellation-related state transitions."""
-		caplog.set_level(logging.INFO)
-
-		# LOADING → CANCELLING
-		self.state_manager.state = ModelState.LOADING
-		self.state_manager.set_state(ModelState.CANCELLING, StateTransitionReason.CANCELLATION_REQUESTED)
-		assert 'loading → cancellation requested' in caplog.text
-		caplog.clear()
-
-		# CANCELLING → IDLE
-		self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.CANCELLATION_COMPLETED)
-		assert 'cancelling → cancellation completed' in caplog.text
 
 	def test_set_state_error_recovery_transitions(self, caplog):
 		"""Test error recovery state transitions."""
 		caplog.set_level(logging.INFO)
 
 		# ERROR → IDLE (reset from error)
-		self.state_manager.state = ModelState.ERROR
+		self.state_manager._state = ModelState.ERROR
 		self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.RESET_FROM_ERROR)
 		assert 'error → reset from error state' in caplog.text
-
-	def test_set_state_cancelling_recovery_transitions(self, caplog):
-		"""Test cancelling recovery state transitions."""
-		caplog.set_level(logging.INFO)
-
-		# CANCELLING → IDLE (reset from cancelling)
-		self.state_manager.state = ModelState.CANCELLING
-		self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.RESET_FROM_CANCELLING)
-		assert 'cancelling → reset from cancelling state' in caplog.text
 
 
 class TestCanTransitionTo:
@@ -160,102 +137,82 @@ class TestCanTransitionTo:
 
 	def test_idle_can_transition_to_loading(self):
 		"""Test IDLE → LOADING is valid."""
-		self.state_manager.state = ModelState.IDLE
+		self.state_manager._state = ModelState.IDLE
 		assert self.state_manager.can_transition_to(ModelState.LOADING) is True
 
 	def test_idle_cannot_transition_to_loaded(self):
 		"""Test IDLE → LOADED is invalid."""
-		self.state_manager.state = ModelState.IDLE
+		self.state_manager._state = ModelState.IDLE
 		assert self.state_manager.can_transition_to(ModelState.LOADED) is False
 
 	def test_idle_cannot_transition_to_unloading(self):
 		"""Test IDLE → UNLOADING is invalid."""
-		self.state_manager.state = ModelState.IDLE
+		self.state_manager._state = ModelState.IDLE
 		assert self.state_manager.can_transition_to(ModelState.UNLOADING) is False
 
 	def test_loading_can_transition_to_loaded(self):
 		"""Test LOADING → LOADED is valid."""
-		self.state_manager.state = ModelState.LOADING
+		self.state_manager._state = ModelState.LOADING
 		assert self.state_manager.can_transition_to(ModelState.LOADED) is True
 
 	def test_loading_can_transition_to_idle(self):
 		"""Test LOADING → IDLE is valid (cancellation)."""
-		self.state_manager.state = ModelState.LOADING
+		self.state_manager._state = ModelState.LOADING
 		assert self.state_manager.can_transition_to(ModelState.IDLE) is True
 
 	def test_loading_can_transition_to_error(self):
 		"""Test LOADING → ERROR is valid."""
-		self.state_manager.state = ModelState.LOADING
+		self.state_manager._state = ModelState.LOADING
 		assert self.state_manager.can_transition_to(ModelState.ERROR) is True
-
-	def test_loading_can_transition_to_cancelling(self):
-		"""Test LOADING → CANCELLING is valid."""
-		self.state_manager.state = ModelState.LOADING
-		assert self.state_manager.can_transition_to(ModelState.CANCELLING) is True
 
 	def test_loading_cannot_transition_to_unloading(self):
 		"""Test LOADING → UNLOADING is invalid."""
-		self.state_manager.state = ModelState.LOADING
+		self.state_manager._state = ModelState.LOADING
 		assert self.state_manager.can_transition_to(ModelState.UNLOADING) is False
 
 	def test_loaded_can_transition_to_unloading(self):
 		"""Test LOADED → UNLOADING is valid."""
-		self.state_manager.state = ModelState.LOADED
+		self.state_manager._state = ModelState.LOADED
 		assert self.state_manager.can_transition_to(ModelState.UNLOADING) is True
 
 	def test_loaded_cannot_transition_to_loading(self):
 		"""Test LOADED → LOADING is invalid."""
-		self.state_manager.state = ModelState.LOADED
+		self.state_manager._state = ModelState.LOADED
 		assert self.state_manager.can_transition_to(ModelState.LOADING) is False
 
 	def test_loaded_cannot_transition_to_idle(self):
 		"""Test LOADED → IDLE is invalid (must unload first)."""
-		self.state_manager.state = ModelState.LOADED
+		self.state_manager._state = ModelState.LOADED
 		assert self.state_manager.can_transition_to(ModelState.IDLE) is False
 
 	def test_unloading_can_transition_to_idle(self):
 		"""Test UNLOADING → IDLE is valid."""
-		self.state_manager.state = ModelState.UNLOADING
+		self.state_manager._state = ModelState.UNLOADING
 		assert self.state_manager.can_transition_to(ModelState.IDLE) is True
 
 	def test_unloading_can_transition_to_error(self):
 		"""Test UNLOADING → ERROR is valid."""
-		self.state_manager.state = ModelState.UNLOADING
+		self.state_manager._state = ModelState.UNLOADING
 		assert self.state_manager.can_transition_to(ModelState.ERROR) is True
 
 	def test_unloading_cannot_transition_to_loading(self):
 		"""Test UNLOADING → LOADING is invalid."""
-		self.state_manager.state = ModelState.UNLOADING
+		self.state_manager._state = ModelState.UNLOADING
 		assert self.state_manager.can_transition_to(ModelState.LOADING) is False
-
-	def test_cancelling_can_transition_to_idle(self):
-		"""Test CANCELLING → IDLE is valid."""
-		self.state_manager.state = ModelState.CANCELLING
-		assert self.state_manager.can_transition_to(ModelState.IDLE) is True
-
-	def test_cancelling_can_transition_to_error(self):
-		"""Test CANCELLING → ERROR is valid."""
-		self.state_manager.state = ModelState.CANCELLING
-		assert self.state_manager.can_transition_to(ModelState.ERROR) is True
-
-	def test_cancelling_cannot_transition_to_loaded(self):
-		"""Test CANCELLING → LOADED is invalid."""
-		self.state_manager.state = ModelState.CANCELLING
-		assert self.state_manager.can_transition_to(ModelState.LOADED) is False
 
 	def test_error_can_transition_to_idle(self):
 		"""Test ERROR → IDLE is valid (recovery)."""
-		self.state_manager.state = ModelState.ERROR
+		self.state_manager._state = ModelState.ERROR
 		assert self.state_manager.can_transition_to(ModelState.IDLE) is True
 
 	def test_error_can_transition_to_loading(self):
 		"""Test ERROR → LOADING is valid (retry)."""
-		self.state_manager.state = ModelState.ERROR
+		self.state_manager._state = ModelState.ERROR
 		assert self.state_manager.can_transition_to(ModelState.LOADING) is True
 
 	def test_error_cannot_transition_to_loaded(self):
 		"""Test ERROR → LOADED is invalid."""
-		self.state_manager.state = ModelState.ERROR
+		self.state_manager._state = ModelState.ERROR
 		assert self.state_manager.can_transition_to(ModelState.LOADED) is False
 
 
@@ -268,15 +225,15 @@ class TestStateTransitionEdgeCases:
 
 	def test_successful_load_flow(self):
 		"""Test complete successful load flow: IDLE → LOADING → LOADED."""
-		assert self.state_manager.get_state() == ModelState.IDLE
+		assert self.state_manager.current_state == ModelState.IDLE
 		assert self.state_manager.can_transition_to(ModelState.LOADING) is True
 
 		self.state_manager.set_state(ModelState.LOADING, StateTransitionReason.LOAD_REQUESTED)
-		assert self.state_manager.get_state() == ModelState.LOADING
+		assert self.state_manager.current_state == ModelState.LOADING
 		assert self.state_manager.can_transition_to(ModelState.LOADED) is True
 
 		self.state_manager.set_state(ModelState.LOADED, StateTransitionReason.LOAD_COMPLETED)
-		assert self.state_manager.get_state() == ModelState.LOADED
+		assert self.state_manager.current_state == ModelState.LOADED
 
 	def test_load_and_unload_flow(self):
 		"""Test complete load/unload flow: IDLE → LOADING → LOADED → UNLOADING → IDLE."""
@@ -285,14 +242,14 @@ class TestStateTransitionEdgeCases:
 		self.state_manager.set_state(ModelState.UNLOADING, StateTransitionReason.UNLOAD_REQUESTED)
 		self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.UNLOAD_COMPLETED)
 
-		assert self.state_manager.get_state() == ModelState.IDLE
+		assert self.state_manager.current_state == ModelState.IDLE
 
 	def test_load_cancellation_flow(self):
 		"""Test load cancellation flow: IDLE → LOADING → IDLE."""
 		self.state_manager.set_state(ModelState.LOADING, StateTransitionReason.LOAD_REQUESTED)
 		self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.LOAD_CANCELLED)
 
-		assert self.state_manager.get_state() == ModelState.IDLE
+		assert self.state_manager.current_state == ModelState.IDLE
 
 	def test_load_error_recovery_flow(self):
 		"""Test error recovery flow: IDLE → LOADING → ERROR → IDLE."""
@@ -302,14 +259,14 @@ class TestStateTransitionEdgeCases:
 		assert self.state_manager.can_transition_to(ModelState.IDLE) is True
 		self.state_manager.set_state(ModelState.IDLE, StateTransitionReason.RESET_FROM_ERROR)
 
-		assert self.state_manager.get_state() == ModelState.IDLE
+		assert self.state_manager.current_state == ModelState.IDLE
 
 	def test_error_retry_flow(self):
 		"""Test retry after error: ERROR → LOADING → LOADED."""
-		self.state_manager.state = ModelState.ERROR
+		self.state_manager._state = ModelState.ERROR
 
 		assert self.state_manager.can_transition_to(ModelState.LOADING) is True
 		self.state_manager.set_state(ModelState.LOADING, StateTransitionReason.LOAD_REQUESTED)
 		self.state_manager.set_state(ModelState.LOADED, StateTransitionReason.LOAD_COMPLETED)
 
-		assert self.state_manager.get_state() == ModelState.LOADED
+		assert self.state_manager.current_state == ModelState.LOADED

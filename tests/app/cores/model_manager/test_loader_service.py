@@ -47,7 +47,7 @@ class TestLoadModelAsync:
 
 		# Verify
 		assert result == {'model_type': 'test', 'model_id': 'test/model'}
-		assert self.state_manager.get_state() == ModelState.LOADED
+		assert self.state_manager.current_state == ModelState.LOADED
 
 	@pytest.mark.asyncio
 	async def test_load_model_async_success(self):
@@ -62,7 +62,7 @@ class TestLoadModelAsync:
 
 			# Verify
 			assert result == {'model_type': 'test', 'model_id': 'new/model'}
-			assert self.state_manager.get_state() == ModelState.LOADED
+			assert self.state_manager.current_state == ModelState.LOADED
 			assert self.loader_service.cancel_token is None
 			assert self.loader_service.loading_task is None
 
@@ -80,7 +80,7 @@ class TestLoadModelAsync:
 			await asyncio.sleep(0.01)
 
 			# Verify state transitioned to LOADING (or LOADED if load completed fast)
-			assert self.state_manager.get_state() in {ModelState.LOADING, ModelState.LOADED}
+			assert self.state_manager.current_state in {ModelState.LOADING, ModelState.LOADED}
 
 			# Wait for completion
 			await load_task
@@ -97,7 +97,7 @@ class TestLoadModelAsync:
 				await self.loader_service.load_model_async('test/model')
 
 			# Verify state transitioned to IDLE
-			assert self.state_manager.get_state() == ModelState.IDLE
+			assert self.state_manager.current_state == ModelState.IDLE
 			assert self.loader_service.cancel_token is None
 			assert self.loader_service.loading_task is None
 
@@ -111,7 +111,7 @@ class TestLoadModelAsync:
 				await self.loader_service.load_model_async('test/model')
 
 			# Verify state transitioned to ERROR
-			assert self.state_manager.get_state() == ModelState.ERROR
+			assert self.state_manager.current_state == ModelState.ERROR
 			assert self.loader_service.cancel_token is None
 			assert self.loader_service.loading_task is None
 
@@ -119,7 +119,7 @@ class TestLoadModelAsync:
 	async def test_load_model_async_raises_when_invalid_state(self):
 		"""Test load_model_async raises ValueError when in invalid state."""
 		# Setup - set state to UNLOADING (invalid for loading)
-		self.state_manager.state = ModelState.UNLOADING
+		self.state_manager._state = ModelState.UNLOADING
 
 		# Execute & Verify
 		with pytest.raises(ValueError, match='Cannot load model in state'):
@@ -129,12 +129,12 @@ class TestLoadModelAsync:
 	async def test_load_model_async_cancels_previous_load(self):
 		"""Test load_model_async calls cancel_current_load when another load is in progress."""
 		# Manually set state to LOADING to simulate in-progress load
-		self.state_manager.state = ModelState.LOADING
+		self.state_manager._state = ModelState.LOADING
 
 		with patch.object(self.loader_service, 'cancel_current_load', new_callable=AsyncMock) as mock_cancel:
 			# Make cancel reset state to IDLE
 			async def reset_state():
-				self.state_manager.state = ModelState.IDLE
+				self.state_manager._state = ModelState.IDLE
 
 			mock_cancel.side_effect = reset_state
 
@@ -166,14 +166,14 @@ class TestUnloadModelAsync:
 		caplog.set_level(logging.INFO)
 
 		# Setup
-		self.state_manager.state = ModelState.IDLE
+		self.state_manager._state = ModelState.IDLE
 
 		# Execute
 		await self.loader_service.unload_model_async()
 
 		# Verify
 		assert 'No model loaded, nothing to unload' in caplog.text
-		assert self.state_manager.get_state() == ModelState.IDLE
+		assert self.state_manager.current_state == ModelState.IDLE
 
 	@pytest.mark.asyncio
 	async def test_unload_model_async_when_loaded(self):
@@ -188,7 +188,7 @@ class TestUnloadModelAsync:
 			await self.loader_service.unload_model_async()
 
 			# Verify
-			assert self.state_manager.get_state() == ModelState.IDLE
+			assert self.state_manager.current_state == ModelState.IDLE
 
 	@pytest.mark.asyncio
 	async def test_unload_model_async_handles_error(self):
@@ -204,13 +204,13 @@ class TestUnloadModelAsync:
 				await self.loader_service.unload_model_async()
 
 			# Verify state transitioned to ERROR
-			assert self.state_manager.get_state() == ModelState.ERROR
+			assert self.state_manager.current_state == ModelState.ERROR
 
 	@pytest.mark.asyncio
 	async def test_unload_model_async_resets_from_error_state(self):
 		"""Test unload_model_async resets from ERROR state to IDLE."""
 		# Setup
-		self.state_manager.state = ModelState.ERROR
+		self.state_manager._state = ModelState.ERROR
 		self.pipeline_manager.pipe = None
 
 		with patch.object(self.loader_service, 'unload_model_sync'):
@@ -218,32 +218,18 @@ class TestUnloadModelAsync:
 			await self.loader_service.unload_model_async()
 
 			# Verify
-			assert self.state_manager.get_state() == ModelState.IDLE
-
-	@pytest.mark.asyncio
-	async def test_unload_model_async_resets_from_cancelling_state(self):
-		"""Test unload_model_async resets from CANCELLING state to IDLE."""
-		# Setup
-		self.state_manager.state = ModelState.CANCELLING
-		self.pipeline_manager.pipe = None
-
-		with patch.object(self.loader_service, 'unload_model_sync'):
-			# Execute
-			await self.loader_service.unload_model_async()
-
-			# Verify
-			assert self.state_manager.get_state() == ModelState.IDLE
+			assert self.state_manager.current_state == ModelState.IDLE
 
 	@pytest.mark.asyncio
 	async def test_unload_model_async_cancels_in_progress_load(self):
 		"""Test unload_model_async cancels in-progress load before unloading."""
 		# Setup - simulate LOADING state
-		self.state_manager.state = ModelState.LOADING
+		self.state_manager._state = ModelState.LOADING
 
 		with patch.object(self.loader_service, 'cancel_current_load', new_callable=AsyncMock) as mock_cancel:
 			# After cancellation, state should be IDLE
 			async def cancel_side_effect():
-				self.state_manager.state = ModelState.IDLE
+				self.state_manager._state = ModelState.IDLE
 
 			mock_cancel.side_effect = cancel_side_effect
 

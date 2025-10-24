@@ -97,7 +97,7 @@ class TestModelManagerCancellation:
 		if model_manager.pipe is not None:
 			model_manager.pipeline_manager.pipe = None
 			model_manager.pipeline_manager.model_id = None
-		model_manager.state_manager.state = ModelState.IDLE
+		model_manager.state_manager._state = ModelState.IDLE
 		model_manager.loader_service.cancel_token = None
 		model_manager.loader_service.loading_task = None
 
@@ -146,7 +146,7 @@ class TestModelManagerCancellation:
 
 	@pytest.mark.asyncio
 	async def test_state_transitions_during_cancellation(self):
-		"""Test state transitions: IDLE -> LOADING -> CANCELLING -> IDLE."""
+		"""Test state transitions: IDLE -> LOADING -> IDLE (via cancellation)."""
 		# Start in IDLE
 		assert model_manager.current_state == ModelState.IDLE
 
@@ -174,15 +174,10 @@ class TestModelManagerCancellation:
 			# Trigger unload/cancellation
 			unload_task = asyncio.create_task(model_manager.unload_model_async())
 
-			# Should transition to CANCELLING
-			await asyncio.sleep(0.05)
-			# State should be CANCELLING or already IDLE
-			assert model_manager.current_state in [ModelState.CANCELLING, ModelState.IDLE]
-
 			# Wait for unload to complete
 			await unload_task
 
-			# Should end in IDLE
+			# Should end in IDLE (cancellation goes directly from LOADING to IDLE)
 			assert model_manager.current_state == ModelState.IDLE
 
 			# Clean up load task
@@ -240,7 +235,7 @@ class TestReactDoubleMountScenario:
 		if model_manager.pipe is not None:
 			model_manager.pipeline_manager.pipe = None
 			model_manager.pipeline_manager.model_id = None
-		model_manager.state_manager.state = ModelState.IDLE
+		model_manager.state_manager._state = ModelState.IDLE
 		model_manager.loader_service.cancel_token = None
 		model_manager.loader_service.loading_task = None
 

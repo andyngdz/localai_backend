@@ -62,15 +62,7 @@ class ModelManager:
 		Returns:
 			Current ModelState
 		"""
-		return self.state_manager.get_state()
-
-	def get_state(self) -> ModelState:
-		"""Get current model state (deprecated: use current_state property).
-
-		Returns:
-			Current ModelState
-		"""
-		return self.current_state
+		return self.state_manager.current_state
 
 	def set_state(self, new_state: ModelState, reason: StateTransitionReason) -> None:
 		"""Set model state with logging.
@@ -103,17 +95,6 @@ class ModelManager:
 			ValueError: If no model is loaded
 		"""
 		return self.pipeline_manager.get_sample_size()
-
-	def get_sample_size(self) -> int:
-		"""Get sample size from pipeline (deprecated: use sample_size property).
-
-		Returns:
-			Sample size from UNet config or default value
-
-		Raises:
-			ValueError: If no model is loaded
-		"""
-		return self.sample_size
 
 	@property
 	def pipe(self):
@@ -154,8 +135,17 @@ class ModelManager:
 
 		Args:
 			value: Model ID to set or None to clear
+
+		Warning:
+			This setter directly modifies the model_id without updating the pipeline.
+			Use with caution - prefer using load_model_async() for proper state management.
 		"""
-		self.pipeline_manager.model_id = value
+		if value is None:
+			self.pipeline_manager.clear_pipeline()
+		else:
+			if self.pipeline_manager.pipe is None:
+				logger.warning(f'Setting model_id to {value} without loaded pipeline - state may be inconsistent')
+			self.pipeline_manager.model_id = value
 
 	@property
 	def lock(self):

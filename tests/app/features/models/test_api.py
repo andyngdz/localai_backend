@@ -423,7 +423,6 @@ class TestGetModelStatusEndpoint:
 		assert result['loaded_model_id'] == 'test/model'
 		assert result['has_model'] is True
 		assert result['is_loading'] is False
-		assert result['is_cancelling'] is False
 
 	@patch('app.features.models.api.model_manager')
 	def test_get_model_status_loading_state(self, mock_model_manager):

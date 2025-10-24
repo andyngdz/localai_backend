@@ -9,12 +9,11 @@ logger = logging.getLogger(__name__)
 class ModelState(Enum):
 	"""Model loading states for tracking operations."""
 
-	IDLE = 'idle'  # No model loaded
-	LOADING = 'loading'  # Model load in progress
-	LOADED = 'loaded'  # Model successfully loaded
-	UNLOADING = 'unloading'  # Model unload in progress
-	CANCELLING = 'cancelling'  # Load operation being cancelled
-	ERROR = 'error'  # Previous operation failed
+	IDLE = 'idle'
+	LOADING = 'loading'
+	LOADED = 'loaded'
+	UNLOADING = 'unloading'
+	ERROR = 'error'
 
 
 class StateTransitionReason(Enum):
@@ -29,30 +28,35 @@ class StateTransitionReason(Enum):
 	UNLOAD_COMPLETED = 'unload completed successfully'
 	UNLOAD_FAILED = 'unload failed with error'
 
-	CANCELLATION_REQUESTED = 'cancellation requested'
-	CANCELLATION_COMPLETED = 'cancellation completed'
-
-	ERROR_OCCURRED = 'error occurred'
 	RESET_FROM_ERROR = 'reset from error state'
-	RESET_FROM_CANCELLING = 'reset from cancelling state'
-
-	INITIALIZED = 'initialized'
-	ALREADY_LOADED = 'already loaded'
 
 
 class StateManager:
-	"""Manages model loading state transitions with validation."""
+	"""Manages model loading state transitions with validation.
+
+	Note: This class is NOT thread-safe. Callers must use external locking
+	(e.g., LoaderService.lock) when accessing from multiple threads/tasks.
+	"""
+
+	_VALID_TRANSITIONS = {
+		ModelState.IDLE: {ModelState.LOADING},
+		ModelState.LOADING: {ModelState.LOADED, ModelState.IDLE, ModelState.ERROR},
+		ModelState.LOADED: {ModelState.UNLOADING},
+		ModelState.UNLOADING: {ModelState.IDLE, ModelState.ERROR},
+		ModelState.ERROR: {ModelState.IDLE, ModelState.LOADING},
+	}
 
 	def __init__(self) -> None:
-		self.state: ModelState = ModelState.IDLE
+		self._state: ModelState = ModelState.IDLE
 
-	def get_state(self) -> ModelState:
-		"""Get current model state (thread-safe read).
+	@property
+	def current_state(self) -> ModelState:
+		"""Get current model state.
 
 		Returns:
 			Current ModelState
 		"""
-		return self.state
+		return self._state
 
 	def set_state(self, new_state: ModelState, reason: StateTransitionReason) -> None:
 		"""Set model state with logging.
@@ -61,8 +65,8 @@ class StateManager:
 			new_state: New state to transition to
 			reason: Predefined reason for transition
 		"""
-		old_state = self.state
-		self.state = new_state
+		old_state = self._state
+		self._state = new_state
 		logger.info(f'Model state: {old_state.value} → {reason.value}')
 
 	def can_transition_to(self, target_state: ModelState) -> bool:
@@ -74,15 +78,7 @@ class StateManager:
 		Returns:
 			True if transition is valid, False otherwise
 		"""
-		valid_transitions = {
-			ModelState.IDLE: {ModelState.LOADING},
-			ModelState.LOADING: {ModelState.LOADED, ModelState.IDLE, ModelState.ERROR, ModelState.CANCELLING},
-			ModelState.LOADED: {ModelState.UNLOADING},
-			ModelState.UNLOADING: {ModelState.IDLE, ModelState.ERROR},
-			ModelState.CANCELLING: {ModelState.IDLE, ModelState.ERROR},
-			ModelState.ERROR: {ModelState.IDLE, ModelState.LOADING},
-		}
-		return target_state in valid_transitions.get(self.state, set())
+		return target_state in self._VALID_TRANSITIONS.get(self._state, set())
 
 
 # Singleton instance

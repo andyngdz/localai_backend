@@ -33,7 +33,7 @@ class PipelineManager:
 		self.model_id = None
 		logger.info('Pipeline cleared')
 
-	def get_pipeline(self):
+	def get_pipeline(self) -> Any | None:
 		"""Get current pipeline.
 
 		Returns:

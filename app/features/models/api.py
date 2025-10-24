@@ -205,7 +205,6 @@ def get_model_status():
 			'loaded_model_id': model_manager.id,
 			'has_model': model_manager.pipe is not None,
 			'is_loading': state == ModelState.LOADING,
-			'is_cancelling': state == ModelState.CANCELLING,
 		}
 
 		return response

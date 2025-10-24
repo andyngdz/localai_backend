@@ -72,15 +72,15 @@ class TestModelManagerDelegation:
 			# Verify delegation
 			mock_unload.assert_called_once()
 
-	def test_get_state_delegates_to_state_manager(self):
-		"""Test get_state delegates to StateManager."""
-		with patch.object(self.model_manager.state_manager, 'get_state', return_value=ModelState.LOADED) as mock_get:
-			# Execute
-			result = self.model_manager.get_state()
+	def test_current_state_property_delegates_to_state_manager(self):
+		"""Test current_state property delegates to StateManager."""
+		self.model_manager.state_manager._state = ModelState.LOADED
 
-			# Verify delegation
-			mock_get.assert_called_once()
-			assert result == ModelState.LOADED
+		# Execute
+		result = self.model_manager.current_state
+
+		# Verify
+		assert result == ModelState.LOADED
 
 	def test_set_state_delegates_to_state_manager(self):
 		"""Test set_state delegates to StateManager."""
@@ -100,11 +100,11 @@ class TestModelManagerDelegation:
 			# Verify delegation
 			mock_set.assert_called_once_with(SamplerType.EULER)
 
-	def test_get_sample_size_delegates_to_pipeline_manager(self):
-		"""Test get_sample_size delegates to PipelineManager."""
+	def test_sample_size_property_delegates_to_pipeline_manager(self):
+		"""Test sample_size property delegates to PipelineManager."""
 		with patch.object(self.model_manager.pipeline_manager, 'get_sample_size', return_value=64) as mock_get:
 			# Execute
-			result = self.model_manager.get_sample_size()
+			result = self.model_manager.sample_size
 
 			# Verify delegation
 			mock_get.assert_called_once()
@@ -174,14 +174,15 @@ class TestModelManagerBackwardCompatibility:
 		assert self.model_manager.pipeline_manager.model_id == 'new/model'
 
 	def test_current_state_property_delegates_to_state_manager(self):
-		"""Test current_state property delegates to StateManager.get_state()."""
-		with patch.object(self.model_manager.state_manager, 'get_state', return_value=ModelState.LOADED) as mock_get:
-			# Execute
-			result = self.model_manager.current_state
+		"""Test current_state property delegates to StateManager.current_state."""
+		# Setup
+		self.model_manager.state_manager._state = ModelState.LOADED
 
-			# Verify delegation
-			mock_get.assert_called_once()
-			assert result == ModelState.LOADED
+		# Execute
+		result = self.model_manager.current_state
+
+		# Verify
+		assert result == ModelState.LOADED
 
 	def test_sample_size_property_delegates_to_pipeline_manager(self):
 		"""Test sample_size property delegates to PipelineManager.get_sample_size()."""
@@ -221,7 +222,7 @@ class TestModelManagerIntegration:
 				result = await self.model_manager.load_model_async('test/model')
 
 				# Verify state transitions and pipeline storage
-				assert self.model_manager.get_state() == ModelState.LOADED
+				assert self.model_manager.current_state == ModelState.LOADED
 				assert self.model_manager.pipeline_manager.get_model_id() == 'test/model'
 				assert result == {'model_id': 'test/model'}
 
@@ -238,7 +239,7 @@ class TestModelManagerIntegration:
 			await self.model_manager.unload_model_async()
 
 			# Verify state and pipeline cleared
-			assert self.model_manager.get_state() == ModelState.IDLE
+			assert self.model_manager.current_state == ModelState.IDLE
 			assert self.model_manager.pipeline_manager.get_pipeline() is None
 			assert self.model_manager.pipeline_manager.get_model_id() is None
 
@@ -267,8 +268,8 @@ class TestModelManagerIntegration:
 			# Verify scheduler changed
 			assert self.model_manager.pipeline_manager.pipe.scheduler == mock_new_scheduler_instance
 
-	def test_get_sample_size_integration(self):
-		"""Test get_sample_size works through ModelManager facade."""
+	def test_sample_size_integration(self):
+		"""Test sample_size property works through ModelManager facade."""
 		# Setup
 		mock_unet_config = MagicMock()
 		mock_unet_config.sample_size = 64
@@ -279,7 +280,7 @@ class TestModelManagerIntegration:
 		self.model_manager.pipeline_manager.set_pipeline(mock_pipe, 'test/model')
 
 		# Execute
-		result = self.model_manager.get_sample_size()
+		result = self.model_manager.sample_size
 
 		# Verify
 		assert result == 64
