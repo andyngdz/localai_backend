@@ -134,7 +134,10 @@ class LoaderService:
 
 			elif current_state in {ModelState.CANCELLING, ModelState.ERROR}:
 				self.unload_model_sync()
-				self.state.set_state(ModelState.IDLE, StateTransitionReason.RESET_FROM_ERROR)
+				if current_state == ModelState.CANCELLING:
+					self.state.set_state(ModelState.IDLE, StateTransitionReason.RESET_FROM_CANCELLING)
+				else:
+					self.state.set_state(ModelState.IDLE, StateTransitionReason.RESET_FROM_ERROR)
 				logger.info('Reset to IDLE state')
 
 	async def cancel_current_load(self) -> None:
