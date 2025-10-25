@@ -20,9 +20,56 @@ from app.socket import socket_service
 from config import CACHE_FOLDER
 
 from .cancellation import CancellationException, CancellationToken
-from .schemas import ModelLoadCompletedResponse, ModelLoadFailed
+from .schemas import ModelLoadCompletedResponse, ModelLoadFailed, ModelLoadPhase, ModelLoadProgressResponse
 
 logger = logging.getLogger(__name__)
+
+
+def map_step_to_phase(step: int) -> ModelLoadPhase:
+	"""Map checkpoint step to loading phase.
+
+	Args:
+		step: Current checkpoint number (1-9)
+
+	Returns:
+		Corresponding ModelLoadPhase
+	"""
+	if step <= 2:
+		return ModelLoadPhase.INITIALIZATION
+	elif step <= 5:
+		return ModelLoadPhase.LOADING_MODEL
+	elif step <= 7:
+		return ModelLoadPhase.DEVICE_SETUP
+	else:
+		return ModelLoadPhase.OPTIMIZATION
+
+
+def emit_progress(model_id: str, step: int, message: str) -> None:
+	"""Emit model loading progress via WebSocket with structured logging.
+
+	Args:
+		model_id: ID of the model being loaded
+		step: Current checkpoint number (1-9)
+		message: Human-readable status message
+	"""
+	try:
+		phase = map_step_to_phase(step)
+
+		progress = ModelLoadProgressResponse(
+			id=model_id,
+			step=step,
+			total=9,
+			phase=phase,
+			message=message,
+		)
+
+		# Structured logging for production observability
+		logger.info(f'[ModelLoad] {model_id} step={step}/9 phase={phase.value} msg="{message}"')
+
+		socket_service.model_load_progress(progress)
+	except Exception as e:
+		# Don't let progress emission failures interrupt model loading
+		logger.warning(f'Failed to emit model load progress: {e}')
 
 
 def find_single_file_checkpoint(model_path: str) -> str | None:
@@ -156,9 +203,13 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 	try:
 		logger.info(f'Loading model {id} to {device_service.device}')
 
+		# Emit start event for frontend lifecycle management
+		socket_service.model_load_started(ModelLoadCompletedResponse(id=id))
+
 		# Checkpoint 1: Before initialization
 		if cancel_token:
 			cancel_token.check_cancelled()
+		emit_progress(id, 1, 'Initializing model loader...')
 
 		max_memory = MaxMemoryConfig(db).to_dict()
 		logger.info(f'Max memory configuration: {max_memory}')
@@ -166,6 +217,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 		# Checkpoint 2: Before loading feature extractor
 		if cancel_token:
 			cancel_token.check_cancelled()
+		emit_progress(id, 2, 'Loading feature extractor...')
 
 		feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
 		safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
@@ -173,6 +225,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 		# Checkpoint 3: Before cache lookup
 		if cancel_token:
 			cancel_token.check_cancelled()
+		emit_progress(id, 3, 'Checking model cache...')
 
 		# Check if the model exists in cache and look for single-file checkpoints
 		model_cache_path = storage_service.get_model_dir(id)
@@ -181,6 +234,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 		# Checkpoint 4: Before building strategies
 		if cancel_token:
 			cancel_token.check_cancelled()
+		emit_progress(id, 4, 'Preparing loading strategies...')
 
 		# Build loading strategies based on whether we found a single-file checkpoint
 		loading_strategies: list[dict[str, Any]] = []
@@ -234,6 +288,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 			# Checkpoint 5: Before each loading strategy
 			if cancel_token:
 				cancel_token.check_cancelled()
+			emit_progress(id, 5, 'Loading model weights...')
 
 			try:
 				strategy_type = strategy_params.get('type')
@@ -309,6 +364,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 		# Checkpoint 6: After pipeline loaded, before device operations
 		if cancel_token:
 			cancel_token.check_cancelled()
+		emit_progress(id, 6, 'Model loaded successfully')
 
 		# Reset device map to allow explicit device placement, then move pipeline
 		if hasattr(pipe, 'reset_device_map'):
@@ -318,6 +374,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 		# Checkpoint 7: Before moving to device
 		if cancel_token:
 			cancel_token.check_cancelled()
+		emit_progress(id, 7, 'Moving model to device...')
 
 		# Move entire pipeline to target device using to_empty() for meta tensors
 		pipe = move_to_device(pipe, device_service.device, f'Pipeline {id}')
@@ -325,6 +382,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 		# Checkpoint 8: Before optimizations
 		if cancel_token:
 			cancel_token.check_cancelled()
+		emit_progress(id, 8, 'Applying optimizations...')
 
 		# Apply device-specific optimizations
 		apply_device_optimizations(pipe)
@@ -332,6 +390,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 		# Checkpoint 9: Before completion
 		if cancel_token:
 			cancel_token.check_cancelled()
+		emit_progress(id, 9, 'Finalizing model setup...')
 
 		db.close()
 

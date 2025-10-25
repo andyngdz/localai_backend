@@ -34,7 +34,7 @@ class SocketService:
 		Attach the running ASGI event loop used for thread-safe emits.
 
 		Args:
-		    loop: The event loop to attach
+			loop: The event loop to attach
 		"""
 		self.loop = loop
 		logger.info('SocketService attached to loop: %s', loop)
@@ -44,8 +44,8 @@ class SocketService:
 		Emit an event asynchronously to all connected clients.
 
 		Args:
-		    event: The socket event to emit
-		    data: The data to send with the event
+			event: The socket event to emit
+			data: The data to send with the event
 		"""
 		await self.sio.emit(event, data=data)
 
@@ -56,8 +56,8 @@ class SocketService:
 		This schedules the emit coroutine onto the attached running loop.
 
 		Args:
-		    event: The socket event to emit
-		    data: The data to send with the event
+			event: The socket event to emit
+			data: The data to send with the event
 		"""
 		target_loop = self.get_event_loop()
 		if target_loop is None:
@@ -74,7 +74,7 @@ class SocketService:
 		Get an appropriate event loop for synchronous emits.
 
 		Returns:
-		    An event loop or None if no loop is available
+			An event loop or None if no loop is available
 		"""
 		# Use cached loop if available
 		if self.loop is not None and not self.loop.is_closed():
@@ -103,7 +103,7 @@ class SocketService:
 		Emit a download start event with the provided data.
 
 		Args:
-		    data: The data model to send
+			data: The data model to send
 		"""
 		await self.emit(SocketEvents.DOWNLOAD_START, data=data.model_dump())
 
@@ -112,7 +112,7 @@ class SocketService:
 		Emit a download completed event with the provided data.
 
 		Args:
-		    data: The data model to send
+			data: The data model to send
 		"""
 		await self.emit(SocketEvents.DOWNLOAD_COMPLETED, data=data.model_dump())
 
@@ -123,16 +123,34 @@ class SocketService:
 		Emit a download step progress event synchronously with the provided data.
 
 		Args:
-		    data: The data model to send
+			data: The data model to send
 		"""
 		self.emit_sync(SocketEvents.DOWNLOAD_STEP_PROGRESS, data=data.model_dump())
+
+	def model_load_started(self, data: BaseModel) -> None:
+		"""
+		Emit a model load started event with the provided data.
+
+		Args:
+			data: The data model to send
+		"""
+		self.emit_sync(SocketEvents.MODEL_LOAD_STARTED, data=data.model_dump())
+
+	def model_load_progress(self, data: BaseModel) -> None:
+		"""
+		Emit a model load progress event with the provided data.
+
+		Args:
+			data: The data model to send
+		"""
+		self.emit_sync(SocketEvents.MODEL_LOAD_PROGRESS, data=data.model_dump())
 
 	def model_load_failed(self, data: BaseModel) -> None:
 		"""
 		Emit a model load failed event with the provided data.
 
 		Args:
-		    data: The data model to send
+			data: The data model to send
 		"""
 		self.emit_sync(SocketEvents.MODEL_LOAD_FAILED, data=data.model_dump())
 
@@ -141,7 +159,7 @@ class SocketService:
 		Emit a model load completed event with the provided data.
 
 		Args:
-		    data: The data model to send
+			data: The data model to send
 		"""
 		self.emit_sync(SocketEvents.MODEL_LOAD_COMPLETED, data=data.model_dump())
 
@@ -150,7 +168,7 @@ class SocketService:
 		Emit an image generation step end event with the provided data.
 
 		Args:
-		    data: The data model to send
+			data: The data model to send
 		"""
 		self.emit_sync(SocketEvents.IMAGE_GENERATION_STEP_END, data=data.model_dump())
 

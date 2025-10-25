@@ -145,6 +145,57 @@ def test_download_step_progress_emits_sync(monkeypatch: pytest.MonkeyPatch) -> N
 	test_loop.close()
 
 
+def test_model_load_started_emits_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+	# Arrange
+	test_loop = asyncio.new_event_loop()
+	monkeypatch.setattr(asyncio, 'get_event_loop', lambda: test_loop)
+	service = SocketService()
+	mock_emit_sync = Mock()
+	monkeypatch.setattr(service, 'emit_sync', mock_emit_sync)
+	payload = PayloadModel(model='test-model')
+
+	# Act
+	service.model_load_started(payload)
+
+	# Assert
+	mock_emit_sync.assert_called_once_with(SocketEvents.MODEL_LOAD_STARTED, data=payload.model_dump())
+	test_loop.close()
+
+
+def test_model_load_progress_emits_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+	# Arrange
+	test_loop = asyncio.new_event_loop()
+	monkeypatch.setattr(asyncio, 'get_event_loop', lambda: test_loop)
+	service = SocketService()
+	mock_emit_sync = Mock()
+	monkeypatch.setattr(service, 'emit_sync', mock_emit_sync)
+	payload = PayloadModel(model='test-model', step=5, of=9)
+
+	# Act
+	service.model_load_progress(payload)
+
+	# Assert
+	mock_emit_sync.assert_called_once_with(SocketEvents.MODEL_LOAD_PROGRESS, data=payload.model_dump())
+	test_loop.close()
+
+
+def test_model_load_failed_emits_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+	# Arrange
+	test_loop = asyncio.new_event_loop()
+	monkeypatch.setattr(asyncio, 'get_event_loop', lambda: test_loop)
+	service = SocketService()
+	mock_emit_sync = Mock()
+	monkeypatch.setattr(service, 'emit_sync', mock_emit_sync)
+	payload = PayloadModel(model='test-model', status='failed')
+
+	# Act
+	service.model_load_failed(payload)
+
+	# Assert
+	mock_emit_sync.assert_called_once_with(SocketEvents.MODEL_LOAD_FAILED, data=payload.model_dump())
+	test_loop.close()
+
+
 def test_model_load_completed_emits_sync(monkeypatch: pytest.MonkeyPatch) -> None:
 	# Arrange
 	test_loop = asyncio.new_event_loop()
