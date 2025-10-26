@@ -10,18 +10,21 @@
 ## Problem Statement
 
 Currently, when a user loads a model:
+
 - ❌ No feedback during the loading process
 - ❌ User doesn't know if loading is progressing or stuck
 - ❌ No visibility into which stage of loading is happening
 - ❌ Can't estimate time to completion
 
 Model loading can take 30 seconds to several minutes depending on:
+
 - Model size (SDXL vs SD 1.5)
 - Hardware (GPU vs CPU)
 - Network speed (if downloading)
 - Storage speed (SSD vs HDD)
 
 **User Experience Impact:**
+
 - Users may think the application has frozen
 - No way to distinguish between slow loading vs actual failure
 - Poor UX compared to other AI tools
@@ -67,26 +70,28 @@ class ModelLoadProgressResponse(BaseModel):
 
 ### Checkpoint to Phase Mapping
 
-| Checkpoint | Phase | Message | % |
-|-----------|-------|---------|---|
-| 1 | INITIALIZATION | "Initializing model loader..." | 11% |
-| 2 | INITIALIZATION | "Loading feature extractor..." | 22% |
-| 3 | LOADING_MODEL | "Checking model cache..." | 33% |
-| 4 | LOADING_MODEL | "Preparing loading strategies..." | 44% |
-| 5 | LOADING_MODEL | "Loading model weights..." | 56% |
-| 6 | DEVICE_SETUP | "Model loaded successfully" | 67% |
-| 7 | DEVICE_SETUP | "Moving model to device..." | 78% |
-| 8 | OPTIMIZATION | "Applying optimizations..." | 89% |
-| 9 | OPTIMIZATION | "Finalizing model setup..." | 100% |
+| Checkpoint | Phase          | Message                           | %    |
+| ---------- | -------------- | --------------------------------- | ---- |
+| 1          | INITIALIZATION | "Initializing model loader..."    | 11%  |
+| 2          | INITIALIZATION | "Loading feature extractor..."    | 22%  |
+| 3          | LOADING_MODEL  | "Checking model cache..."         | 33%  |
+| 4          | LOADING_MODEL  | "Preparing loading strategies..." | 44%  |
+| 5          | LOADING_MODEL  | "Loading model weights..."        | 56%  |
+| 6          | DEVICE_SETUP   | "Model loaded successfully"       | 67%  |
+| 7          | DEVICE_SETUP   | "Moving model to device..."       | 78%  |
+| 8          | OPTIMIZATION   | "Applying optimizations..."       | 89%  |
+| 9          | OPTIMIZATION   | "Finalizing model setup..."       | 100% |
 
 ---
 
 ## Implementation Plan
 
 ### 1. Create Progress Schema
+
 **File:** `app/cores/model_loader/schemas.py`
 
 Add:
+
 ```python
 class ModelLoadPhase(str, Enum):
     INITIALIZATION = 'initialization'
@@ -103,9 +108,11 @@ class ModelLoadProgressResponse(BaseModel):
 ```
 
 ### 2. Add Socket Events
+
 **File:** `app/socket/schemas.py`
 
 Add to `SocketEvents` enum:
+
 ```python
 MODEL_LOAD_STARTED = 'model_load_started'      # New: explicit start event
 MODEL_LOAD_PROGRESS = 'model_load_progress'    # New: progress updates
@@ -115,9 +122,11 @@ MODEL_LOAD_PROGRESS = 'model_load_progress'    # New: progress updates
 ```
 
 ### 3. Add Socket Service Methods
+
 **File:** `app/socket/service.py`
 
 Add methods:
+
 ```python
 def model_load_started(self, data: BaseModel) -> None:
     """
@@ -139,9 +148,11 @@ def model_load_progress(self, data: BaseModel) -> None:
 ```
 
 ### 4. Create Progress Helpers
+
 **File:** `app/cores/model_loader/model_loader.py`
 
 Add helper functions:
+
 ```python
 def map_step_to_phase(step: int) -> ModelLoadPhase:
     """Map checkpoint step to loading phase.
@@ -182,7 +193,7 @@ def emit_progress(model_id: str, step: int, message: str) -> None:
 
         # Structured logging for production observability
         logger.info(
-            f'[ModelLoad] {model_id} step={step}/9 phase={phase.value} msg="{message}"'
+            f'{model_id} step={step}/9 phase={phase.value} msg="{message}"'
         )
 
         socket_service.model_load_progress(progress)
@@ -192,6 +203,7 @@ def emit_progress(model_id: str, step: int, message: str) -> None:
 ```
 
 ### 5. Emit Start Event
+
 **File:** `app/cores/model_loader/model_loader.py`
 
 At the beginning of `model_loader()` function:
@@ -213,6 +225,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 ```
 
 ### 6. Insert Progress Emissions
+
 **File:** `app/cores/model_loader/model_loader.py`
 
 At each checkpoint, add progress emission:
@@ -232,9 +245,11 @@ emit_progress(id, 2, "Loading feature extractor...")
 ```
 
 ### 7. Update Tests
+
 **File:** `tests/app/cores/model_loader/test_model_loader.py`
 
 Add tests for:
+
 - Progress emissions at each checkpoint
 - Correct phase calculation via `map_step_to_phase()`
 - Socket service called with correct data
@@ -245,38 +260,45 @@ Add tests for:
 ## Technical Considerations
 
 ### Thread Safety
+
 - ✅ `socket_service.emit_sync()` already handles thread-safe emission
 - ✅ `model_loader` runs in ThreadPoolExecutor (sync context)
 - ✅ Progress emissions use `emit_sync` (safe from sync code)
 
 ### Performance Impact
+
 - Minimal: Just function calls and socket emissions
 - No blocking operations
 - Progress updates are fire-and-forget (don't wait for clients)
 
 ### Error Handling
+
 - Progress emissions wrapped in try/except to prevent crashes
 - Failed emissions logged but don't interrupt loading
 - If socket service unavailable, loading continues normally
 
 ### Cancellation
+
 - Progress emissions respect cancellation tokens
 - No progress emitted after cancellation
 - Clean shutdown on cancellation
 
 ### Multi-Model Concurrency
+
 **Current Behavior:** Socket.IO broadcasts to ALL connected clients
 
 **Considerations:**
+
 - Multiple users loading different models simultaneously will receive all progress events
 - Frontend MUST filter events by `model_id` to show correct progress
 - Alternative: Use Socket.IO rooms (`socket.join(model_id)`) for namespacing
 
 **Frontend Filtering Example:**
+
 ```typescript
 const [currentModelId, setCurrentModelId] = useState<string | null>(null);
 
-socket.on('model_load_progress', (data) => {
+socket.on("model_load_progress", (data) => {
   if (data.id === currentModelId) {
     // Only update UI for the model this user is loading
     setProgress((data.step / data.total) * 100);
@@ -291,8 +313,9 @@ socket.on('model_load_progress', (data) => {
 ## Frontend Integration
 
 ### WebSocket Listener
+
 ```typescript
-socket.on('model_load_progress', (data) => {
+socket.on("model_load_progress", (data) => {
   const percentage = Math.round((data.step / data.total) * 100);
 
   console.log(`Loading ${data.id}: ${percentage}%`);
@@ -305,23 +328,30 @@ socket.on('model_load_progress', (data) => {
 ```
 
 ### Progress Bar Component
+
 ```tsx
 interface ModelLoadProgress {
   id: string;
   step: number;
   total: number;
-  phase: 'initialization' | 'loading_model' | 'device_setup' | 'optimization';
+  phase: "initialization" | "loading_model" | "device_setup" | "optimization";
   message: string;
 }
 
-function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) {
+function ModelLoadingProgressBar({
+  progress,
+}: {
+  progress: ModelLoadProgress;
+}) {
   const percentage = Math.round((progress.step / progress.total) * 100);
 
   return (
     <div>
       <ProgressBar value={percentage} />
       <p>{progress.message}</p>
-      <small>{progress.phase} - {progress.step}/{progress.total}</small>
+      <small>
+        {progress.phase} - {progress.step}/{progress.total}
+      </small>
     </div>
   );
 }
@@ -332,6 +362,7 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 ## Testing Strategy
 
 ### Unit Tests
+
 1. **Schema validation** - Test ModelLoadProgressResponse serialization
 2. **Phase mapping** - Test `map_step_to_phase()` function for all steps (1-9)
 3. **Socket emission** - Test `socket_service.model_load_progress()` called
@@ -339,6 +370,7 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 5. **Error resilience** - Test socket failures don't crash loading
 
 ### Integration Tests
+
 1. **Full load flow** - Test all 9 progress emissions during load
 2. **Event order** - Verify events emitted in sequence: START → PROGRESS(1-9) → COMPLETED
 3. **Cancellation** - Test no progress emitted after cancellation
@@ -346,11 +378,13 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 5. **Socket event integrity** - Verify all 9 events received in correct order
 
 ### Stress Tests (Production Readiness)
+
 1. **Concurrent loads** - Simulate multiple models loading simultaneously
 2. **Rapid emissions** - Test emit_progress() called rapidly across threads
 3. **Socket disconnect** - Verify graceful degradation if socket unavailable
 
 ### Manual Testing
+
 1. Load a model and observe real-time progress
 2. Cancel during loading and verify progress stops
 3. Load different model sizes and verify accurate timing
@@ -361,6 +395,7 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 ## Implementation Checklist
 
 ### Backend Implementation
+
 - [x] Add `ModelLoadPhase` enum to schemas.py (uppercase member names, lowercase values)
 - [x] Add `ModelLoadProgressResponse` schema
 - [x] Add `MODEL_LOAD_STARTED` and `MODEL_LOAD_PROGRESS` events to socket schemas
@@ -372,6 +407,7 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 - [x] Wrap emissions in try/except for error handling
 
 ### Testing
+
 - [x] Write unit test for `map_step_to_phase()` (all 9 steps)
 - [x] Write unit tests for schema validation
 - [x] Write unit test for start event emission
@@ -380,6 +416,7 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 - [x] Write test for error handling (socket failure doesn't crash loading)
 
 ### Documentation & Frontend
+
 - [ ] Update API documentation with new events
 - [ ] Document multi-model concurrency behavior (frontend filtering required)
 - [ ] Manual testing with frontend (single user)
@@ -391,17 +428,20 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 ## Benefits
 
 ### User Experience
+
 - ✅ **Visual feedback** - Users see progress happening
 - ✅ **Time estimation** - Progress bar helps estimate completion
 - ✅ **Status visibility** - Users know which phase is running
 - ✅ **Error detection** - Easier to tell if something is stuck
 
 ### Developer Experience
+
 - ✅ **Debugging** - Progress logs help diagnose slow loads
 - ✅ **Monitoring** - Can track loading performance in production
 - ✅ **Consistency** - Matches download progress pattern
 
 ### Technical
+
 - ✅ **Non-invasive** - Uses existing checkpoint infrastructure
 - ✅ **No performance impact** - Minimal overhead
 - ✅ **Backward compatible** - Doesn't break existing API
@@ -421,25 +461,31 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 ## Risks & Mitigations
 
 ### Risk 1: Progress emissions slow down loading
+
 **Likelihood:** Low
 **Impact:** Medium
 **Mitigation:**
+
 - Progress emissions are fire-and-forget (async)
 - No blocking operations
 - Performance testing to verify
 
 ### Risk 2: Socket service unavailable
+
 **Likelihood:** Low
 **Impact:** Low
 **Mitigation:**
+
 - Wrap emissions in try/except
 - Log failures but continue loading
 - Loading works with or without socket
 
 ### Risk 3: Frontend not receiving updates
+
 **Likelihood:** Low
 **Impact:** Low
 **Mitigation:**
+
 - Frontend fallback to polling `/models/status`
 - Add connection health check
 - Log socket connection issues
@@ -449,6 +495,7 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 ## Success Criteria
 
 ### Functional Requirements
+
 - ✅ `MODEL_LOAD_STARTED` event emitted at load start
 - ✅ Progress updates emitted at all 9 checkpoints with phase-based messages
 - ✅ `MODEL_LOAD_COMPLETED` or `MODEL_LOAD_FAILED` emitted at end
@@ -457,6 +504,7 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 - ✅ Frontend can filter events by model_id (multi-user support)
 
 ### Technical Requirements
+
 - ✅ All unit tests passing (schema, phase mapping, emission)
 - ✅ All integration tests passing (event order, full flow)
 - ✅ Error handling prevents crashes (socket failures graceful)
@@ -469,6 +517,7 @@ function ModelLoadingProgressBar({ progress }: { progress: ModelLoadProgress }) 
 This feature adds production-ready model loading progress with minimal code (~150 lines including helpers and error handling). By leveraging existing checkpoint infrastructure and socket service, implementation is straightforward and low-risk.
 
 ### Improvements from Senior Engineering Review
+
 1. ✅ **Explicit lifecycle events** - `MODEL_LOAD_STARTED` for clear UI state management
 2. ✅ **Testable architecture** - Centralized `map_step_to_phase()` function
 3. ✅ **Production observability** - Structured logging for debugging
@@ -476,6 +525,7 @@ This feature adds production-ready model loading progress with minimal code (~15
 5. ✅ **Enhanced testing** - Comprehensive unit and integration tests with error-path coverage
 
 ### Deliverables
+
 - **Backend:** 2 new socket events, 2 socket service methods, 2 helper functions, 9 progress emissions
 - **Testing:** 21 comprehensive tests (unit, integration, error handling)
 - **Documentation:** Multi-model concurrency guide, frontend filtering examples

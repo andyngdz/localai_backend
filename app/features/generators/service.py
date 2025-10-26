@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from concurrent.futures import ThreadPoolExecutor
 
 import torch
@@ -7,7 +6,7 @@ from PIL import Image
 
 from app.cores.generation import image_processor, memory_manager, progress_callback, seed_manager
 from app.cores.model_manager import model_manager
-from app.services import styles_service
+from app.services import logger_service, styles_service
 
 from .constants import DEFAULT_NEGATIVE_PROMPT
 from .schemas import (
@@ -16,7 +15,7 @@ from .schemas import (
 	ImageGenerationResponse,
 )
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Generate')
 
 
 class GeneratorService:

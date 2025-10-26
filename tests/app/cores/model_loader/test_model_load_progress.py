@@ -391,7 +391,6 @@ class TestEmitProgress:
 		# Assert
 		mock_logger.info.assert_called_once()
 		log_message = mock_logger.info.call_args[0][0]
-		assert '[ModelLoad]' in log_message
 		assert 'test-model' in log_message
 		assert 'step=3/9' in log_message
 		assert 'phase=loading_model' in log_message

@@ -1,6 +1,5 @@
 """Image Resizing Router"""
 
-import logging
 import os
 from io import BytesIO
 
@@ -8,9 +7,10 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from PIL import Image
 
+from app.services import logger_service
 from config import STATIC_FOLDER
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='API')
 
 resizes = APIRouter(
 	prefix='/resizes',

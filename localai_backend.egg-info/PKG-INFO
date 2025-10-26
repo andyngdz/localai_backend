@@ -25,6 +25,7 @@ Requires-Dist: cffi==1.17.1
 Requires-Dist: chardet==5.2.0
 Requires-Dist: charset-normalizer==3.4.3
 Requires-Dist: click==8.2.1
+Requires-Dist: colorlog==6.9.0
 Requires-Dist: comm==0.2.3
 Requires-Dist: configparser==7.2.0
 Requires-Dist: coverage==7.10.4

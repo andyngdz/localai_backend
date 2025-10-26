@@ -1,4 +1,3 @@
-import logging
 import re
 from itertools import chain
 from types import SimpleNamespace
@@ -6,10 +5,11 @@ from typing import Any, Optional, Protocol
 
 from transformers import CLIPTokenizer
 
+from app.services import logger_service
 from app.styles import all_styles
 from app.styles.schemas import StyleItem
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__)
 
 PROMPT_REMOVE_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
 CLIP_TOKENIZER_MODEL = 'openai/clip-vit-base-patch32'

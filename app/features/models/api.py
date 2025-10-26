@@ -1,6 +1,5 @@
 """Models Router"""
 
-import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -11,6 +10,7 @@ from app.cores.model_loader.cancellation import CancellationException
 from app.cores.model_manager import ModelState, model_manager
 from app.database import database_service
 from app.schemas.responses import JSONResponseMessage
+from app.services import logger_service
 from app.services.models import model_service
 
 from .recommendations import ModelRecommendationService
@@ -22,7 +22,7 @@ from .schemas import (
 	ModelSearchInfoListResponse,
 )
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='API')
 models = APIRouter(
 	prefix='/models',
 	tags=['models'],

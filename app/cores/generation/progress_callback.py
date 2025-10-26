@@ -1,14 +1,12 @@
 """Progress callback handler for step-by-step generation updates."""
 
-import logging
-
 import torch
 
 from app.cores.generation.image_processor import image_processor
-from app.services import image_service
+from app.services import image_service, logger_service
 from app.socket import socket_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Generate')
 
 
 class ProgressCallback:

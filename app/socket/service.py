@@ -24,7 +24,7 @@ class SocketService:
 		self.sio = socketio.AsyncServer(
 			async_mode='asgi',
 			cors_allowed_origins='*',
-			logger=True,
+			logger=False,
 		)
 		self.sio_app = socketio.ASGIApp(self.sio)
 		logger.info('SocketService initialized.')

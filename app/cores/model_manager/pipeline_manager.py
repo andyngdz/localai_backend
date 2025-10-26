@@ -1,12 +1,12 @@
 """Pipeline instance and configuration management."""
 
-import logging
 from typing import Any, Optional
 
 from app.cores.constants.samplers import DEFAULT_SAMPLE_SIZE
 from app.cores.samplers import SCHEDULER_MAPPING, SamplerType
+from app.services import logger_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='ModelLoad')
 
 
 class PipelineManager:

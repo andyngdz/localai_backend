@@ -1,18 +1,17 @@
 """ "Image Generation Router"""
 
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.cores.samplers import samplers_service
 from app.database import database_service
 from app.database.crud import add_generated_image
+from app.services import logger_service
 
 from .schemas import ImageGenerationRequest
 from .service import generator_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Generate')
 generators = APIRouter(
 	prefix='/generators',
 	tags=['generators'],

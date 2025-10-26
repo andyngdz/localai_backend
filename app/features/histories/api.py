@@ -1,7 +1,5 @@
 """Image Generation History Router"""
 
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,8 +8,9 @@ from app.database import database_service
 from app.database.crud import add_history, delete_history_entry, get_histories
 from app.schemas.generators import GeneratorConfig
 from app.schemas.responses import JSONResponseMessage
+from app.services import logger_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='API')
 histories = APIRouter(
 	prefix='/histories',
 	tags=['histories'],

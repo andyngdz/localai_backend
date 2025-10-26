@@ -1,19 +1,19 @@
 """Model loading orchestration with cancellation support."""
 
 import asyncio
-import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from app.cores.model_loader import CancellationException, CancellationToken, model_loader
 from app.cores.model_loader.schemas import ModelLoadCompletedResponse
+from app.services import logger_service
 from app.socket import socket_service
 
 from .pipeline_manager import PipelineManager
 from .resource_manager import ResourceManager
 from .state_manager import ModelState, StateManager, StateTransitionReason
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='ModelLoad')
 
 
 class LoaderService:
@@ -63,7 +63,7 @@ class LoaderService:
 			await self.cancel_current_load()
 
 		async with self.lock:
-			logger.info(f'[load_model_async] Request to load: {id}, current state: {self.state_manager.current_state.value}')
+			logger.info(f'Request to load: {id}, current state: {self.state_manager.current_state.value}')
 
 			if (
 				self.pipeline_manager.model_id == id
@@ -83,14 +83,14 @@ class LoaderService:
 			self.loading_task = asyncio.current_task()
 
 		try:
-			logger.info(f'[load_model_async] Executing load for {id}')
+			logger.info(f'Executing load for {id}')
 			config = await self.execute_load_in_background(id)
 
 			async with self.lock:
 				self.state_manager.set_state(ModelState.LOADED, StateTransitionReason.LOAD_COMPLETED)
 				self.loading_task = None
 				self.cancel_token = None
-				logger.info(f'[load_model_async] Successfully loaded {id}')
+				logger.info(f'Successfully loaded {id}')
 
 			return config
 
@@ -107,7 +107,7 @@ class LoaderService:
 				self.state_manager.set_state(ModelState.ERROR, StateTransitionReason.LOAD_FAILED)
 				self.loading_task = None
 				self.cancel_token = None
-			logger.error(f'[load_model_async] Error loading {id}: {error}')
+			logger.error(f'Error loading {id}: {error}')
 			raise
 
 	async def unload_model_async(self) -> None:
@@ -117,7 +117,7 @@ class LoaderService:
 		It's safe to call during React useEffect cleanup.
 		"""
 		async with self.lock:
-			logger.info(f'[unload_model_async] Request to unload, current state: {self.state_manager.current_state.value}')
+			logger.info(f'Request to unload, current state: {self.state_manager.current_state.value}')
 
 			if self.state_manager.current_state == ModelState.LOADING:
 				logger.info('Cancelling in-progress load before unload')
@@ -189,7 +189,7 @@ class LoaderService:
 		Raises:
 			CancellationException: If loading is cancelled via cancel_token
 		"""
-		logger.info(f'[load_model_sync] Loading model: {id}')
+		logger.info(f'Loading model: {id}')
 
 		if self.pipeline_manager.pipe is not None:
 			logger.info(f'Unloading existing model {self.pipeline_manager.model_id} before loading {id}')
@@ -212,6 +212,6 @@ class LoaderService:
 		Safe to call even if no model is loaded.
 		"""
 		if self.pipeline_manager.pipe is not None and self.pipeline_manager.model_id is not None:
-			logger.info(f'[unload_model_sync] Unloading model: {self.pipeline_manager.model_id}')
+			logger.info(f'Unloading model: {self.pipeline_manager.model_id}')
 			self.resources_manager.cleanup_pipeline(self.pipeline_manager.pipe, self.pipeline_manager.model_id)
 			self.pipeline_manager.clear_pipeline()

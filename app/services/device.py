@@ -1,9 +1,10 @@
-import logging
 import platform
 
 import torch
 
-logger = logging.getLogger(__name__)
+from app.services import logger_service
+
+logger = logger_service.get_logger(__name__)
 
 
 class DeviceService:

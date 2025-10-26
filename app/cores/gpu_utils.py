@@ -1,13 +1,14 @@
 """GPU utility functions for memory management."""
 
 import gc
-import logging
 import time
 
 import torch
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger(__name__)
+from app.services import logger_service
+
+logger = logger_service.get_logger(__name__)
 
 
 class CleanupMetrics(BaseModel):

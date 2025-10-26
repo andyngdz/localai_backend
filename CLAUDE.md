@@ -111,6 +111,43 @@ Write tests for all new features and bug fixes before marking work complete. Tes
 
 **Logging:**
 
-- `.info()` Expected operations | `.warning()` Recoverable issues | `.error()` Failures | `.exception()` With stack trace
+The project uses a centralized `LoggerService` with colored console output and category support. See `app/services/logger.py`.
+
+**Basic usage:**
+```python
+import logging
+logger = logging.getLogger(__name__)  # Standard Python logging
+logger.info('Operation completed')
+```
+
+**With category prefixes (recommended for complex operations):**
+```python
+from app.services import logger_service
+logger = logger_service.get_logger(__name__, category='ModelLoad')
+logger.info('Loading model...')  # Output: [INFO] ... [ModelLoad] Loading model...
+```
+
+**Standard categories:**
+- `[ModelLoad]` Model loading operations
+- `[Download]` Download operations
+- `[Generate]` Image generation
+- `[API]` API requests/responses
+- `[Cleanup]` Resource cleanup
+- `[State]` State transitions
+- `[Socket]` WebSocket events
+- `[DB]` Database operations
+
+**Log levels:**
+- `.debug()` Detailed diagnostic information
+- `.info()` Expected operations and milestones
+- `.warning()` Recoverable issues, deprecated usage
+- `.error()` Failures that stop current operation
+- `.exception()` Errors with full stack trace (use in exception handlers)
+
+**Environment configuration:**
+```bash
+LOG_LEVEL=DEBUG python main.py              # Set global log level
+LOG_LEVEL_MODEL_LOADER=DEBUG python main.py # Set module-specific level
+```
 
 **Responses:** Use Pydantic schemas (never raw dicts), include status/reason fields, provide context in error messages.

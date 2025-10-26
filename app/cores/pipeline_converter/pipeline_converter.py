@@ -1,6 +1,6 @@
-import logging
+from app.services import logger_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__)
 
 
 class PipelineConverter:
