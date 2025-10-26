@@ -1,15 +1,16 @@
 """Models Router"""
 
-import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 
-from app.cores.model_manager import model_manager
+from app.cores.model_loader.cancellation import CancellationException
+from app.cores.model_manager import ModelState, model_manager
 from app.database import database_service
 from app.schemas.responses import JSONResponseMessage
+from app.services import logger_service
 from app.services.models import model_service
 
 from .recommendations import ModelRecommendationService
@@ -21,7 +22,7 @@ from .schemas import (
 	ModelSearchInfoListResponse,
 )
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='API')
 models = APIRouter(
 	prefix='/models',
 	tags=['models'],
@@ -119,9 +120,14 @@ async def load_model(request: LoadModelRequest):
 		id = request.id
 
 		config = await model_manager.load_model_async(id)
-		sample_size = model_manager.get_sample_size()
+		sample_size = model_manager.sample_size
 
 		return LoadModelResponse(id=id, config=config, sample_size=sample_size)
+
+	except CancellationException:
+		# Model loading was cancelled (expected behavior during React double-mount)
+		logger.info(f'Model load cancelled for {id}')
+		return Response(status_code=204)  # No Content
 
 	except FileNotFoundError as error:
 		logger.error(f'Model file not found for {id}: {error}')
@@ -160,14 +166,17 @@ def get_model_recommendations(db: Session = Depends(database_service.get_db)):
 		)
 
 
-@models.get('/unload')
-def unload_model():
+@models.post('/unload')
+async def unload_model():
 	"""
-	Unloads the current model from memory.
+	Unloads the current model from memory (async version with cancellation support).
+
+	This endpoint can cancel in-progress model loads before unloading.
+	Safe to call during React useEffect cleanup.
 	"""
 
 	try:
-		model_manager.unload_model()
+		await model_manager.unload_model_async()
 
 		return JSONResponseMessage(message='Model unloaded successfully')
 	except Exception as error:
@@ -176,6 +185,36 @@ def unload_model():
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail=f'Failed to unload model: {error}',
+		)
+
+
+@models.get('/status')
+def get_model_status():
+	"""
+	Get current model loading status.
+
+	Returns information about currently loaded model, loading state,
+	and helps frontend avoid duplicate requests.
+	"""
+
+	try:
+		state = model_manager.current_state
+
+		response = {
+			'state': state.value,
+			'loaded_model_id': model_manager.id,
+			'has_model': model_manager.pipe is not None,
+			'is_loading': state == ModelState.LOADING,
+		}
+
+		return response
+
+	except Exception as error:
+		logger.exception('Failed to get model status')
+
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail=f'Failed to get model status: {error}',
 		)
 
 

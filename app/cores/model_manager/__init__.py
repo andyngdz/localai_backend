@@ -1,3 +1,6 @@
-from .model_manager import model_manager
+"""Model manager with modular architecture."""
 
-__all__ = ['model_manager']
+from .model_manager import ModelManager, model_manager
+from .state_manager import ModelState, StateTransitionReason
+
+__all__ = ['ModelManager', 'model_manager', 'ModelState', 'StateTransitionReason']

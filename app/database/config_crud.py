@@ -1,14 +1,13 @@
 """Database operations for configuration and device management."""
 
-from logging import getLogger
-
 from sqlalchemy.orm import Session
 
 from app.database.models import Config
+from app.services.logger import logger_service
 
 from .constant import DEFAULT_MAX_GPU_SCALE_FACTOR, DEFAULT_MAX_RAM_SCALE_FACTOR, DeviceSelection
 
-logger = getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Database')
 
 
 def get_device_index(db: Session) -> int:

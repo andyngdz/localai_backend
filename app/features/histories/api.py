@@ -1,7 +1,5 @@
 """Image Generation History Router"""
 
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,8 +8,9 @@ from app.database import database_service
 from app.database.crud import add_history, delete_history_entry, get_histories
 from app.schemas.generators import GeneratorConfig
 from app.schemas.responses import JSONResponseMessage
+from app.services import logger_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='API')
 histories = APIRouter(
 	prefix='/histories',
 	tags=['histories'],
@@ -65,4 +64,7 @@ async def delete_history(history_id: int, db: Session = Depends(database_service
 	except Exception as error:
 		# Handle unexpected server-side errors
 		logger.error(f'Error deleting history entry: {error}')
-		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='An unexpected error occurred while deleting the history entry')
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail='An unexpected error occurred while deleting the history entry',
+		)

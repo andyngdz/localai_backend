@@ -1,13 +1,13 @@
 import os
-from logging import getLogger
 from typing import List
 
 from sqlalchemy.orm import Session, selectinload
 
 from app.database.models import GeneratedImage, History, Model
 from app.schemas.generators import GeneratorConfig, ImageGenerationResponse
+from app.services.logger import logger_service
 
-logger = getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Database')
 
 
 def add_model(db: Session, model_id: str, model_dir: str):
@@ -37,7 +37,6 @@ def is_model_downloaded(db: Session, model_id: str) -> bool:
 	model = db.query(Model).filter(Model.model_id == model_id).first()
 
 	return model is not None
-
 
 
 def add_history(db: Session, model: str, config: GeneratorConfig):
@@ -89,8 +88,6 @@ def delete_history_entry(db: Session, history_id: int):
 			raise ValueError(f'Error deleting history entry: {str(error)}')
 
 	return history_id
-
-
 
 
 def add_generated_image(db: Session, history_id: int, response: ImageGenerationResponse):

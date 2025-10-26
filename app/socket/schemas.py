@@ -13,6 +13,8 @@ class SocketEvents(str, Enum):
 	DOWNLOAD_STEP_PROGRESS = 'download_step_progress'
 	DOWNLOAD_COMPLETED = 'download_completed'
 
+	MODEL_LOAD_STARTED = 'model_load_started'
+	MODEL_LOAD_PROGRESS = 'model_load_progress'
 	MODEL_LOAD_COMPLETED = 'model_load_completed'
 	MODEL_LOAD_FAILED = 'model_load_failed'
 	IMAGE_GENERATION_STEP_END = 'image_generation_step_end'

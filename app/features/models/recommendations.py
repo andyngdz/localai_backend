@@ -1,6 +1,5 @@
 """Model Recommendation Service"""
 
-import logging
 from typing import List
 
 from sqlalchemy.orm import Session
@@ -13,9 +12,9 @@ from app.schemas.recommendations import (
 	ModelRecommendationSection,
 	RecommendationSectionType,
 )
-from app.services import device_service
+from app.services import device_service, logger_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='ModelLoad')
 
 
 class ModelRecommendationService:
@@ -75,8 +74,7 @@ class ModelRecommendationService:
 				sections.append(section)
 
 		logger.info(
-			f'Generated {len(sections)} recommendation sections for '
-			f'device capabilities: max_gpu_gb={capabilities.max_gpu_gb}'
+			f'Generated {len(sections)} recommendation sections for device capabilities: max_gpu_gb={capabilities.max_gpu_gb}'
 		)
 
 		return sections

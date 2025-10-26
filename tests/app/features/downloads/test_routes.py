@@ -39,7 +39,7 @@ class DummySocketService:
 class DummyDownloadService:
 	"""Dummy download service with configurable behavior across attempts."""
 
-	def __init__(self, side_effects: Optional[List[Exception]] = None) -> None:
+	def __init__(self, side_effects: Optional[List[BaseException]] = None) -> None:
 		self.calls: List[str] = []
 		self._side_effects = side_effects or []
 		self._attempt = 0
@@ -88,9 +88,7 @@ def test_post_download_success(monkeypatch: pytest.MonkeyPatch) -> None:
 	assert dummy_socket.download_start_calls[0].id == 'test-model'
 
 	# Verify download_completed was called with correct payload
-	assert hasattr(dummy_socket, 'download_completed_calls'), (
-		'Socket service missing download_completed_calls attribute'
-	)
+	assert hasattr(dummy_socket, 'download_completed_calls'), 'Socket service missing download_completed_calls attribute'
 	assert len(dummy_socket.download_completed_calls) == 1
 	assert dummy_socket.download_completed_calls[0].id == 'test-model'
 	assert dummy_socket.download_completed_calls[0].message == 'Download completed and saved to database'

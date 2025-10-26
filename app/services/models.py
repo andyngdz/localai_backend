@@ -2,7 +2,6 @@
 
 import os
 import shutil
-from logging import getLogger
 from typing import List
 
 from sqlalchemy.orm import Session
@@ -11,9 +10,10 @@ from app.database.crud import add_model as db_add_model
 from app.database.crud import downloaded_models as db_downloaded_models
 from app.database.crud import is_model_downloaded as db_is_model_downloaded
 from app.database.models import Model
+from app.services.logger import logger_service
 from app.services.storage import storage_service
 
-logger = getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Service')
 
 
 class ModelService:

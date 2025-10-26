@@ -41,10 +41,9 @@ static/generated_images
 
 # Caches
 .cache/
-
-# Specific IDE-related files
-.mypy_cache/      # Mypy type checker cache
-.pytest_cache/    # Pytest cache
+.ruff_cache/
+.mypy_cache/      
+.pytest_cache/
 
 # ------------------------------------------------------------------
 # ENVIRONMENTS / SECRETS
@@ -54,6 +53,6 @@ static/generated_images
 # ------------------------------------------------------------------
 # SEMANTIC RELEASE
 # ------------------------------------------------------------------
-node_modules/           # Node.js dependencies for semantic-release
-package-lock.json       # NPM lock file
-.VERSION                # Temporary version file
+node_modules/          # Node.js dependencies for semantic-release
+package-lock.json      # NPM lock file
+.VERSION               # Temporary version file

@@ -1,17 +1,17 @@
 import asyncio
 import fnmatch
 import json
-import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
-from requests.adapters import HTTPAdapter
 from huggingface_hub import HfApi, hf_hub_download, hf_hub_url
+from requests.adapters import HTTPAdapter
 from sqlalchemy.orm import Session
 
+from app.services import logger_service
 from app.services.models import model_service
 from app.services.storage import storage_service
 
@@ -20,7 +20,7 @@ from .progress import DownloadProgress
 # Backwards compatibility for tests stubbing the old symbol.
 DownloadTqdm = DownloadProgress
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Download')
 
 
 class DownloadService:
@@ -60,12 +60,7 @@ class DownloadService:
 
 	async def start(self, id: str, db: Session):
 		loop = asyncio.get_event_loop()
-		local_dir = await loop.run_in_executor(
-			self.executor, 
-			self.download_model, 
-			id, 
-			db
-		)
+		local_dir = await loop.run_in_executor(self.executor, self.download_model, id, db)
 		return local_dir
 
 	def download_model(self, id: str, db: Session):
@@ -90,7 +85,7 @@ class DownloadService:
 		]
 
 		files_to_download.sort(key=lambda f: (f != 'model_index.json', f))
-		# Ensure every file has a deterministic size before streaming begins; fall back to HEAD when hub metadata is missing.
+		# Ensure every file has deterministic size before streaming; fall back to HEAD if missing.
 		file_sizes: List[int] = []
 		for filename in files_to_download:
 			size = file_sizes_map.get(filename, 0)
@@ -186,10 +181,7 @@ class DownloadService:
 		if not info.siblings:
 			return {}
 
-		return {
-			s.rfilename: getattr(s, 'size', 0) or 0
-			for s in info.siblings
-		}
+		return {s.rfilename: getattr(s, 'size', 0) or 0 for s in info.siblings}
 
 	def get_components(self, id: str, revision: Optional[str] = None):
 		model_index = hf_hub_download(
@@ -266,17 +258,18 @@ class DownloadService:
 		os.makedirs(snapshot_path, exist_ok=True)
 		os.makedirs(local_path.parent, exist_ok=True)
 
-		local_path = str(local_path)
+		# Convert Path to string for os.path operations
+		local_path_str = str(local_path)
 
-		if os.path.exists(local_path):
-			actual_size = os.path.getsize(local_path)
+		if os.path.exists(local_path_str):
+			actual_size = os.path.getsize(local_path_str)
 			if actual_size > 0:
 				progress.set_file_size(file_index, actual_size)
 				logger.debug('Skipping download for %s; already complete', filename)
-				return local_path
-			os.remove(local_path)
+				return local_path_str
+			os.remove(local_path_str)
 
-		temp_path = f'{local_path}.part'
+		temp_path = f'{local_path_str}.part'
 		if os.path.exists(temp_path):
 			os.remove(temp_path)
 
@@ -304,10 +297,10 @@ class DownloadService:
 						# Emit partial progress as bytes accumulate for the current file.
 						progress.update_bytes(len(chunk))
 
-			os.replace(temp_path, local_path)
-			final_size = os.path.getsize(local_path)
+			os.replace(temp_path, local_path_str)
+			final_size = os.path.getsize(local_path_str)
 			progress.set_file_size(file_index, final_size)
-			return local_path
+			return local_path_str
 		finally:
 			if os.path.exists(temp_path):
 				os.remove(temp_path)

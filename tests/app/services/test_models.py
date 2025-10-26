@@ -36,6 +36,7 @@ class TestModelService:
 		self.mock_db.query.assert_called_once_with(Model)
 		self.mock_db.add.assert_called_once()
 		self.mock_db.commit.assert_called_once()
+
 	def test_get_downloaded_models(self):
 		"""Test get_downloaded_models method."""
 		# Arrange
@@ -49,6 +50,7 @@ class TestModelService:
 		assert result == mock_models
 		self.mock_db.query.assert_called_once_with(Model)
 		self.mock_db.query.return_value.all.assert_called_once()
+
 	def test_is_model_downloaded(self):
 		"""Test is_model_downloaded method."""
 		# Arrange
@@ -64,6 +66,7 @@ class TestModelService:
 		self.mock_db.query.assert_called_once_with(Model)
 		self.mock_db.query.return_value.filter.assert_called_once()
 		self.mock_db.query.return_value.filter.return_value.first.assert_called_once()
+
 	def test_delete_model_success(self):
 		"""Test delete_model method when successful."""
 		# Arrange
