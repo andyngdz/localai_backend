@@ -1,4 +1,4 @@
-# Project Architecture
+# Architecture
 
 **Stack:** FastAPI + SQLAlchemy 2.0 + Socket.IO | SQLite database | Pytest + pytest-asyncio
 

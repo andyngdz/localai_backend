@@ -1,4 +1,4 @@
-# Type Safety & Code Quality
+# Coding Style
 
 Fix type errors at their source—never use `# type: ignore` to bypass warnings. When mypy reports an error:
 

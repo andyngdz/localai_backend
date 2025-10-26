@@ -1,4 +1,4 @@
-# Validation & Real-World Testing
+# Best Practices
 
 Understand code patterns before reusing them—ask "What problem does this solve?" and "Does this apply here?" Unit tests passing doesn't guarantee correctness or performance:
 
