@@ -39,7 +39,7 @@ class LoggerService:
 		# Check module-specific log level first
 		if module_name:
 			# Convert module name to env var format: app.cores.model_loader -> MODEL_LOADER
-			env_module = module_name.replace('app.', 'LAI').replace('.', '_').upper()
+			env_module = module_name.replace('app.', '').replace('.', '_').upper()
 			module_level = os.environ.get(f'LOG_LEVEL_{env_module}')
 			if module_level:
 				return getattr(logging, module_level.upper(), logging.INFO)
