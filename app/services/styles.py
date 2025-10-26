@@ -25,7 +25,7 @@ class FallbackTokenizer:
 		# Minimal structure compatible with CLIP tokenizer output
 		return SimpleNamespace(input_ids=[ord(ch) % 256 for ch in prompt])
 
-	def decode(self, input_ids, skip_special_tokens: bool = True):
+	def decode(self, input_ids, _skip_special_tokens: bool = True):
 		return ''.join(chr(token) for token in input_ids)
 
 

@@ -23,11 +23,11 @@ class ProgressCallback:
 		if hasattr(self.image_processor, 'clear_tensor_cache'):
 			self.image_processor.clear_tensor_cache()
 
-	def callback_on_step_end(self, pipe, current_step: int, timestep: float, callback_kwargs: dict) -> dict:
+	def callback_on_step_end(self, _pipe, current_step: int, timestep: float, callback_kwargs: dict) -> dict:
 		"""Callback for step-by-step progress updates via WebSocket with memory cleanup.
 
 		Args:
-			pipe: The diffusion pipeline instance.
+			_pipe: The diffusion pipeline instance (unused but required by diffusers API).
 			current_step: Current inference step number.
 			timestep: Current timestep value.
 			callback_kwargs: Dictionary containing latents and other callback data.

@@ -34,6 +34,71 @@ class TestCategoryAdapter:
 class TestLoggerService:
 	"""Test the LoggerService class."""
 
+	def test_init_configures_root_logger(self):
+		"""Test that init() configures the root logger with a handler."""
+		service = LoggerService()
+		root_logger = logging.getLogger()
+
+		# Clear existing handlers
+		root_logger.handlers.clear()
+
+		service.init()
+
+		# Root logger should have at least one handler after init
+		assert len(root_logger.handlers) >= 1
+		assert isinstance(root_logger.handlers[0], logging.StreamHandler)
+
+	def test_init_creates_colored_formatter(self):
+		"""Test that init() creates a ColoredFormatter with correct format."""
+		service = LoggerService()
+		root_logger = logging.getLogger()
+
+		service.init()
+
+		# Check that handler has a formatter
+		handler = root_logger.handlers[0]
+		assert handler.formatter is not None
+		# ColoredFormatter should format with log colors
+		assert hasattr(handler.formatter, '_fmt')
+
+	def test_init_suppresses_third_party_loggers(self):
+		"""Test that init() sets socketio and engineio to WARNING level."""
+		service = LoggerService()
+
+		service.init()
+
+		socketio_logger = logging.getLogger('socketio')
+		engineio_logger = logging.getLogger('engineio')
+
+		assert socketio_logger.level == logging.WARNING
+		assert engineio_logger.level == logging.WARNING
+
+	def test_init_configures_uvicorn_loggers(self):
+		"""Test that init() configures uvicorn loggers to propagate."""
+		service = LoggerService()
+
+		service.init()
+
+		for logger_name in ['uvicorn', 'uvicorn.access', 'uvicorn.error']:
+			uvicorn_logger = logging.getLogger(logger_name)
+			assert uvicorn_logger.handlers == []
+			assert uvicorn_logger.propagate is True
+
+	def test_init_removes_duplicate_handlers(self):
+		"""Test that init() removes existing handlers before adding new ones."""
+		service = LoggerService()
+		root_logger = logging.getLogger()
+
+		# Add a dummy handler
+		dummy_handler = logging.StreamHandler()
+		root_logger.addHandler(dummy_handler)
+
+		service.init()
+
+		# After init, should have exactly 1 handler (the new one)
+		assert len(root_logger.handlers) == 1
+		assert dummy_handler not in root_logger.handlers
+
 	def test_get_logger_returns_category_adapter(self):
 		"""Test that get_logger returns a CategoryAdapter instance."""
 		service = LoggerService()
@@ -77,6 +142,78 @@ class TestLoggerService:
 
 				# Should use INFO as default (root logger level)
 				assert logger.logger.level == 0 or logger.logger.level == logging.NOTSET
+
+	def test_get_log_level_with_global_env_var(self):
+		"""Test that _get_log_level respects global LOG_LEVEL env var."""
+		service = LoggerService()
+
+		with patch.dict(os.environ, {'LOG_LEVEL': 'DEBUG'}):
+			log_level = service._get_log_level()
+			assert log_level == logging.DEBUG
+
+		with patch.dict(os.environ, {'LOG_LEVEL': 'ERROR'}):
+			log_level = service._get_log_level()
+			assert log_level == logging.ERROR
+
+	def test_get_log_level_fallback_to_info(self):
+		"""Test that _get_log_level falls back to INFO for invalid levels."""
+		service = LoggerService()
+
+		with patch.dict(os.environ, {'LOG_LEVEL': 'INVALID_LEVEL'}):
+			log_level = service._get_log_level()
+			# getattr with default should return INFO for invalid level
+			assert log_level == logging.INFO
+
+	def test_get_log_level_with_module_name(self):
+		"""Test that _get_log_level uses module-specific env var when module_name provided."""
+		service = LoggerService()
+
+		# Test with module-specific env var
+		# Module name conversion: app.cores.model_loader -> CORES_MODEL_LOADER
+		with patch.dict(os.environ, {'LOG_LEVEL_CORES_MODEL_LOADER': 'WARNING', 'LOG_LEVEL': 'DEBUG'}):
+			# Should use module-specific level, not global
+			log_level = service._get_log_level(module_name='app.cores.model_loader')
+			assert log_level == logging.WARNING
+
+		# Test without module-specific env var - should fall back to global
+		with patch.dict(os.environ, {'LOG_LEVEL': 'ERROR'}):
+			log_level = service._get_log_level(module_name='app.cores.model_loader')
+			assert log_level == logging.ERROR
+
+	def test_get_logger_with_non_app_module_name(self):
+		"""Test get_logger with module name without 'app.' prefix."""
+		service = LoggerService()
+
+		# Module name without 'app.' prefix
+		logger = service.get_logger('test.module', category='Test')
+
+		assert isinstance(logger, CategoryAdapter)
+		assert logger.logger.name == 'test.module'
+
+	def test_get_logger_with_invalid_log_level_env_var(self):
+		"""Test get_logger with invalid module-specific log level falls back to INFO."""
+		service = LoggerService()
+
+		with patch.dict(os.environ, {'LOG_LEVEL_TEST_MODULE': 'INVALID'}):
+			logger = service.get_logger('app.test.module', category='Test')
+
+			# Should fall back to INFO for invalid log level
+			# Logger might have NOTSET if no level set, or default from root
+			assert logger.logger.level in [0, logging.INFO, logging.NOTSET]
+
+	def test_get_logger_module_name_conversion(self):
+		"""Test that module names are correctly converted for env var lookup."""
+		service = LoggerService()
+
+		# Test with 'app.' prefix - should be removed
+		with patch.dict(os.environ, {'LOG_LEVEL_CORES_MODEL_LOADER': 'WARNING'}):
+			logger = service.get_logger('app.cores.model_loader', category='ModelLoad')
+			assert logger.logger.level == logging.WARNING
+
+		# Test conversion of dots to underscores
+		with patch.dict(os.environ, {'LOG_LEVEL_FEATURES_DOWNLOADS_API': 'ERROR'}):
+			logger = service.get_logger('app.features.downloads.api', category='Download')
+			assert logger.logger.level == logging.ERROR
 
 
 class TestLoggerIntegration:
