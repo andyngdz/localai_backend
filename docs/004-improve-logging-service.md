@@ -19,7 +19,7 @@ Enhanced the logging service to provide better readability, clear messages, sepa
 - Created `CategoryAdapter` class for automatic category prefix injection
 - Implemented `LoggerService` class with:
   - `init()` method for one-time root logger configuration
-  - `get_logger(name, category=None)` helper method
+  - `get_logger(name, category)` helper method (category is mandatory)
   - Environment variable support for log level configuration
 - Removed module names from output (redundant with categories)
 - Added colored formatter using `colorlog`:
@@ -66,49 +66,64 @@ Enhanced the logging service to provide better readability, clear messages, sepa
 
 | Category | Files | Purpose |
 |----------|-------|---------|
-| `[ModelLoad]` | 6 files | Model loading, state management, resource cleanup |
+| `[ModelLoad]` | 8 files | Model loading, state management, resource cleanup, recommendations |
 | `[Download]` | 2 files | Model download operations |
-| `[Generate]` | 6 files | Image generation, memory management, progress |
+| `[Generate]` | 7 files | Image generation (txt2img, img2img), memory management, progress |
 | `[API]` | 5 files | API endpoint requests/responses |
-| (none) | 7 files | Utility services without specific domain |
+| `[Database]` | 3 files | Database operations (CRUD, config) |
+| `[Service]` | 5 files | Infrastructure services (storage, device, platform) |
+| `[Socket]` | 1 file | WebSocket communication |
+| `[GPU]` | 1 file | GPU memory management and utilities |
 
-### 4. Files Updated (26 total)
+### 4. Files Updated (32 total)
 
-**ModelLoad Category (6 files):**
+**ModelLoad Category (8 files):**
 1. `app/cores/model_loader/model_loader.py`
 2. `app/cores/model_manager/loader_service.py`
 3. `app/cores/model_manager/model_manager.py`
 4. `app/cores/model_manager/pipeline_manager.py`
 5. `app/cores/model_manager/resource_manager.py`
 6. `app/cores/model_manager/state_manager.py`
+7. `app/features/models/recommendations.py`
+8. `app/cores/pipeline_converter/pipeline_converter.py`
 
 **Download Category (2 files):**
-7. `app/features/downloads/services.py`
-8. `app/features/downloads/api.py`
+9. `app/features/downloads/services.py`
+10. `app/features/downloads/api.py`
 
-**Generate Category (6 files):**
-9. `app/features/generators/service.py`
-10. `app/features/generators/api.py`
-11. `app/cores/generation/image_processor.py`
-12. `app/cores/generation/progress_callback.py`
-13. `app/cores/generation/memory_manager.py`
-14. `app/cores/generation/seed_manager.py`
+**Generate Category (7 files):**
+11. `app/features/generators/service.py`
+12. `app/features/generators/api.py`
+13. `app/cores/generation/image_processor.py`
+14. `app/cores/generation/progress_callback.py`
+15. `app/cores/generation/memory_manager.py`
+16. `app/cores/generation/seed_manager.py`
+17. `app/features/img2img/service.py`
 
 **API Category (5 files):**
-15. `app/features/models/api.py`
-16. `app/features/hardware/api.py`
-17. `app/features/histories/api.py`
-18. `app/features/img2img/api.py`
-19. `app/features/resizes/api.py`
+18. `app/features/models/api.py`
+19. `app/features/hardware/api.py`
+20. `app/features/histories/api.py`
+21. `app/features/img2img/api.py`
+22. `app/features/resizes/api.py`
 
-**No Category (7 files):**
-20. `app/features/img2img/service.py`
-21. `app/features/models/recommendations.py`
-22. `app/cores/gpu_utils.py`
-23. `app/cores/pipeline_converter/pipeline_converter.py`
-24. `app/services/device.py`
-25. `app/services/styles.py`
-26. `app/database/service.py`
+**Database Category (3 files):**
+23. `app/database/crud.py`
+24. `app/database/config_crud.py`
+25. `app/database/service.py`
+
+**Service Category (5 files):**
+26. `app/services/storage.py`
+27. `app/services/models.py`
+28. `app/services/platform.py`
+29. `app/services/device.py`
+30. `app/services/styles.py`
+
+**Socket Category (1 file):**
+31. `app/socket/service.py`
+
+**GPU Category (1 file):**
+32. `app/cores/gpu_utils.py`
 
 **Pattern Applied:**
 ```python
@@ -143,9 +158,10 @@ logger = logger_service.get_logger(__name__, category='CategoryName')
 
 ### 6. Breaking Changes
 
-**None** - Fully backward compatible:
-- Existing `logging.getLogger(__name__)` calls still work
-- Standard Python logging functions work as expected
+**Category parameter is now mandatory:**
+- All calls to `logger_service.get_logger()` must include a `category` parameter
+- Updated signature: `get_logger(name: str, category: str) -> CategoryAdapter`
+- All 32 files in the codebase updated to use appropriate categories
 - All 478 tests pass
 
 ## Configuration Examples
@@ -167,18 +183,21 @@ LOG_LEVEL=INFO LOG_LEVEL_LAI_MODEL_LOADER=DEBUG LOG_LEVEL_LAI_DOWNLOADS=DEBUG py
 
 ## Usage Examples
 
-**Basic logging (no category):**
+**All loggers require a category (mandatory parameter):**
 ```python
 from app.services import logger_service
-logger = logger_service.get_logger(__name__)
-logger.info('Operation completed')
-```
 
-**With category prefix:**
-```python
-from app.services import logger_service
+# ModelLoad category
 logger = logger_service.get_logger(__name__, category='ModelLoad')
 logger.info('Loading model...')  # Output: [INFO] ... [ModelLoad] Loading model...
+
+# Database category
+logger = logger_service.get_logger(__name__, category='Database')
+logger.info('Saving to database')  # Output: [INFO] ... [Database] Saving to database
+
+# Service category
+logger = logger_service.get_logger(__name__, category='Service')
+logger.info('Storage initialized')  # Output: [INFO] ... [Service] Storage initialized
 ```
 
 ## Technical Details
@@ -214,14 +233,15 @@ formatter = colorlog.ColoredFormatter(
 ## Success Criteria
 
 - ✅ Colored console output with clear visual hierarchy
-- ✅ Consistent category prefixes across 26 modules
+- ✅ Consistent category prefixes across all 32 modules
 - ✅ Per-module log level control via environment variables
-- ✅ Backward compatible with existing code
+- ✅ Category parameter mandatory for all loggers
 - ✅ All 478 tests pass
 - ✅ No circular imports
-- ✅ Documentation updated (CLAUDE.md)
+- ✅ Documentation updated (CLAUDE.md and this file)
 - ✅ Clean, compact output without redundant information
 - ✅ Unified format for all loggers (including uvicorn)
+- ✅ 8 categories covering all use cases
 
 ## Before vs After
 

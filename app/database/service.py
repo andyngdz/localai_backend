@@ -6,7 +6,7 @@ from app.services import logger_service
 from .base import Base
 from .constant import DATABASE_URL
 
-logger = logger_service.get_logger(__name__)
+logger = logger_service.get_logger(__name__, category='Database')
 
 # Create the SQLAlchemy engine
 # echo=True is useful for debugging SQL queries, set to False in production

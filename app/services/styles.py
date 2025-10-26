@@ -9,7 +9,7 @@ from app.services import logger_service
 from app.styles import all_styles
 from app.styles.schemas import StyleItem
 
-logger = logger_service.get_logger(__name__)
+logger = logger_service.get_logger(__name__, category='Service')
 
 PROMPT_REMOVE_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
 CLIP_TOKENIZER_MODEL = 'openai/clip-vit-base-patch32'

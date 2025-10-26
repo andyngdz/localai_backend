@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.services import logger_service
 
-logger = logger_service.get_logger(__name__)
+logger = logger_service.get_logger(__name__, category='GPU')
 
 
 class CleanupMetrics(BaseModel):

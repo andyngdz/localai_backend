@@ -98,15 +98,15 @@ class LoggerService:
 			uvicorn_logger.handlers = []
 			uvicorn_logger.propagate = True
 
-	def get_logger(self, name: str, category: Optional[str] = None) -> logging.Logger | CategoryAdapter:
-		"""Get a logger instance with optional category prefix.
+	def get_logger(self, name: str, category: str) -> CategoryAdapter:
+		"""Get a logger instance with category prefix.
 
 		Args:
 			name: Logger name (typically __name__ of the module)
-			category: Optional category prefix (e.g., 'ModelLoad', 'Download')
+			category: Category prefix (e.g., 'ModelLoad', 'Download', 'Database')
 
 		Returns:
-			Logger or CategoryAdapter instance
+			CategoryAdapter instance with category prefix
 
 		Example:
 			>>> logger = logger_service.get_logger(__name__, category='ModelLoad')
@@ -120,9 +120,7 @@ class LoggerService:
 		if module_level_str:
 			logger.setLevel(getattr(logging, module_level_str.upper(), logging.INFO))
 
-		if category:
-			return CategoryAdapter(logger, category)
-		return logger
+		return CategoryAdapter(logger, category)
 
 
 logger_service = LoggerService()

@@ -1,13 +1,14 @@
 import asyncio
-from logging import getLogger
 from typing import Any, Dict, Optional
 
 import socketio
 from pydantic import BaseModel
 
+from app.services.logger import logger_service
+
 from .schemas import SocketEvents
 
-logger = getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Socket')
 
 
 class SocketService:

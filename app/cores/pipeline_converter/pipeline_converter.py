@@ -1,6 +1,6 @@
 from app.services import logger_service
 
-logger = logger_service.get_logger(__name__)
+logger = logger_service.get_logger(__name__, category='ModelLoad')
 
 
 class PipelineConverter:

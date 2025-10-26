@@ -111,16 +111,9 @@ Write tests for all new features and bug fixes before marking work complete. Tes
 
 **Logging:**
 
-The project uses a centralized `LoggerService` with colored console output and category support. See `app/services/logger.py`.
+The project uses a centralized `LoggerService` with colored console output and mandatory category support. See `app/services/logger.py`.
 
-**Basic usage:**
-```python
-import logging
-logger = logging.getLogger(__name__)  # Standard Python logging
-logger.info('Operation completed')
-```
-
-**With category prefixes (recommended for complex operations):**
+**Usage (category is mandatory):**
 ```python
 from app.services import logger_service
 logger = logger_service.get_logger(__name__, category='ModelLoad')
@@ -128,14 +121,14 @@ logger.info('Loading model...')  # Output: [INFO] ... [ModelLoad] Loading model.
 ```
 
 **Standard categories:**
-- `[ModelLoad]` Model loading operations
-- `[Download]` Download operations
-- `[Generate]` Image generation
-- `[API]` API requests/responses
-- `[Cleanup]` Resource cleanup
-- `[State]` State transitions
-- `[Socket]` WebSocket events
-- `[DB]` Database operations
+- `[ModelLoad]` Model loading, state management, resource cleanup, recommendations, pipeline conversion (8 files)
+- `[Download]` Model download operations (2 files)
+- `[Generate]` Image generation (txt2img, img2img), memory management, progress (7 files)
+- `[API]` API endpoint requests/responses (5 files)
+- `[Database]` Database operations (CRUD, config) (3 files)
+- `[Service]` Infrastructure services (storage, device, platform, styles) (5 files)
+- `[Socket]` WebSocket communication (1 file)
+- `[GPU]` GPU memory management and utilities (1 file)
 
 **Log levels:**
 - `.debug()` Detailed diagnostic information

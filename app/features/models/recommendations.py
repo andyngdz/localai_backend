@@ -14,7 +14,7 @@ from app.schemas.recommendations import (
 )
 from app.services import device_service, logger_service
 
-logger = logger_service.get_logger(__name__)
+logger = logger_service.get_logger(__name__, category='ModelLoad')
 
 
 class ModelRecommendationService:

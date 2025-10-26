@@ -16,7 +16,7 @@ from .schemas import (
 	Img2ImgConfig,
 )
 
-logger = logger_service.get_logger(__name__)
+logger = logger_service.get_logger(__name__, category='Generate')
 
 
 class Img2ImgService:
