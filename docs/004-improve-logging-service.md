@@ -141,6 +141,8 @@ logger = logger_service.get_logger(__name__, category='CategoryName')
 
 - Updated `tests/app/cores/model_loader/test_model_load_progress.py` to not check for hardcoded `[ModelLoad]` prefix (now added by CategoryAdapter)
 - Added `tests/app/services/test_logger.py` with 17 comprehensive tests covering CategoryAdapter, LoggerService, and all 8 categories
+- Added `tests/app/services/test_storage.py` with 7 tests for StorageService (covers logger initialization)
+- Added `tests/app/services/test_platform.py` with 3 tests for PlatformService (covers logger initialization)
 
 **Documentation:**
 
@@ -231,7 +233,7 @@ formatter = colorlog.ColoredFormatter(
 - ✅ Consistent category prefixes across all 32 modules
 - ✅ Per-module log level control via environment variables
 - ✅ Category parameter mandatory for all loggers
-- ✅ All 495 tests pass (478 existing + 17 new logger tests)
+- ✅ All 505 tests pass (478 existing + 27 new tests: 17 logger, 7 storage, 3 platform)
 - ✅ No circular imports
 - ✅ Documentation updated (CLAUDE.md and this file)
 - ✅ Clean, compact output without redundant information
