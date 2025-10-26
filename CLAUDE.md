@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## Plan Mode
 
-When exiting plan mode to begin implementation, ALWAYS save the implementation plan first as a markdown file in docs/
+When exiting plan mode to begin implementation, ALWAYS save the implementation plan first as a markdown file in plans/
 
 - Format: {serial-number}-{plan-name}.md
 
@@ -114,6 +114,7 @@ Write tests for all new features and bug fixes before marking work complete. Tes
 The project uses a centralized `LoggerService` with colored console output and mandatory category support. See `app/services/logger.py`.
 
 **Usage (category is mandatory):**
+
 ```python
 from app.services import logger_service
 logger = logger_service.get_logger(__name__, category='ModelLoad')
@@ -121,6 +122,7 @@ logger.info('Loading model...')  # Output: [INFO] ... [ModelLoad] Loading model.
 ```
 
 **Standard categories:**
+
 - `[ModelLoad]` Model loading, state management, resource cleanup, recommendations, pipeline conversion (8 files)
 - `[Download]` Model download operations (2 files)
 - `[Generate]` Image generation (txt2img, img2img), memory management, progress (7 files)
@@ -131,6 +133,7 @@ logger.info('Loading model...')  # Output: [INFO] ... [ModelLoad] Loading model.
 - `[GPU]` GPU memory management and utilities (1 file)
 
 **Log levels:**
+
 - `.debug()` Detailed diagnostic information
 - `.info()` Expected operations and milestones
 - `.warning()` Recoverable issues, deprecated usage
@@ -138,6 +141,7 @@ logger.info('Loading model...')  # Output: [INFO] ... [ModelLoad] Loading model.
 - `.exception()` Errors with full stack trace (use in exception handlers)
 
 **Environment configuration:**
+
 ```bash
 LOG_LEVEL=DEBUG python main.py              # Set global log level
 LOG_LEVEL_MODEL_LOADER=DEBUG python main.py # Set module-specific level
