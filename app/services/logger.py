@@ -115,7 +115,7 @@ class LoggerService:
 		logger = logging.getLogger(name)
 
 		# Apply module-specific log level if configured
-		env_module = name.replace('app.', 'LAI_').replace('.', '_').upper()
+		env_module = name.replace('app.', '').replace('.', '_').upper()
 		module_level_str = os.environ.get(f'LOG_LEVEL_{env_module}')
 		if module_level_str:
 			logger.setLevel(getattr(logging, module_level_str.upper(), logging.INFO))
