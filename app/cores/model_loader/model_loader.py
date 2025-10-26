@@ -1,4 +1,3 @@
-import logging
 import os
 from pathlib import Path
 from typing import Any, Optional, Union, cast
@@ -15,14 +14,14 @@ from app.cores.constants.model_loader import (
 from app.cores.gpu_utils import cleanup_gpu_model
 from app.cores.max_memory import MaxMemoryConfig
 from app.database.service import SessionLocal
-from app.services import device_service, storage_service
+from app.services import device_service, logger_service, storage_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
 from .cancellation import CancellationException, CancellationToken
 from .schemas import ModelLoadCompletedResponse, ModelLoadFailed, ModelLoadPhase, ModelLoadProgressResponse
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='ModelLoad')
 
 
 def map_step_to_phase(step: int) -> ModelLoadPhase:
@@ -64,7 +63,7 @@ def emit_progress(model_id: str, step: int, message: str) -> None:
 		)
 
 		# Structured logging for production observability
-		logger.info(f'[ModelLoad] {model_id} step={step}/9 phase={phase.value} msg="{message}"')
+		logger.info(f'{model_id} step={step}/9 phase={phase.value} msg="{message}"')
 
 		socket_service.model_load_progress(progress)
 	except Exception as e:

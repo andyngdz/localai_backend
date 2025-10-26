@@ -1,6 +1,5 @@
 """Image processing utilities for generated images."""
 
-import logging
 import os
 from datetime import datetime
 
@@ -8,9 +7,10 @@ import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
+from app.services import logger_service
 from config import GENERATED_IMAGES_FOLDER, GENERATED_IMAGES_STATIC_FOLDER
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Generate')
 
 
 class ImageProcessor:

@@ -1,9 +1,9 @@
 import os
-from logging import getLogger
 
+from app.services.logger import logger_service
 from config import CACHE_FOLDER, CACHE_LOCK_FOLDER, GENERATED_IMAGES_FOLDER
 
-logger = getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Service')
 
 
 class StorageService:

@@ -1,13 +1,13 @@
 import os
-from logging import getLogger
 from typing import List
 
 from sqlalchemy.orm import Session, selectinload
 
 from app.database.models import GeneratedImage, History, Model
 from app.schemas.generators import GeneratorConfig, ImageGenerationResponse
+from app.services.logger import logger_service
 
-logger = getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Database')
 
 
 def add_model(db: Session, model_id: str, model_dir: str):

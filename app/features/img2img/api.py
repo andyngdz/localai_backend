@@ -1,17 +1,16 @@
 """Image-to-Image Generation Router"""
 
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import database_service
 from app.database.crud import add_generated_image
+from app.services import logger_service
 
 from .schemas import Img2ImgRequest
 from .service import img2img_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='API')
 img2img = APIRouter(
 	prefix='/img2img',
 	tags=['img2img'],

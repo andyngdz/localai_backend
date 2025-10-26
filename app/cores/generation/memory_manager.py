@@ -1,12 +1,10 @@
 """Memory management utilities for GPU/CPU resource optimization."""
 
-import logging
-
 import torch
 
-from app.services import device_service
+from app.services import device_service, logger_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Generate')
 
 
 class MemoryManager:

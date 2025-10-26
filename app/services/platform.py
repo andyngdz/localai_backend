@@ -1,8 +1,9 @@
 import asyncio
 import sys
-from logging import getLogger
 
-logger = getLogger(__name__)
+from app.services.logger import logger_service
+
+logger = logger_service.get_logger(__name__, category='Service')
 
 
 class PlatformService:

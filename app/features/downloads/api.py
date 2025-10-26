@@ -1,4 +1,3 @@
-import logging
 from asyncio import CancelledError
 
 from aiohttp import ClientError
@@ -8,6 +7,7 @@ from sqlalchemy.orm import Session
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.database import database_service
+from app.services import logger_service
 from app.socket import socket_service
 
 from .schemas import (
@@ -17,7 +17,7 @@ from .schemas import (
 )
 from .services import download_service
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Download')
 downloads = APIRouter(
 	prefix='/downloads',
 	tags=['downloads'],

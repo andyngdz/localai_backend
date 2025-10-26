@@ -1,7 +1,6 @@
 import asyncio
 import fnmatch
 import json
-import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -12,6 +11,7 @@ from huggingface_hub import HfApi, hf_hub_download, hf_hub_url
 from requests.adapters import HTTPAdapter
 from sqlalchemy.orm import Session
 
+from app.services import logger_service
 from app.services.models import model_service
 from app.services.storage import storage_service
 
@@ -20,7 +20,7 @@ from .progress import DownloadProgress
 # Backwards compatibility for tests stubbing the old symbol.
 DownloadTqdm = DownloadProgress
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='Download')
 
 
 class DownloadService:

@@ -1,7 +1,6 @@
 """Hardware Router"""
 
 import functools
-import logging
 import platform
 import subprocess
 import sys
@@ -12,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.database import database_service
 from app.database.config_crud import add_device_index, add_max_memory, get_device_index
-from app.services import device_service
+from app.services import device_service, logger_service
 from app.services.memory import MemoryService
 
 from .schemas import (
@@ -25,7 +24,7 @@ from .schemas import (
 	SelectDeviceRequest,
 )
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='API')
 
 hardware = APIRouter(
 	prefix='/hardware',

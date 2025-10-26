@@ -1,16 +1,16 @@
 """Model manager facade coordinating specialized managers."""
 
-import logging
 from typing import Optional
 
 from app.cores.samplers import SamplerType
+from app.services import logger_service
 
 from .loader_service import LoaderService
 from .pipeline_manager import PipelineManager
 from .resource_manager import ResourceManager
 from .state_manager import ModelState, StateManager, StateTransitionReason
 
-logger = logging.getLogger(__name__)
+logger = logger_service.get_logger(__name__, category='ModelLoad')
 
 
 class ModelManager:
