@@ -14,6 +14,7 @@ from app.database.config_crud import add_device_index, add_max_memory, get_devic
 from app.services import device_service, logger_service
 from app.services.memory import MemoryService
 
+from .info import GPUInfo
 from .schemas import (
 	GetCurrentDeviceIndex,
 	GPUDeviceInfo,
@@ -42,7 +43,7 @@ def default_gpu_info() -> GPUDriverInfo:
 	return GPUDriverInfo(
 		gpus=[],
 		is_cuda=device_service.is_cuda,
-		message='Attempting to detect GPU and driver status...',
+		message=GPUInfo.default_detecting(),
 		overall_status=GPUDriverStatusStates.UNKNOWN_ERROR,
 	)
 
@@ -50,7 +51,7 @@ def default_gpu_info() -> GPUDriverInfo:
 def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 	if device_service.is_cuda:
 		info.overall_status = GPUDriverStatusStates.READY
-		info.message = 'NVIDIA GPU detected and ready for acceleration.'
+		info.message = GPUInfo.nvidia_ready()
 		version = getattr(torch, 'version', None)
 		info.cuda_runtime_version = getattr(version, 'cuda', None)
 
@@ -96,36 +97,37 @@ def get_nvidia_gpu_info(system_os: str, info: GPUDriverInfo):
 			info.nvidia_driver_version = driver_version
 		except (subprocess.CalledProcessError, FileNotFoundError) as error:
 			logger.warning(f'nvidia-smi not found or failed: {error}. Cannot get detailed driver version.')
-			info.message += " (Could not retrieve NVIDIA driver version from nvidia-smi. Ensure it's in PATH)."
+			info.message += GPUInfo.nvidia_smi_warning()
 	else:
 		info.overall_status = GPUDriverStatusStates.NO_GPU
-		info.message = 'No NVIDIA GPU detected or CUDA is not available. Running on CPU.'
-		info.recommendation_link = 'https://www.nvidia.com/drivers'
-		info.troubleshooting_steps = [
-			'Ensure you have an NVIDIA GPU.',
-			'Download and install the latest NVIDIA drivers for your system.',
-			'Verify PyTorch is installed with CUDA support (e.g., pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118).',
-		]
-		try:
-			subprocess.run(
-				['nvidia-smi'],
-				capture_output=True,
-				text=True,
-				check=True,
-				creationflags=(CREATE_NO_WINDOW if system_os == 'Windows' else 0),
-			)
-			info.overall_status = GPUDriverStatusStates.DRIVER_ISSUE
-			info.message = (
-				'NVIDIA GPU detected, but CUDA is not available or drivers are incompatible. Please update your drivers.'
-			)
-			info.troubleshooting_steps.insert(0, 'Check NVIDIA Control Panel/Settings for driver status.')
-		except (subprocess.CalledProcessError, FileNotFoundError):
-			pass
+
+		# Only show NVIDIA troubleshooting steps for non-macOS systems
+		# macOS does not support NVIDIA CUDA
+		if system_os != 'Darwin':
+			info.message = GPUInfo.nvidia_no_gpu()
+			info.recommendation_link = GPUInfo.nvidia_recommendation_link()
+			info.troubleshooting_steps = GPUInfo.nvidia_troubleshooting_steps()
+			try:
+				subprocess.run(
+					['nvidia-smi'],
+					capture_output=True,
+					text=True,
+					check=True,
+					creationflags=(CREATE_NO_WINDOW if system_os == 'Windows' else 0),
+				)
+				info.overall_status = GPUDriverStatusStates.DRIVER_ISSUE
+				info.message = GPUInfo.nvidia_driver_issue()
+				info.troubleshooting_steps.insert(0, GPUInfo.nvidia_driver_status_step())
+			except (subprocess.CalledProcessError, FileNotFoundError):
+				pass
+		else:
+			# macOS doesn't support NVIDIA CUDA
+			info.message = GPUInfo.macos_no_acceleration()
 
 
 def get_mps_gpu_info(info: GPUDriverInfo):
 	info.overall_status = GPUDriverStatusStates.READY
-	info.message = 'Apple Silicon (MPS) GPU detected and ready for acceleration.'
+	info.message = GPUInfo.macos_mps_ready()
 	info.macos_mps_available = True
 	info.gpus.append(GPUDeviceInfo(name=platform.machine(), is_primary=True))
 
@@ -150,31 +152,22 @@ def get_system_gpu_info() -> GPUDriverInfo:
 				get_mps_gpu_info(info)
 			else:
 				info.overall_status = GPUDriverStatusStates.NO_GPU
-				info.message = 'No Apple Silicon (MPS) GPU detected or PyTorch MPS backend not available. Running on CPU.'
+				info.message = GPUInfo.macos_no_acceleration()
 				info.macos_mps_available = False
-				info.troubleshooting_steps = [
-					'Ensure you are running on an Apple Silicon Mac (M1, M2, etc.).',
-					'Update macOS to the latest version.',
-					'Verify PyTorch is installed with MPS support (e.g., '
-					'pip install torch torchvision torchaudio --index-url '
-					'https://download.pytorch.org/whl/cpu for CPU or specific MPS build).',
-				]
+				info.troubleshooting_steps = GPUInfo.macos_troubleshooting_steps()
 		else:
 			info.overall_status = GPUDriverStatusStates.NO_GPU
-			info.message = f"Unsupported operating system '{system_os}' or no compatible GPU detected. Running on CPU."
+			info.message = GPUInfo.unsupported_os(system_os)
 
 	except ImportError:
 		info.overall_status = GPUDriverStatusStates.UNKNOWN_ERROR
-		info.message = 'PyTorch is not installed or not accessible in the backend environment. Cannot detect GPU.'
-		info.troubleshooting_steps = ["Ensure PyTorch is correctly installed in the backend's Python environment."]
+		info.message = GPUInfo.pytorch_not_installed()
+		info.troubleshooting_steps = GPUInfo.pytorch_troubleshooting()
 	except (subprocess.SubprocessError, OSError, AttributeError, RuntimeError) as error:
 		logger.error(f'Error during GPU detection: {error}')
 		info.overall_status = GPUDriverStatusStates.UNKNOWN_ERROR
-		info.message = f'An unexpected error occurred during GPU detection: {str(error)}. Running on CPU.'
-		info.troubleshooting_steps = [
-			'Check backend logs for more details.',
-			'Ensure all dependencies are correctly installed.',
-		]
+		info.message = GPUInfo.unexpected_error(str(error))
+		info.troubleshooting_steps = GPUInfo.error_troubleshooting_steps()
 
 	return info
 
@@ -233,7 +226,7 @@ def set_device(request: SelectDeviceRequest, db: Session = Depends(database_serv
 	device_index = request.device_index
 	add_device_index(db, device_index=device_index)
 
-	return {'message': 'Device index set successfully.', 'device_index': device_index}
+	return {'message': GPUInfo.device_set_success(), 'device_index': device_index}
 
 
 @hardware.get('/device')
@@ -259,7 +252,7 @@ def set_max_memory(config: MaxMemoryConfigRequest, db: Session = Depends(databas
 	add_max_memory(db, ram_scale_factor=config.ram_scale_factor, gpu_scale_factor=config.gpu_scale_factor)
 
 	return {
-		'message': 'Maximum memory scale factor configuration successfully saved.',
+		'message': GPUInfo.memory_config_success(),
 		'ram_scale_factor': config.ram_scale_factor,
 		'gpu_scale_factor': config.gpu_scale_factor,
 	}
