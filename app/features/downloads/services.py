@@ -244,15 +244,8 @@ class DownloadService:
 			- Calls progress.update_bytes() for each downloaded chunk
 			- Cleans up .part file on error
 		"""
-		# Security: Prevent path traversal attacks
-		snapshot_path = Path(snapshot_dir).resolve()
-		local_path = (snapshot_path / filename).resolve()
-
-		# Validate that the resolved path is under snapshot_dir
-		try:
-			local_path.relative_to(snapshot_path)
-		except ValueError:
-			raise ValueError(f'Invalid filename: {filename} attempts to escape snapshot directory')
+		snapshot_path = Path(snapshot_dir)
+		local_path = snapshot_path / filename
 
 		# Create directories with validated paths
 		os.makedirs(snapshot_path, exist_ok=True)
