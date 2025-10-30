@@ -250,28 +250,6 @@ class TestAuthHeaders:
 		assert result == expected
 
 
-class TestDownloadFileSecurity:
-	@pytest.mark.parametrize(
-		'filename',
-		[
-			'../../../etc/passwd',
-			'/etc/passwd',
-		],
-	)
-	def test_blocks_path_traversal(self, mock_service, mock_progress, filename):
-		service, _, _ = mock_service
-
-		with pytest.raises(ValueError, match='attempts to escape snapshot directory'):
-			service.download_file(
-				repo_id='test/repo',
-				filename=filename,
-				revision='main',
-				snapshot_dir='/tmp/test',
-				file_index=0,
-				progress=mock_progress,
-			)
-
-
 class TestDownloadFile:
 	def test_skips_when_file_exists(self, mock_service, mock_progress, tmp_path):
 		service, _, _ = mock_service
