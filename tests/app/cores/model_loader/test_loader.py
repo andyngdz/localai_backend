@@ -399,6 +399,7 @@ def test_model_loader_calls_reset_device_map_when_available(mock_dependencies, c
 	assert any('Reset device map for pipeline' in m for m in messages)
 
 
+@patch('sys.platform', 'win32')
 @patch('app.cores.platform_optimizations.windows.torch')
 @patch('app.cores.platform_optimizations.windows.device_service')
 def test_model_loader_applies_cuda_optimizations(
@@ -459,6 +460,7 @@ def test_model_loader_applies_mps_optimizations(mock_dependencies, caplog: pytes
 	assert any('macOS' in m or 'Darwin' in m or 'optimizations applied successfully' in m for m in messages)
 
 
+@patch('sys.platform', 'win32')
 @patch('app.cores.platform_optimizations.windows.device_service')
 def test_model_loader_applies_cpu_optimizations_by_default(
 	mock_win_device_service, mock_dependencies, caplog: pytest.LogCaptureFixture
