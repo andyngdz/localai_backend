@@ -41,24 +41,27 @@ git clone <repository-url>
 cd localai_backend
 ```
 
-### 2. Create virtual environment
+### 2. Install uv
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Linux/macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### 3. Install dependencies
+More installation methods: [uv documentation](https://docs.astral.sh/uv/getting-started/installation/)
 
-Using [uv](https://docs.astral.sh/uv/) (recommended):
+### 3. Install dependencies
 
 ```bash
 uv sync
 ```
 
-#### GPU Acceleration (Optional but Recommended)
+### 4. GPU Acceleration (Optional)
 
-For **Windows/Linux with NVIDIA GPU**, install PyTorch with CUDA support for 10-20x faster image generation:
+For Windows/Linux with NVIDIA GPU:
 
 ```bash
 uv pip install "torch==2.6.0+cu124" --index-url https://download.pytorch.org/whl/cu124
@@ -66,27 +69,20 @@ uv pip install "torch==2.6.0+cu124" --index-url https://download.pytorch.org/whl
 
 **Requirements:**
 - NVIDIA GPU with CUDA support
-- CUDA Toolkit 11.8+ installed ([Download](https://developer.nvidia.com/cuda-downloads))
-- 8GB+ VRAM recommended for best performance
+- CUDA Toolkit 11.8+ ([Download](https://developer.nvidia.com/cuda-downloads))
+- 8GB+ VRAM recommended
 
-**Verify GPU is detected:**
+**Verify:**
 ```bash
-uv run python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+uv run python -c "import torch; print('CUDA:', torch.cuda.is_available())"
 ```
 
-If `CUDA available: True`, you're all set! macOS users with Apple Silicon will automatically use MPS acceleration.
+macOS with Apple Silicon uses MPS acceleration automatically.
 
-Or with pip:
-
-```bash
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # For development
-```
-
-### 4. Initialize database
+### 5. Initialize database
 
 ```bash
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ## Running the Server
@@ -94,13 +90,13 @@ alembic upgrade head
 ### Development mode with auto-reload
 
 ```bash
-uvicorn main:app --reload
+uv run uvicorn main:app --reload
 ```
 
 ### Production mode
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+uv run uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 The API will be available at `http://localhost:8000` with interactive docs at `http://localhost:8000/docs`.
@@ -162,33 +158,33 @@ localai_backend/
 ### Running tests
 
 ```bash
-pytest -q --cov=app --cov-report=xml:coverage.xml
+uv run pytest -q --cov=app --cov-report=xml:coverage.xml
 ```
 
 ### Linting and formatting
 
 ```bash
 # Check code style
-ruff check
+uv run ruff check
 
 # Auto-fix issues
-ruff check --fix
+uv run ruff check --fix
 
 # Format code
-ruff format
+uv run ruff format
 ```
 
 ### Database migrations
 
 ```bash
 # Create a new migration
-alembic revision --autogenerate -m "description of changes"
+uv run alembic revision --autogenerate -m "description of changes"
 
 # Apply migrations
-alembic upgrade head
+uv run alembic upgrade head
 
 # Rollback migration
-alembic downgrade -1
+uv run alembic downgrade -1
 ```
 
 ## Configuration
