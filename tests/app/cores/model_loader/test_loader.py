@@ -161,6 +161,8 @@ def mock_dependencies():
 		mock_device_service.torch_dtype = 'torch.float16'
 		mock_device_service.is_cuda = False
 		mock_device_service.is_mps = False
+		mock_device_service.get_gpu_memory_gb = MagicMock(return_value=None)
+		mock_device_service.get_device_name = MagicMock(return_value='CPU')
 
 		mock_max_memory.return_value.to_dict.return_value = {'cpu_offload': True}
 
@@ -397,25 +399,44 @@ def test_model_loader_calls_reset_device_map_when_available(mock_dependencies, c
 	assert any('Reset device map for pipeline' in m for m in messages)
 
 
-def test_model_loader_applies_cuda_optimizations(mock_dependencies, caplog: pytest.LogCaptureFixture):
+@patch('sys.platform', 'win32')
+@patch('app.cores.platform_optimizations.windows.torch')
+@patch('app.cores.platform_optimizations.windows.device_service')
+def test_model_loader_applies_cuda_optimizations(
+	mock_win_device_service, mock_torch, mock_dependencies, caplog: pytest.LogCaptureFixture
+):
 	# Arrange
 	model_id = 'test-model-id'
 	mock_pipe = mock_dependencies['mock_pipe']
 	mock_device_service = mock_dependencies['mock_device_service']
 	mock_device_service.is_cuda = True
 	mock_device_service.is_mps = False
+
+	# Mock device service for Windows optimizer
+	mock_win_device_service.is_cuda = True
+	mock_win_device_service.get_gpu_memory_gb.return_value = 12.0  # High memory GPU
+	mock_win_device_service.get_device_name.return_value = 'NVIDIA RTX 3060'
+
+	# Reset mock to ensure clean state
+	mock_pipe.reset_mock()
 	model_loader = mock_dependencies['model_loader']
-	# use mock logger
 
 	# Act
 	_ = model_loader(model_id)
 
-	# Assert
-	mock_pipe.enable_attention_slicing.assert_called_once_with()
+	# Assert - Platform optimizers handle this now
+	mock_pipe.enable_vae_slicing.assert_called_once()
+	# High memory GPU should disable attention slicing for performance
+	mock_pipe.disable_attention_slicing.assert_called_once()
+	# Verify TF32 was enabled
+	assert mock_torch.backends.cuda.matmul.allow_tf32 is True
+	assert mock_torch.backends.cudnn.allow_tf32 is True
 	messages = [str(call.args[0]) for call in mock_dependencies['mock_logger'].info.call_args_list]
-	assert any('Applied CUDA optimizations' in m for m in messages)
+	# Check for Windows optimizer message (since tests run on Windows)
+	assert any('Windows' in m or 'optimizations applied successfully' in m for m in messages)
 
 
+@patch('sys.platform', 'darwin')
 def test_model_loader_applies_mps_optimizations(mock_dependencies, caplog: pytest.LogCaptureFixture):
 	# Arrange
 	model_id = 'test-model-id'
@@ -423,35 +444,53 @@ def test_model_loader_applies_mps_optimizations(mock_dependencies, caplog: pytes
 	mock_device_service = mock_dependencies['mock_device_service']
 	mock_device_service.is_cuda = False
 	mock_device_service.is_mps = True
+	# Reset mock to ensure clean state
+	mock_pipe.reset_mock()
 	model_loader = mock_dependencies['model_loader']
 	# use mock logger
 
 	# Act
 	_ = model_loader(model_id)
 
-	# Assert
-	mock_pipe.enable_attention_slicing.assert_called_once_with()
+	# Assert - Platform optimizers handle this now
+	mock_pipe.enable_attention_slicing.assert_called_once()
+	mock_pipe.enable_vae_slicing.assert_called_once()
 	messages = [str(call.args[0]) for call in mock_dependencies['mock_logger'].info.call_args_list]
-	assert any('Applied MPS optimizations' in m for m in messages)
+	# Check for macOS/Darwin optimizer message
+	assert any('macOS' in m or 'Darwin' in m or 'optimizations applied successfully' in m for m in messages)
 
 
-def test_model_loader_applies_cpu_optimizations_by_default(mock_dependencies, caplog: pytest.LogCaptureFixture):
+@patch('sys.platform', 'win32')
+@patch('app.cores.platform_optimizations.windows.device_service')
+def test_model_loader_applies_cpu_optimizations_by_default(
+	mock_win_device_service, mock_dependencies, caplog: pytest.LogCaptureFixture
+):
 	# Arrange
 	model_id = 'test-model-id'
 	mock_pipe = mock_dependencies['mock_pipe']
 	mock_device_service = mock_dependencies['mock_device_service']
 	mock_device_service.is_cuda = False
 	mock_device_service.is_mps = False
+	mock_device_service.get_gpu_memory_gb.return_value = None
+
+	# Mock device service for Windows optimizer (CPU mode)
+	mock_win_device_service.is_cuda = False
+	mock_win_device_service.get_gpu_memory_gb.return_value = None
+
+	# Reset mock to ensure clean state
+	mock_pipe.reset_mock()
 	model_loader = mock_dependencies['model_loader']
 	caplog.set_level(logging.INFO, logger='app.cores.model_loader.model_loader')
 
 	# Act
 	_ = model_loader(model_id)
 
-	# Assert
-	mock_pipe.enable_attention_slicing.assert_called_once_with()
+	# Assert - Platform optimizers handle this now
+	mock_pipe.enable_vae_slicing.assert_called_once()
+	mock_pipe.enable_attention_slicing.assert_called_once()
 	messages = [str(call.args[0]) for call in mock_dependencies['mock_logger'].info.call_args_list]
-	assert any('Applied CPU optimizations' in m for m in messages)
+	# Check for platform optimizer message (Windows in this case since tests run on Windows)
+	assert any('Windows' in m or 'optimizations applied successfully' in m for m in messages)
 
 
 def test_move_to_device_logs_fallback_type_error(mock_dependencies, caplog: pytest.LogCaptureFixture):

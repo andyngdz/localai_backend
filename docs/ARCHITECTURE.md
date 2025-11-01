@@ -16,4 +16,4 @@
 - Pydantic schemas for all API responses (never raw dicts)
 - Type hints required (mypy enforced)
 
-**Pre-commit validation:** Husky runs `ruff format --check`, `ruff check`, `mypy`, and `pytest -q` on every commit. Commits are blocked if any check fails.
+**Pre-commit validation:** Husky runs `uv run ruff format --check`, `uv run ruff check`, `uv run mypy`, and `uv run pytest -q` on every commit. Commits are blocked if any check fails.
