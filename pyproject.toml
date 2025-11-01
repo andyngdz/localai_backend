@@ -124,7 +124,7 @@ dependencies = [
     "tenacity==9.1.2",
     "thread==2.0.5",
     "tokenizers==0.21.4",
-    "torch==2.6.0",
+    "torch==2.6.0+cu124",
     "tqdm==4.67.1",
     "traitlets==5.14.3",
     "transformers==4.53.2",
@@ -163,12 +163,7 @@ markers = ["slow: slow tests", "integration: integration tests"]
 
 [tool.coverage.run]
 source = ["."]
-omit = [
-    "tests/*",
-    "alembic/*",
-    "static/*",
-    "*/__pycache__/*",
-]
+omit = ["tests/*", "alembic/*", "static/*", "*/__pycache__/*"]
 relative_files = true
 branch = true
 
@@ -176,13 +171,21 @@ branch = true
 show_missing = true
 skip_covered = false
 exclude_lines = [
-  "if __name__ == .__main__.:",
-  "pragma: no cover",
-  "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pragma: no cover",
+    "raise NotImplementedError",
 ]
 
 [tool.coverage.xml]
 output = "coverage.xml"
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
 
 [dependency-groups]
 dev = [

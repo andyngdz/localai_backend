@@ -59,27 +59,7 @@ More installation methods: [uv documentation](https://docs.astral.sh/uv/getting-
 uv sync
 ```
 
-### 4. GPU Acceleration (Optional)
-
-For Windows/Linux with NVIDIA GPU:
-
-```bash
-uv pip install "torch==2.6.0+cu124" --index-url https://download.pytorch.org/whl/cu124
-```
-
-**Requirements:**
-- NVIDIA GPU with CUDA support
-- CUDA Toolkit 11.8+ ([Download](https://developer.nvidia.com/cuda-downloads))
-- 8GB+ VRAM recommended
-
-**Verify:**
-```bash
-uv run python -c "import torch; print('CUDA:', torch.cuda.is_available())"
-```
-
-macOS with Apple Silicon uses MPS acceleration automatically.
-
-### 5. Initialize database
+### 4. Initialize database
 
 ```bash
 uv run alembic upgrade head
