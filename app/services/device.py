@@ -58,6 +58,28 @@ class DeviceService:
 		# MPS and CPU don't have device properties like CUDA
 		return None
 
+	def get_gpu_memory_gb(self, index: int) -> float | None:
+		"""Get GPU memory in gigabytes for the specified device.
+
+		Args:
+			index: Device index to query
+
+		Returns:
+			GPU memory in GB, or None if not available or not a CUDA device
+
+		Examples:
+			>>> device_service.get_gpu_memory_gb(0)
+			12.0  # For a 12GB GPU
+		"""
+		if not self.is_cuda:
+			return None
+
+		props = self.get_device_properties(index)
+		if props:
+			return props.total_memory / (1024**3)
+
+		return None
+
 	@property
 	def is_cuda(self):
 		return self.device == 'cuda'
@@ -111,10 +133,8 @@ class DeviceService:
 
 		# Get total GPU memory in GB
 		if self.is_cuda:
-			props = self.get_device_properties(0)
-			if props:
-				total_memory_gb = props.total_memory / (1024**3)
-			else:
+			total_memory_gb = self.get_gpu_memory_gb(0)
+			if total_memory_gb is None:
 				return 1
 		elif self.is_mps:
 			# MPS shares memory between CPU and GPU, be more conservative

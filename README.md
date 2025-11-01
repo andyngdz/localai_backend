@@ -56,6 +56,26 @@ Using [uv](https://docs.astral.sh/uv/) (recommended):
 uv sync
 ```
 
+#### GPU Acceleration (Optional but Recommended)
+
+For **Windows/Linux with NVIDIA GPU**, install PyTorch with CUDA support for 10-20x faster image generation:
+
+```bash
+uv pip install "torch==2.6.0+cu124" --index-url https://download.pytorch.org/whl/cu124
+```
+
+**Requirements:**
+- NVIDIA GPU with CUDA support
+- CUDA Toolkit 11.8+ installed ([Download](https://developer.nvidia.com/cuda-downloads))
+- 8GB+ VRAM recommended for best performance
+
+**Verify GPU is detected:**
+```bash
+uv run python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+```
+
+If `CUDA available: True`, you're all set! macOS users with Apple Silicon will automatically use MPS acceleration.
+
 Or with pip:
 
 ```bash
