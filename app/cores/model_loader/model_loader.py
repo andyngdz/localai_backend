@@ -242,7 +242,26 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 				}
 			)
 
-		# Strategy 1: FP16 safetensors (diffusers format)
+		# Strategy 1: Standard safetensors (diffusers format)
+		# Reordered to match what download service provides (filters fp16 variants)
+		# This prevents re-downloading fp16 from HuggingFace Hub during model load
+		loading_strategies.append(
+			{
+				'type': ModelLoadingStrategy.PRETRAINED,
+				'use_safetensors': True,
+			}
+		)
+
+		# Strategy 2: Standard without safetensors (diffusers format, .bin fallback)
+		loading_strategies.append(
+			{
+				'type': ModelLoadingStrategy.PRETRAINED,
+				'use_safetensors': False,
+			}
+		)
+
+		# Strategy 3: FP16 safetensors (diffusers format, fallback only)
+		# Only tried if standard safetensors don't exist
 		loading_strategies.append(
 			{
 				'type': ModelLoadingStrategy.PRETRAINED,
@@ -251,28 +270,13 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 			}
 		)
 
-		# Strategy 2: Standard safetensors (diffusers format)
-		loading_strategies.append(
-			{
-				'type': ModelLoadingStrategy.PRETRAINED,
-				'use_safetensors': True,
-			}
-		)
-
-		# Strategy 3: FP16 without safetensors (diffusers format)
+		# Strategy 4: FP16 without safetensors (diffusers format, fallback only)
+		# Only tried if standard bin files don't exist
 		loading_strategies.append(
 			{
 				'type': ModelLoadingStrategy.PRETRAINED,
 				'use_safetensors': False,
 				'variant': 'fp16',
-			}
-		)
-
-		# Strategy 4: Standard without safetensors (diffusers format)
-		loading_strategies.append(
-			{
-				'type': ModelLoadingStrategy.PRETRAINED,
-				'use_safetensors': False,
 			}
 		)
 

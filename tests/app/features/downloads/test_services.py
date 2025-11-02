@@ -143,16 +143,49 @@ class TestGetIgnoreComponents:
 	@pytest.mark.parametrize(
 		'files,scopes,expected',
 		[
-			(['unet/model.bin', 'unet/model.safetensors', 'vae/model.bin'], ['unet/*', 'vae/*'], ['unet/model.bin']),
-			(['unet/model.bin', 'vae/model.bin'], ['unet/*', 'vae/*'], []),
+			# Test: Standard safetensors exists → filter .bin duplicates
+			(
+				['unet/model.safetensors', 'unet/model.bin'],
+				['unet/*'],
+				['unet/model.bin'],
+			),
+			# Test: Standard safetensors exists → filter ALL variants
+			(
+				['unet/model.safetensors', 'unet/model.fp16.safetensors', 'unet/model.non_ema.safetensors'],
+				['unet/*'],
+				['unet/model.fp16.safetensors', 'unet/model.non_ema.safetensors'],
+			),
+			# Test: No standard safetensors → keep .bin, filter fp16 variant
+			(
+				['unet/model.bin', 'unet/model.fp16.bin'],
+				['unet/*'],
+				['unet/model.fp16.bin'],
+			),
+			# Test: Realistic SD 1.5 scenario
+			(
+				[
+					'unet/diffusion_pytorch_model.safetensors',
+					'unet/diffusion_pytorch_model.bin',
+					'unet/diffusion_pytorch_model.fp16.safetensors',
+					'unet/diffusion_pytorch_model.non_ema.safetensors',
+				],
+				['unet/*'],
+				[
+					'unet/diffusion_pytorch_model.bin',
+					'unet/diffusion_pytorch_model.fp16.safetensors',
+					'unet/diffusion_pytorch_model.non_ema.safetensors',
+				],
+			),
+			# Test: Empty files
 			([], ['unet/*'], []),
-			(['out_of_scope/model.bin', 'out_of_scope/model.safetensors'], ['unet/*'], []),
+			# Test: Files outside scope are not affected
+			(['out_of_scope/model.non_ema.safetensors'], ['unet/*'], []),
 		],
 	)
-	def test_filters_bin_files_correctly(self, mock_service, files, scopes, expected):
+	def test_filters_bloat_files_correctly(self, mock_service, files, scopes, expected):
 		service, _, _ = mock_service
 		result = service.get_ignore_components(files, scopes)
-		assert result == expected
+		assert sorted(result) == sorted(expected)
 
 
 class TestListFiles:
