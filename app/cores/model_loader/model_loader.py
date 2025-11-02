@@ -13,6 +13,7 @@ from app.cores.constants.model_loader import (
 )
 from app.cores.gpu_utils import cleanup_gpu_model
 from app.cores.max_memory import MaxMemoryConfig
+from app.cores.platform_optimizations import get_optimizer
 from app.database.service import SessionLocal
 from app.services import device_service, logger_service, storage_service
 from app.socket import socket_service
@@ -128,23 +129,17 @@ def find_checkpoint_in_cache(model_cache_path: str) -> str | None:
 
 def apply_device_optimizations(pipe) -> None:
 	"""
-	Apply device-specific optimizations to the pipeline.
+	Apply platform-specific optimizations to the pipeline.
 
-	Enables attention slicing and VAE slicing for better memory usage
-	on CUDA, MPS, and CPU devices.
+	Uses modular platform-specific optimizers for Windows, Linux, and macOS.
+	Each platform has its own optimized configuration based on hardware characteristics.
 
 	Args:
 		pipe: The pipeline to optimize
 	"""
-	pipe.enable_attention_slicing()
-	pipe.enable_vae_slicing()
-
-	if device_service.is_cuda:
-		logger.info('Applied CUDA optimizations: attention slicing + VAE slicing enabled, pipeline moved to GPU')
-	elif device_service.is_mps:
-		logger.info('Applied MPS optimizations: attention slicing + VAE slicing enabled, pipeline moved to MPS')
-	else:
-		logger.info('Applied CPU optimizations: attention slicing + VAE slicing enabled, pipeline moved to CPU')
+	optimizer = get_optimizer()
+	optimizer.apply(pipe)
+	logger.info(f'Applied {optimizer.get_platform_name()} optimizations successfully')
 
 
 def move_to_device(pipe, device, log_prefix):

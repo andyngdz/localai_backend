@@ -77,16 +77,26 @@ class ImageProcessor:
 
 		Returns:
 			List of boolean values indicating NSFW detection for each generated image.
+
+		Note:
+			SDXL models don't have NSFW detection, only SD 1.5 models do.
 		"""
-		nsfw_detected = output.nsfw_content_detected
-		logger.info(f'Checking for NSFW content: {nsfw_detected}')
+		# Check if NSFW detection is available (SD 1.5 models have it, SDXL models don't)
+		nsfw_detected = getattr(output, 'nsfw_content_detected', None)
 
-		if nsfw_detected:
-			logger.warning('NSFW content detected')
-			return nsfw_detected
+		if nsfw_detected is None:
+			# NSFW detection not available (e.g., SDXL models)
+			logger.info('NSFW detection not available for this model (likely SDXL)')
+			return [False] * len(output.images)
 
-		# Return False for each image if no NSFW detection was performed
-		return [False] * len(output.images)
+		# Safety checker ran - check if ANY image contains NSFW content
+		if any(nsfw_detected):
+			nsfw_count = sum(nsfw_detected)
+			logger.warning(f'NSFW content detected in {nsfw_count} of {len(nsfw_detected)} image(s)')
+		else:
+			logger.info('Safety checker: No NSFW content detected')
+
+		return nsfw_detected
 
 	def generate_file_name(self) -> str:
 		"""Generate a unique file name based on the current timestamp.

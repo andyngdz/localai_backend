@@ -3,25 +3,25 @@
 **Running the application:**
 
 ```bash
-python main.py  # or: uvicorn main:app --reload
+uv run python main.py  # or: uv run uvicorn main:app --reload
 ```
 
 **Testing:**
 
 ```bash
-pytest                    # Run all tests
-pytest -q                 # Quiet mode
-pytest tests/path/to/file.py  # Specific file
-pytest -q --cov=app       # With coverage
+uv run pytest                    # Run all tests
+uv run pytest -q                 # Quiet mode
+uv run pytest tests/path/to/file.py  # Specific file
+uv run pytest -q --cov=app       # With coverage
 ```
 
 **Code quality:**
 
 ```bash
-ruff format               # Format (tabs, single quotes)
-ruff check                # Lint
-ruff check --fix          # Lint and fix
-mypy app tests            # Type checking
+uv run ruff format               # Format (tabs, single quotes)
+uv run ruff check                # Lint
+uv run ruff check --fix          # Lint and fix
+uv run mypy app tests            # Type checking
 ```
 
-**Database:** Standard Alembic migrations (`alembic upgrade head`, `alembic revision --autogenerate -m "msg"`)
+**Database:** Standard Alembic migrations (`uv run alembic upgrade head`, `uv run alembic revision --autogenerate -m "msg"`)
