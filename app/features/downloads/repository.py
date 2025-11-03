@@ -3,6 +3,8 @@ from typing import Dict, List, Optional, Union
 
 from huggingface_hub import DatasetInfo, HfApi, ModelInfo, SpaceInfo, hf_hub_download
 
+RepoInfo = Union[ModelInfo, DatasetInfo, SpaceInfo]
+
 
 class HuggingFaceRepository:
 	"""Handles HuggingFace repository metadata operations."""
@@ -20,7 +22,18 @@ class HuggingFaceRepository:
 	def api(self, value: HfApi) -> None:
 		self._api = value
 
-	def list_files(self, id: str, repo_info: Optional[Union[ModelInfo, DatasetInfo, SpaceInfo]] = None) -> List[str]:
+	def get_repo_info(self, id: str) -> RepoInfo:
+		"""Get repository information from HuggingFace Hub.
+
+		Args:
+			id: Repository ID (e.g., 'runwayml/stable-diffusion-v1-5')
+
+		Returns:
+			Repository information (ModelInfo, DatasetInfo, or SpaceInfo)
+		"""
+		return self.api.repo_info(id)
+
+	def list_files(self, id: str, repo_info: Optional[RepoInfo] = None) -> List[str]:
 		"""Get list of all files in a HuggingFace repository."""
 		info = repo_info or self.api.repo_info(id)
 
@@ -29,9 +42,7 @@ class HuggingFaceRepository:
 
 		return [sibling.rfilename for sibling in info.siblings]
 
-	def get_file_sizes_map(
-		self, id: str, repo_info: Optional[Union[ModelInfo, DatasetInfo, SpaceInfo]] = None
-	) -> Dict[str, int]:
+	def get_file_sizes_map(self, id: str, repo_info: Optional[RepoInfo] = None) -> Dict[str, int]:
 		"""Get mapping of filenames to their sizes in a HuggingFace repository."""
 		info = repo_info or self.api.repo_info(id)
 

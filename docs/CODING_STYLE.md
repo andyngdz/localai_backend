@@ -76,6 +76,115 @@ Fix type errors at their source—never use `# type: ignore` to bypass warnings.
 
 Use public interfaces by default (`lock`, `set_state()`) and reserve underscores for truly private implementation details.
 
+**Type aliases for complex types:** Create type aliases for frequently used complex types to improve readability.
+
+**Bad example:**
+
+```python
+def list_files(
+    self, id: str,
+    repo_info: Optional[Union[ModelInfo, DatasetInfo, SpaceInfo]] = None
+) -> List[str]:
+    pass
+
+def get_file_sizes(
+    self, id: str,
+    repo_info: Optional[Union[ModelInfo, DatasetInfo, SpaceInfo]] = None
+) -> Dict[str, int]:
+    pass
+```
+
+**Good example:**
+
+```python
+# Define type alias once at module level
+RepoInfo = Union[ModelInfo, DatasetInfo, SpaceInfo]
+
+def list_files(self, id: str, repo_info: Optional[RepoInfo] = None) -> List[str]:
+    pass
+
+def get_file_sizes(self, id: str, repo_info: Optional[RepoInfo] = None) -> Dict[str, int]:
+    pass
+```
+
+## Documentation
+
+**Add examples to docstrings for helper functions.** Examples make the function's behavior immediately clear and serve as inline tests.
+
+**Bad example:**
+
+```python
+def get_directory_from_path(file_path: str) -> str:
+    """Extract directory path from a file path."""
+    parent = str(PurePosixPath(file_path).parent)
+    return parent if parent != '.' else ''
+```
+
+**Good example:**
+
+```python
+def get_directory_from_path(file_path: str) -> str:
+    """Extract directory path from a file path.
+
+    Examples:
+        >>> get_directory_from_path('unet/model.safetensors')
+        'unet'
+        >>> get_directory_from_path('model.safetensors')
+        ''
+        >>> get_directory_from_path('a/b/c/model.bin')
+        'a/b/c'
+    """
+    parent = str(PurePosixPath(file_path).parent)
+    return parent if parent != '.' else ''
+```
+
+**When to add examples:**
+- Helper functions with non-obvious behavior
+- Functions that handle edge cases (empty strings, None values)
+- Path manipulation, string parsing, data transformation functions
+- Public API methods
+
+## Encapsulation
+
+**Use wrapper methods instead of exposing internal dependencies.** This provides better encapsulation and makes refactoring easier.
+
+**Bad example:**
+
+```python
+class DownloadService:
+    def __init__(self):
+        self.repository = HuggingFaceRepository()
+
+    def download_model(self, id: str):
+        # Directly accessing internal API of repository
+        repo_info = self.repository.api.repo_info(id)
+        ...
+```
+
+**Good example:**
+
+```python
+class HuggingFaceRepository:
+    def get_repo_info(self, id: str) -> RepoInfo:
+        """Get repository information from HuggingFace Hub."""
+        return self.api.repo_info(id)
+
+class DownloadService:
+    def __init__(self):
+        self.repository = HuggingFaceRepository()
+
+    def download_model(self, id: str):
+        # Using wrapper method - better encapsulation
+        repo_info = self.repository.get_repo_info(id)
+        ...
+```
+
+**Benefits:**
+- Hides implementation details
+- Makes it easier to add logging, caching, or error handling
+- Simplifies testing (mock the wrapper instead of internal dependencies)
+- Allows changing the underlying implementation without affecting callers
+
 ## File Modularity
 
 **Never put everything in one file.** Split large files into focused modules with single responsibilities.

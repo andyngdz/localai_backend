@@ -46,7 +46,7 @@ class DownloadService:
 		if not id or not id.strip():
 			raise ValueError('Model ID cannot be empty')
 
-		repo_info = self.repository.api.repo_info(id)
+		repo_info = self.repository.get_repo_info(id)
 		revision = getattr(repo_info, 'sha', 'main')
 		# Build the list of candidate files and initial size map up-front so byte totals remain monotonic.
 		components = self.repository.get_components(id, revision=revision)

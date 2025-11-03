@@ -4,13 +4,31 @@ from typing import List
 
 
 def get_directory_from_path(file_path: str) -> str:
-	"""Extract directory path from a file path."""
+	"""Extract directory path from a file path.
+
+	Examples:
+		>>> get_directory_from_path('unet/model.safetensors')
+		'unet'
+		>>> get_directory_from_path('model.safetensors')
+		''
+		>>> get_directory_from_path('a/b/c/model.bin')
+		'a/b/c'
+	"""
 	parent = str(PurePosixPath(file_path).parent)
 	return parent if parent != '.' else ''
 
 
 def get_filename_from_path(file_path: str) -> str:
-	"""Extract filename from a file path."""
+	"""Extract filename from a file path.
+
+	Examples:
+		>>> get_filename_from_path('unet/model.safetensors')
+		'model.safetensors'
+		>>> get_filename_from_path('model.safetensors')
+		'model.safetensors'
+		>>> get_filename_from_path('a/b/c/model.bin')
+		'model.bin'
+	"""
 	return PurePosixPath(file_path).name
 
 
