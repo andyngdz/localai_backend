@@ -1,6 +1,8 @@
 import platform
+from typing import Optional
 
 import torch
+from torch._C import _CudaDeviceProperties
 
 from app.services.logger import logger_service
 
@@ -47,7 +49,7 @@ class DeviceService:
 
 		return 'cpu'
 
-	def get_device_properties(self, index: int):
+	def get_device_properties(self, index: int) -> Optional[_CudaDeviceProperties]:
 		if self.is_cuda:
 			try:
 				return torch.cuda.get_device_properties(index)
@@ -55,7 +57,6 @@ class DeviceService:
 				logger.error(f'Failed to get CUDA device properties for index {index}: {error}')
 				return None
 
-		# MPS and CPU don't have device properties like CUDA
 		return None
 
 	def get_gpu_memory_gb(self, index: int) -> float | None:
@@ -76,7 +77,7 @@ class DeviceService:
 
 		props = self.get_device_properties(index)
 		if props:
-			return props.total_memory / (1024**3)
+			return float(props.total_memory) / (1024**3)
 
 		return None
 

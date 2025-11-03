@@ -12,7 +12,7 @@ from requests import Session
 def mock_service():
 	"""Create DownloadService with mocked dependencies."""
 	with (
-		patch('app.features.downloads.services.HfApi') as mock_api,
+		patch('app.features.downloads.repository.HfApi') as mock_api,
 		patch('app.features.downloads.services.model_service') as mock_model_service,
 		patch('app.features.downloads.services.storage_service') as mock_storage_service,
 	):
@@ -21,8 +21,8 @@ def mock_service():
 		from app.features.downloads.services import DownloadService
 
 		service = DownloadService()
-		service.api = mock_api
-		service.session = MagicMock(spec=Session)
+		service.repository.api = mock_api
+		service.file_downloader.session = MagicMock(spec=Session)
 
 		yield service, mock_model_service, mock_storage_service
 
@@ -40,10 +40,11 @@ def mock_progress():
 
 
 class TestDownloadServiceInit:
-	def test_creates_executor_and_api(self, mock_service):
+	def test_creates_executor_and_modules(self, mock_service):
 		service, _, _ = mock_service
 		assert service.executor is not None
-		assert hasattr(service, 'api')
+		assert hasattr(service, 'repository')
+		assert hasattr(service, 'file_downloader')
 
 
 class TestDownloadServiceStart:
@@ -76,9 +77,9 @@ class TestDownloadModelValidation:
 class TestDownloadModel:
 	def test_returns_none_when_no_files_to_download(self, mock_service, monkeypatch):
 		service, _, _ = mock_service
-		service.api.repo_info.return_value = SimpleNamespace(sha='main', siblings=[])
-		monkeypatch.setattr(service, 'get_components', lambda *args, **kwargs: [])
-		monkeypatch.setattr(service, 'list_files', lambda *args, **kwargs: [])
+		service.repository.api.repo_info.return_value = SimpleNamespace(sha='main', siblings=[])
+		monkeypatch.setattr(service.repository, 'get_components', lambda *args, **kwargs: [])
+		monkeypatch.setattr(service.repository, 'list_files', lambda *args, **kwargs: [])
 
 		result = service.download_model('test/repo', Mock())
 
@@ -92,11 +93,11 @@ class TestDownloadModel:
 		model_index = tmp_path / 'model_index.json'
 		model_index.write_text(json.dumps({'unet': ['cfg']}))
 
-		service.api.repo_info.return_value = SimpleNamespace(
+		service.repository.api.repo_info.return_value = SimpleNamespace(
 			sha='main', siblings=[SimpleNamespace(rfilename='unet/model.bin', size=10)]
 		)
-		monkeypatch.setattr(service, 'get_components', lambda *args, **kwargs: ['unet'])
-		monkeypatch.setattr(service, 'list_files', lambda *args, **kwargs: ['unet/model.bin'])
+		monkeypatch.setattr(service.repository, 'get_components', lambda *args, **kwargs: ['unet'])
+		monkeypatch.setattr(service.repository, 'list_files', lambda *args, **kwargs: ['unet/model.bin'])
 
 		def fake_download(**kwargs):
 			path = tmp_path / 'snapshots' / 'main' / kwargs['filename']
@@ -104,11 +105,11 @@ class TestDownloadModel:
 			path.write_bytes(b'test')
 			return str(path)
 
-		monkeypatch.setattr(service, 'download_file', fake_download)
+		monkeypatch.setattr(service.file_downloader, 'download_file', fake_download)
 
 		with (
 			patch('app.features.downloads.services.logger') as mock_logger,
-			patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)),
+			patch('app.features.downloads.repository.hf_hub_download', return_value=str(model_index)),
 		):
 			result = service.download_model('test/repo', Mock())
 			assert result is not None
@@ -121,17 +122,17 @@ class TestDownloadModel:
 		model_index = tmp_path / 'model_index.json'
 		model_index.write_text(json.dumps({'unet': ['cfg']}))
 
-		service.api.repo_info.return_value = SimpleNamespace(
+		service.repository.api.repo_info.return_value = SimpleNamespace(
 			sha='main', siblings=[SimpleNamespace(rfilename='unet/model.bin', size=10)]
 		)
-		monkeypatch.setattr(service, 'get_components', lambda *args, **kwargs: ['unet'])
-		monkeypatch.setattr(service, 'list_files', lambda *args, **kwargs: ['unet/model.bin'])
-		monkeypatch.setattr(service, 'download_file', Mock(side_effect=ConnectionError('Failed')))
+		monkeypatch.setattr(service.repository, 'get_components', lambda *args, **kwargs: ['unet'])
+		monkeypatch.setattr(service.repository, 'list_files', lambda *args, **kwargs: ['unet/model.bin'])
+		monkeypatch.setattr(service.file_downloader, 'download_file', Mock(side_effect=ConnectionError('Failed')))
 
 		mock_progress = Mock()
 		with (
 			patch('app.features.downloads.services.DownloadTqdm', return_value=mock_progress),
-			patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)),
+			patch('app.features.downloads.repository.hf_hub_download', return_value=str(model_index)),
 		):
 			with pytest.raises(ConnectionError):
 				service.download_model('test/repo', Mock())
@@ -143,58 +144,104 @@ class TestGetIgnoreComponents:
 	@pytest.mark.parametrize(
 		'files,scopes,expected',
 		[
-			(['unet/model.bin', 'unet/model.safetensors', 'vae/model.bin'], ['unet/*', 'vae/*'], ['unet/model.bin']),
-			(['unet/model.bin', 'vae/model.bin'], ['unet/*', 'vae/*'], []),
+			# Test: Standard safetensors exists → filter .bin duplicates
+			(
+				['unet/model.safetensors', 'unet/model.bin'],
+				['unet/*'],
+				['unet/model.bin'],
+			),
+			# Test: Standard safetensors exists → filter ALL variants
+			(
+				['unet/model.safetensors', 'unet/model.fp16.safetensors', 'unet/model.non_ema.safetensors'],
+				['unet/*'],
+				['unet/model.fp16.safetensors', 'unet/model.non_ema.safetensors'],
+			),
+			# Test: No standard safetensors → keep .bin, filter fp16 variant
+			(
+				['unet/model.bin', 'unet/model.fp16.bin'],
+				['unet/*'],
+				['unet/model.fp16.bin'],
+			),
+			# Test: Realistic SD 1.5 scenario
+			(
+				[
+					'unet/diffusion_pytorch_model.safetensors',
+					'unet/diffusion_pytorch_model.bin',
+					'unet/diffusion_pytorch_model.fp16.safetensors',
+					'unet/diffusion_pytorch_model.non_ema.safetensors',
+				],
+				['unet/*'],
+				[
+					'unet/diffusion_pytorch_model.bin',
+					'unet/diffusion_pytorch_model.fp16.safetensors',
+					'unet/diffusion_pytorch_model.non_ema.safetensors',
+				],
+			),
+			# Test: Empty files
 			([], ['unet/*'], []),
-			(['out_of_scope/model.bin', 'out_of_scope/model.safetensors'], ['unet/*'], []),
+			# Test: Files outside scope are not affected
+			(['out_of_scope/model.non_ema.safetensors'], ['unet/*'], []),
 		],
 	)
-	def test_filters_bin_files_correctly(self, mock_service, files, scopes, expected):
-		service, _, _ = mock_service
-		result = service.get_ignore_components(files, scopes)
-		assert result == expected
+	def test_filters_bloat_files_correctly(self, files, scopes, expected):
+		from app.features.downloads.filters import get_ignore_components
+
+		result = get_ignore_components(files, scopes)
+		assert sorted(result) == sorted(expected)
 
 
 class TestListFiles:
-	def test_returns_filenames_from_siblings(self, mock_service):
-		service, _, _ = mock_service
-		service.api.repo_info.return_value = SimpleNamespace(
+	def test_returns_filenames_from_siblings(self):
+		from app.features.downloads.repository import HuggingFaceRepository
+
+		repository = HuggingFaceRepository()
+		repository.api = Mock()
+		repository.api.repo_info.return_value = SimpleNamespace(
 			siblings=[
 				SimpleNamespace(rfilename='a.txt'),
 				SimpleNamespace(rfilename='b/c.bin'),
 			]
 		)
 
-		result = service.list_files('test/repo')
+		result = repository.list_files('test/repo')
 
 		assert result == ['a.txt', 'b/c.bin']
 
-	def test_handles_empty_siblings(self, mock_service):
-		service, _, _ = mock_service
-		service.api.repo_info.return_value = SimpleNamespace(siblings=[])
+	def test_handles_empty_siblings(self):
+		from app.features.downloads.repository import HuggingFaceRepository
 
-		result = service.list_files('test/repo')
+		repository = HuggingFaceRepository()
+		repository.api = Mock()
+		repository.api.repo_info.return_value = SimpleNamespace(siblings=[])
+
+		result = repository.list_files('test/repo')
 
 		assert result == []
 
 
 class TestGetFileSizesMap:
-	def test_returns_size_dict(self, mock_service):
-		service, _, _ = mock_service
-		service.api.repo_info.return_value = SimpleNamespace(
+	def test_returns_size_dict(self):
+		from app.features.downloads.repository import HuggingFaceRepository
+
+		repository = HuggingFaceRepository()
+		repository.api = Mock()
+		repository.api.repo_info.return_value = SimpleNamespace(
 			siblings=[
 				SimpleNamespace(rfilename='file1.bin', size=100),
 				SimpleNamespace(rfilename='file2.bin', size=200),
 			]
 		)
 
-		result = service.get_file_sizes_map('test/repo')
+		result = repository.get_file_sizes_map('test/repo')
 
 		assert result == {'file1.bin': 100, 'file2.bin': 200}
 
-	def test_handles_missing_size_attribute(self, mock_service):
-		service, _, _ = mock_service
-		service.api.repo_info.return_value = SimpleNamespace(
+	def test_handles_missing_size_attribute(self):
+		from app.features.downloads.repository import HuggingFaceRepository
+
+		repository = HuggingFaceRepository()
+		repository.api = Mock()
+		repository.api.repo_info.return_value = SimpleNamespace(
 			siblings=[
 				SimpleNamespace(rfilename='file1.bin', size=100),
 				SimpleNamespace(rfilename='file2.bin'),
@@ -202,14 +249,16 @@ class TestGetFileSizesMap:
 			]
 		)
 
-		result = service.get_file_sizes_map('test/repo')
+		result = repository.get_file_sizes_map('test/repo')
 
 		assert result == {'file1.bin': 100, 'file2.bin': 0, 'file3.bin': 0}
 
 
 class TestGetComponents:
-	def test_parses_model_index_json(self, mock_service, tmp_path):
-		service, _, _ = mock_service
+	def test_parses_model_index_json(self, tmp_path):
+		from app.features.downloads.repository import HuggingFaceRepository
+
+		repository = HuggingFaceRepository()
 		model_index = tmp_path / 'model_index.json'
 		model_index.write_text(
 			json.dumps(
@@ -221,19 +270,21 @@ class TestGetComponents:
 			)
 		)
 
-		with patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)):
-			result = service.get_components('test/repo')
+		with patch('app.features.downloads.repository.hf_hub_download', return_value=str(model_index)):
+			result = repository.get_components('test/repo')
 
 		assert result == ['unet']
 
-	def test_handles_malformed_json(self, mock_service, tmp_path):
-		service, _, _ = mock_service
+	def test_handles_malformed_json(self, tmp_path):
+		from app.features.downloads.repository import HuggingFaceRepository
+
+		repository = HuggingFaceRepository()
 		model_index = tmp_path / 'model_index.json'
 		model_index.write_text('invalid json')
 
-		with patch('app.features.downloads.services.hf_hub_download', return_value=str(model_index)):
+		with patch('app.features.downloads.repository.hf_hub_download', return_value=str(model_index)):
 			with pytest.raises(json.JSONDecodeError):
-				service.get_components('test/repo')
+				repository.get_components('test/repo')
 
 
 class TestAuthHeaders:
@@ -244,22 +295,26 @@ class TestAuthHeaders:
 			('test-token-123', {'Authorization': 'Bearer test-token-123'}),
 		],
 	)
-	def test_builds_headers_correctly(self, mock_service, token, expected):
-		service, _, _ = mock_service
-		result = service.auth_headers(token)
+	def test_builds_headers_correctly(self, token, expected):
+		from app.features.downloads.file_downloader import FileDownloader
+
+		downloader = FileDownloader()
+		result = downloader.auth_headers(token)
 		assert result == expected
 
 
 class TestDownloadFile:
-	def test_skips_when_file_exists(self, mock_service, mock_progress, tmp_path):
-		service, _, _ = mock_service
+	def test_skips_when_file_exists(self, mock_progress, tmp_path):
+		from app.features.downloads.file_downloader import FileDownloader
+
+		downloader = FileDownloader()
 		snapshot_dir = tmp_path / 'snapshots'
 		snapshot_dir.mkdir()
 		existing = snapshot_dir / 'model.bin'
 		existing.write_bytes(b'existing')
 
-		with patch('app.features.downloads.services.logger'):
-			result = service.download_file(
+		with patch('app.features.downloads.file_downloader.logger'):
+			result = downloader.download_file(
 				repo_id='test/repo',
 				filename='model.bin',
 				revision='main',
@@ -273,8 +328,11 @@ class TestDownloadFile:
 		mock_progress.set_file_size.assert_called_once_with(0, 8)
 		mock_progress.update_bytes.assert_not_called()
 
-	def test_removes_zero_size_files(self, mock_service, mock_progress, tmp_path):
-		service, _, _ = mock_service
+	def test_removes_zero_size_files(self, mock_progress, tmp_path):
+		from app.features.downloads.file_downloader import FileDownloader
+
+		downloader = FileDownloader()
+		downloader.session = MagicMock(spec=requests.Session)
 		snapshot_dir = tmp_path / 'snapshots'
 		snapshot_dir.mkdir()
 		zero_file = snapshot_dir / 'model.bin'
@@ -286,8 +344,8 @@ class TestDownloadFile:
 		mock_response.__enter__ = lambda self: mock_response
 		mock_response.__exit__ = lambda *args: None
 
-		service.session.get.return_value = mock_response
-		result = service.download_file(
+		downloader.session.get.return_value = mock_response
+		result = downloader.download_file(
 			repo_id='test/repo',
 			filename='model.bin',
 			revision='main',
@@ -299,8 +357,11 @@ class TestDownloadFile:
 
 		assert Path(result).read_bytes() == b'hello'
 
-	def test_downloads_successfully(self, mock_service, mock_progress, tmp_path):
-		service, _, _ = mock_service
+	def test_downloads_successfully(self, mock_progress, tmp_path):
+		from app.features.downloads.file_downloader import FileDownloader
+
+		downloader = FileDownloader()
+		downloader.session = MagicMock(spec=requests.Session)
 		snapshot_dir = tmp_path / 'snapshots'
 		snapshot_dir.mkdir()
 
@@ -310,8 +371,8 @@ class TestDownloadFile:
 		mock_response.__enter__ = lambda self: mock_response
 		mock_response.__exit__ = lambda *args: None
 
-		service.session.get.return_value = mock_response
-		result = service.download_file(
+		downloader.session.get.return_value = mock_response
+		result = downloader.download_file(
 			repo_id='test/repo',
 			filename='model.bin',
 			revision='main',
@@ -324,8 +385,11 @@ class TestDownloadFile:
 		assert Path(result).read_bytes() == b'helloworld'
 		assert mock_progress.update_bytes.call_count == 2
 
-	def test_cleans_up_part_file_on_error(self, mock_service, mock_progress, tmp_path):
-		service, _, _ = mock_service
+	def test_cleans_up_part_file_on_error(self, mock_progress, tmp_path):
+		from app.features.downloads.file_downloader import FileDownloader
+
+		downloader = FileDownloader()
+		downloader.session = MagicMock(spec=requests.Session)
 		snapshot_dir = tmp_path / 'snapshots'
 		snapshot_dir.mkdir()
 
@@ -335,9 +399,9 @@ class TestDownloadFile:
 		mock_response.__enter__ = lambda self: mock_response
 		mock_response.__exit__ = lambda *args: None
 
-		service.session.get.return_value = mock_response
+		downloader.session.get.return_value = mock_response
 		with pytest.raises(ConnectionError):
-			service.download_file(
+			downloader.download_file(
 				repo_id='test/repo',
 				filename='model.bin',
 				revision='main',
@@ -351,13 +415,16 @@ class TestDownloadFile:
 
 
 class TestFetchRemoteFileSize:
-	def test_returns_content_length(self, mock_service):
-		service, _, _ = mock_service
+	def test_returns_content_length(self):
+		from app.features.downloads.file_downloader import FileDownloader
+
+		downloader = FileDownloader()
+		downloader.session = MagicMock(spec=requests.Session)
 		mock_response = Mock()
 		mock_response.headers.get.return_value = '12345'
 
-		service.session.head.return_value = mock_response
-		size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
+		downloader.session.head.return_value = mock_response
+		size = downloader.fetch_remote_file_size('test/repo', 'model.bin', 'main')
 
 		assert size == 12345
 
@@ -369,20 +436,26 @@ class TestFetchRemoteFileSize:
 			('-100', 0),
 		],
 	)
-	def test_handles_invalid_content_length(self, mock_service, header_value, expected):
-		service, _, _ = mock_service
+	def test_handles_invalid_content_length(self, header_value, expected):
+		from app.features.downloads.file_downloader import FileDownloader
+
+		downloader = FileDownloader()
+		downloader.session = MagicMock(spec=requests.Session)
 		mock_response = Mock()
 		mock_response.headers.get.return_value = header_value
 
-		service.session.head.return_value = mock_response
-		size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
+		downloader.session.head.return_value = mock_response
+		size = downloader.fetch_remote_file_size('test/repo', 'model.bin', 'main')
 
 		assert size == expected
 
-	def test_handles_http_error(self, mock_service):
-		service, _, _ = mock_service
+	def test_handles_http_error(self):
+		from app.features.downloads.file_downloader import FileDownloader
 
-		service.session.head.side_effect = requests.RequestException('HTTP 404')
-		size = service.fetch_remote_file_size('test/repo', 'model.bin', 'main')
+		downloader = FileDownloader()
+		downloader.session = MagicMock(spec=requests.Session)
+
+		downloader.session.head.side_effect = requests.RequestException('HTTP 404')
+		size = downloader.fetch_remote_file_size('test/repo', 'model.bin', 'main')
 
 		assert size == 0

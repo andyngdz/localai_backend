@@ -325,7 +325,7 @@ def test_model_loader_environment_error_fallback_success(mock_dependencies, capl
 	model_loader = mock_dependencies['model_loader']
 
 	# First call raises EnvironmentError, second returns pipe (fallback to strategy 2)
-	call_sequence: list[MagicMock | Exception] = [EnvironmentError('variant not available'), mock_pipe]
+	call_sequence: list[MagicMock | Exception] = [EnvironmentError('safetensors not available'), mock_pipe]
 
 	def side_effect(*args, **kwargs):
 		result = call_sequence.pop(0)
@@ -341,10 +341,11 @@ def test_model_loader_environment_error_fallback_success(mock_dependencies, capl
 	# Assert
 	assert result is mock_pipe
 	assert mock_auto_pipeline.from_pretrained.call_count == 2
-	# Verify the second call used use_safetensors=True (strategy 2 after strategy 1 fails)
+	# Verify the second call used use_safetensors=False (strategy 2 is .bin fallback)
+	# With reordered strategies: Strategy 1 = standard safetensors, Strategy 2 = standard bin
 	_, second_kwargs = mock_auto_pipeline.from_pretrained.call_args
-	assert second_kwargs.get('use_safetensors') is True
-	# Strategy 2 should not have 'variant' parameter
+	assert second_kwargs.get('use_safetensors') is False
+	# Strategy 2 should not have 'variant' parameter (it's standard .bin)
 	assert 'variant' not in second_kwargs
 	mock_socket_service.model_load_completed.assert_called_once()
 
