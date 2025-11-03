@@ -1,21 +1,21 @@
 import asyncio
 import fnmatch
-import json
 import os
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import requests
-from huggingface_hub import HfApi, hf_hub_download, hf_hub_url
-from requests.adapters import HTTPAdapter
+from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 
 from app.services import logger_service
 from app.services.models import model_service
 from app.services.storage import storage_service
 
+from .file_downloader import FileDownloader
+from .filters import get_ignore_components
 from .progress import DownloadProgress
+from .repository import HuggingFaceRepository
 
 # Backwards compatibility for tests stubbing the old symbol.
 DownloadTqdm = DownloadProgress
@@ -26,8 +26,6 @@ logger = logger_service.get_logger(__name__, category='Download')
 class DownloadService:
 	"""Service responsible for downloading models and emitting socket progress."""
 
-	CHUNK_SIZE = 4 * 1024 * 1024
-
 	def __init__(
 		self,
 		api: Optional[HfApi] = None,
@@ -35,28 +33,8 @@ class DownloadService:
 		session: Optional[requests.Session] = None,
 	):
 		self.executor = executor or ThreadPoolExecutor()
-		self._api: Optional[HfApi] = api
-		self.session = session or self._build_session()
-
-	@property
-	def api(self) -> HfApi:
-		if self._api is None:
-			self._api = HfApi()
-		return self._api
-
-	@api.setter
-	def api(self, value: HfApi) -> None:
-		self._api = value
-
-	def _build_session(self) -> requests.Session:
-		session = requests.Session()
-		adapter = HTTPAdapter(
-			pool_connections=10,
-			pool_maxsize=20,
-			max_retries=3,
-		)
-		session.mount('https://', adapter)
-		return session
+		self.repository = HuggingFaceRepository(api=api)
+		self.file_downloader = FileDownloader(session=session)
 
 	async def start(self, id: str, db: Session):
 		loop = asyncio.get_event_loop()
@@ -68,29 +46,29 @@ class DownloadService:
 		if not id or not id.strip():
 			raise ValueError('Model ID cannot be empty')
 
-		repo_info = self.api.repo_info(id)
+		repo_info = self.repository.api.repo_info(id)
 		revision = getattr(repo_info, 'sha', 'main')
 		# Build the list of candidate files and initial size map up-front so byte totals remain monotonic.
-		components = self.get_components(id, revision=revision)
-		components_scopes = [f'{c}/*' for c in components]
-		files = self.list_files(id, repo_info=repo_info)
-		ignore_components = self.get_ignore_components(files, components_scopes)
-		file_sizes_map = self.get_file_sizes_map(id, repo_info=repo_info)
+		components = self.repository.get_components(id, revision=revision)
+		components_scopes = [f'{component}/*' for component in components]
+		files = self.repository.list_files(id, repo_info=repo_info)
+		ignore_components = get_ignore_components(files, components_scopes)
+		file_sizes_map = self.repository.get_file_sizes_map(id, repo_info=repo_info)
 
 		files_to_download = [
-			f
-			for f in files
-			if (f == 'model_index.json' or any(fnmatch.fnmatch(f, p) for p in components_scopes))
-			and f not in ignore_components
+			file_path
+			for file_path in files
+			if (file_path == 'model_index.json' or any(fnmatch.fnmatch(file_path, scope) for scope in components_scopes))
+			and file_path not in ignore_components
 		]
 
-		files_to_download.sort(key=lambda f: (f != 'model_index.json', f))
+		files_to_download.sort(key=lambda file_path: (file_path != 'model_index.json', file_path))
 		# Ensure every file has deterministic size before streaming; fall back to HEAD if missing.
 		file_sizes: List[int] = []
 		for filename in files_to_download:
 			size = file_sizes_map.get(filename, 0)
 			if size <= 0:
-				size = self.fetch_remote_file_size(id, filename, revision=revision)
+				size = self.file_downloader.fetch_remote_file_size(id, filename, revision=revision)
 				file_sizes_map[filename] = size
 			file_sizes.append(size)
 
@@ -115,10 +93,9 @@ class DownloadService:
 
 		try:
 			for index, filename in enumerate(files_to_download):
-				# Emit a start event so the client can show which file is currently in-flight.
 				progress.start_file(filename)
 				logger.info('Downloading %s (%s/%s)', filename, index + 1, total)
-				local_path = self.download_file(
+				local_path = self.file_downloader.download_file(
 					repo_id=id,
 					filename=filename,
 					revision=revision,
@@ -147,208 +124,6 @@ class DownloadService:
 				logger.error(f'Failed to save model {id} to database: {error}')
 
 		return local_dir
-
-	def get_ignore_components(self, files: List[str], scopes: List[str]):
-		"""
-		Return files that should be ignored to avoid downloading bloat.
-
-		Strategy:
-		1. Keep only STANDARD .safetensors files (not fp16/non_ema/ema_only)
-		2. Filter duplicate .bin files (when standard .safetensors exists in same directory)
-		3. Filter all variants (fp16, non_ema, ema_only)
-
-		This reduces download size from ~10-15 GB to ~4.3 GB for typical models.
-
-		Example:
-			- "unet/diffusion_pytorch_model.safetensors" → kept (standard)
-			- "unet/diffusion_pytorch_model.bin" → ignored (duplicate of .safetensors)
-			- "unet/diffusion_pytorch_model.fp16.safetensors" → ignored (variant)
-			- "unet/diffusion_pytorch_model.non_ema.safetensors" → ignored (training artifact)
-		"""
-		# Filter files that are inside the provided scopes (e.g. "unet/*", "vae/*")
-		in_scope = [f for f in files if any(fnmatch.fnmatch(f, p) for p in scopes)]
-
-		ignored = []
-
-		# Find directories that have STANDARD .safetensors (not fp16/non_ema/ema_only)
-		dirs_with_standard_safetensors = set()
-		for f in in_scope:
-			if f.endswith('.safetensors'):
-				directory = f.rsplit('/', 1)[0] if '/' in f else ''
-				if directory:
-					filename = f.split('/')[-1]
-					# Check if it's STANDARD (not a variant)
-					if not any(variant in filename for variant in ['fp16', 'non_ema', 'ema_only']):
-						dirs_with_standard_safetensors.add(directory)
-
-		# Filter ALL .bin files in directories that have standard .safetensors
-		for f in in_scope:
-			if f.endswith('.bin'):
-				directory = f.rsplit('/', 1)[0] if '/' in f else ''
-				if directory in dirs_with_standard_safetensors:
-					ignored.append(f)
-
-		# Filter ALL variants (fp16, non_ema, ema_only) - both .bin and .safetensors
-		for f in in_scope:
-			if f not in ignored:  # Don't add twice
-				filename = f.split('/')[-1]
-				if any(variant in filename for variant in ['fp16', 'non_ema', 'ema_only']):
-					ignored.append(f)
-
-		return ignored
-
-	def list_files(self, id: str, repo_info: Optional[Any] = None) -> List[str]:
-		info = repo_info or self.api.repo_info(id)
-
-		if not info.siblings:
-			return []
-
-		return [s.rfilename for s in info.siblings]
-
-	def get_file_sizes_map(self, id: str, repo_info: Optional[Any] = None) -> Dict[str, int]:
-		info = repo_info or self.api.repo_info(id)
-
-		if not info.siblings:
-			return {}
-
-		return {s.rfilename: getattr(s, 'size', 0) or 0 for s in info.siblings}
-
-	def get_components(self, id: str, revision: Optional[str] = None):
-		model_index = hf_hub_download(
-			repo_id=id,
-			filename='model_index.json',
-			repo_type='model',
-			revision=revision,
-		)
-
-		with open(model_index, 'r', encoding='utf-8') as f:
-			data = json.load(f)
-
-		components = []
-
-		for key, val in data.items():
-			if isinstance(val, list) and val[0] is not None:
-				components.append(key)
-
-		return components
-
-	def auth_headers(self, token: Optional[str] = None) -> Dict[str, str]:
-		"""Build authorization headers for HuggingFace API requests."""
-		headers = {}
-		if token:
-			headers['Authorization'] = f'Bearer {token}'
-		return headers
-
-	def download_file(
-		self,
-		repo_id: str,
-		filename: str,
-		revision: str,
-		snapshot_dir: str,
-		file_index: int,
-		progress: DownloadTqdm,
-		file_size: Optional[int] = None,
-		token: Optional[str] = None,
-	):
-		"""
-		Download a single file from HuggingFace Hub with streaming and progress tracking.
-
-		Args:
-			repo_id: HuggingFace repository ID
-			filename: Relative path of file within repository (validated for path traversal)
-			revision: Git revision/commit hash
-			snapshot_dir: Local directory to store downloaded files
-			file_index: Zero-based index in progress.file_sizes list (must align with file order)
-			progress: Progress tracker for websocket updates
-			file_size: Expected size for the file (used to seed progress totals)
-			token: Optional HuggingFace authentication token
-
-		Returns:
-			str: Absolute path to the downloaded file
-
-		Side Effects:
-			- Creates snapshot_dir and parent directories if needed
-			- Skips download if file already exists with matching size
-			- Downloads to temporary .part file, then atomically renames on success
-			- Updates progress.set_file_size() with actual Content-Length
-			- Calls progress.update_bytes() for each downloaded chunk
-			- Cleans up .part file on error
-		"""
-		snapshot_path = Path(snapshot_dir)
-		local_path = snapshot_path / filename
-
-		# Create directories with validated paths
-		os.makedirs(snapshot_path, exist_ok=True)
-		os.makedirs(local_path.parent, exist_ok=True)
-
-		# Convert Path to string for os.path operations
-		local_path_str = str(local_path)
-
-		if os.path.exists(local_path_str):
-			actual_size = os.path.getsize(local_path_str)
-			if actual_size > 0:
-				progress.set_file_size(file_index, actual_size)
-				logger.debug('Skipping download for %s; already complete', filename)
-				return local_path_str
-			os.remove(local_path_str)
-
-		temp_path = f'{local_path_str}.part'
-		if os.path.exists(temp_path):
-			os.remove(temp_path)
-
-		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
-		headers = self.auth_headers(token)
-
-		try:
-			with self.session.get(url, stream=True, headers=headers, timeout=60) as response:
-				response.raise_for_status()
-				target_size = file_size
-				content_length = response.headers.get('Content-Length')
-				if content_length:
-					try:
-						target_size = int(content_length)
-					except (TypeError, ValueError):
-						target_size = file_size
-				if target_size and target_size > 0:
-					progress.set_file_size(file_index, target_size)
-
-				with open(temp_path, 'wb') as dest:
-					for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
-						if not chunk:
-							continue
-						dest.write(chunk)
-						# Emit partial progress as bytes accumulate for the current file.
-						progress.update_bytes(len(chunk))
-
-			os.replace(temp_path, local_path_str)
-			final_size = os.path.getsize(local_path_str)
-			progress.set_file_size(file_index, final_size)
-			return local_path_str
-		finally:
-			if os.path.exists(temp_path):
-				os.remove(temp_path)
-
-	def fetch_remote_file_size(
-		self,
-		repo_id: str,
-		filename: str,
-		revision: str,
-		token: Optional[str] = None,
-	) -> int:
-		"""Best-effort size lookup for repositories that do not publish sibling metadata."""
-		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
-		headers = self.auth_headers(token)
-
-		try:
-			response = self.session.head(url, headers=headers, timeout=30, allow_redirects=True)
-			response.raise_for_status()
-			content_length = response.headers.get('Content-Length')
-			if not content_length:
-				return 0
-			return max(int(content_length), 0)
-		except (requests.RequestException, ValueError) as error:
-			logger.debug('Unable to determine size for %s: %s', filename, error)
-			return 0
 
 
 download_service = DownloadService()
