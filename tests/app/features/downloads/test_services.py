@@ -156,11 +156,40 @@ class TestGetIgnoreComponents:
 				['unet/*'],
 				['unet/model.fp16.safetensors', 'unet/model.non_ema.safetensors'],
 			),
-			# Test: No standard safetensors → keep .bin, filter fp16 variant
+			# Test: No standard safetensors → keep .bin, keep fp16 variant (no standard to prefer)
 			(
 				['unet/model.bin', 'unet/model.fp16.bin'],
 				['unet/*'],
-				['unet/model.fp16.bin'],
+				[],
+			),
+			# Test: Only fp16 safetensors (no standard) → Keep fp16
+			(
+				['unet/model.fp16.safetensors'],
+				['unet/*'],
+				[],
+			),
+			# Test: Only non_ema safetensors (no standard) → Keep non_ema
+			(
+				['unet/model.non_ema.safetensors'],
+				['unet/*'],
+				[],
+			),
+			# Test: Only ema_only safetensors (no standard) → Keep ema_only
+			(
+				['unet/model.ema_only.safetensors'],
+				['unet/*'],
+				[],
+			),
+			# Test: Realistic Juggernaut-XL-v9 scenario (fp16-only across multiple components)
+			(
+				[
+					'text_encoder/model.fp16.safetensors',
+					'text_encoder_2/model.fp16.safetensors',
+					'unet/diffusion_pytorch_model.fp16.safetensors',
+					'vae/diffusion_pytorch_model.fp16.safetensors',
+				],
+				['text_encoder/*', 'text_encoder_2/*', 'unet/*', 'vae/*'],
+				[],
 			),
 			# Test: Realistic SD 1.5 scenario
 			(

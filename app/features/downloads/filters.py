@@ -37,17 +37,20 @@ def get_ignore_components(files: List[str], scopes: List[str]) -> List[str]:
 	Return files that should be ignored to avoid downloading bloat.
 
 	Strategy:
-	1. Keep only STANDARD .safetensors files (not fp16/non_ema/ema_only)
+	1. Identify directories with STANDARD .safetensors files (not fp16/non_ema/ema_only)
 	2. Filter duplicate .bin files (when standard .safetensors exists in same directory)
-	3. Filter all variants (fp16, non_ema, ema_only)
+	3. Filter variants (fp16, non_ema, ema_only) ONLY if standard exists in same directory
 
-	This reduces download size from ~10-15 GB to ~4.3 GB for typical models.
+	This reduces download size from ~10-15 GB to ~4.3 GB for typical models while
+	preserving fp16-only models like RunDiffusion/Juggernaut-XL-v9.
 
-	Example:
+	Example with standard files:
 		- "unet/diffusion_pytorch_model.safetensors" → kept (standard)
 		- "unet/diffusion_pytorch_model.bin" → ignored (duplicate of .safetensors)
-		- "unet/diffusion_pytorch_model.fp16.safetensors" → ignored (variant)
-		- "unet/diffusion_pytorch_model.non_ema.safetensors" → ignored (training artifact)
+		- "unet/diffusion_pytorch_model.fp16.safetensors" → ignored (variant with standard)
+
+	Example with fp16-only files:
+		- "unet/diffusion_pytorch_model.fp16.safetensors" → kept (only available file)
 	"""
 	in_scope = [file_path for file_path in files if any(fnmatch.fnmatch(file_path, scope) for scope in scopes)]
 
@@ -72,6 +75,9 @@ def get_ignore_components(files: List[str], scopes: List[str]) -> List[str]:
 		if file_path not in ignored:
 			filename = get_filename_from_path(file_path)
 			if any(variant in filename for variant in ['fp16', 'non_ema', 'ema_only']):
-				ignored.append(file_path)
+				directory = get_directory_from_path(file_path)
+				# Only filter variants if standard file exists in the same directory
+				if directory in dirs_with_standard_safetensors:
+					ignored.append(file_path)
 
 	return ignored
