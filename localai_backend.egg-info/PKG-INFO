@@ -104,6 +104,7 @@ Requires-Dist: regex==2025.7.34
 Requires-Dist: requests==2.32.5
 Requires-Dist: roman-numerals-py==3.1.0
 Requires-Dist: safetensors==0.6.2
+Requires-Dist: scipy>=1.16.3
 Requires-Dist: secretstorage==3.3.3
 Requires-Dist: setuptools==80.9.0
 Requires-Dist: simple-websocket==1.1.0
@@ -125,8 +126,10 @@ Requires-Dist: tenacity==9.1.2
 Requires-Dist: thread==2.0.5
 Requires-Dist: tokenizers==0.21.4
 Requires-Dist: torch==2.6.0+cu124
+Requires-Dist: torchsde>=0.2.6
 Requires-Dist: tqdm==4.67.1
 Requires-Dist: traitlets==5.14.3
+Requires-Dist: trampoline>=0.1.2
 Requires-Dist: transformers==4.53.2
 Requires-Dist: triton==3.2.0; sys_platform == "linux"
 Requires-Dist: typing-extensions==4.15.0
