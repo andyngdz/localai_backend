@@ -212,3 +212,35 @@ class TestLoRAAPIEdgeCases:
 
 		# FastAPI validation should catch this
 		assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+	def test_upload_lora_generic_exception(self):
+		"""Test upload handles unexpected exceptions."""
+		with patch('app.features.loras.api.lora_service.upload_lora', side_effect=RuntimeError('Unexpected error')):
+			response = client.post('/loras/upload', json={'file_path': '/source/test.safetensors'})
+
+			assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+			assert response.json()['detail'] == 'Internal server error'
+
+	def test_list_loras_generic_exception(self):
+		"""Test list handles unexpected exceptions."""
+		with patch('app.features.loras.api.lora_service.get_all_loras', side_effect=RuntimeError('DB connection lost')):
+			response = client.get('/loras/')
+
+			assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+			assert response.json()['detail'] == 'Internal server error'
+
+	def test_get_lora_generic_exception(self):
+		"""Test get by ID handles unexpected exceptions."""
+		with patch('app.features.loras.api.lora_service.get_lora_by_id', side_effect=RuntimeError('DB error')):
+			response = client.get('/loras/1')
+
+			assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+			assert response.json()['detail'] == 'Internal server error'
+
+	def test_delete_lora_generic_exception(self):
+		"""Test delete handles unexpected exceptions."""
+		with patch('app.features.loras.api.lora_service.delete_lora', side_effect=RuntimeError('DB error')):
+			response = client.delete('/loras/1')
+
+			assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+			assert response.json()['detail'] == 'Internal server error'

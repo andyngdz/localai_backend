@@ -63,6 +63,49 @@ class TestUploadLoRA:
 			with pytest.raises(IOError, match='Disk full'):
 				await service.upload_lora(mock_db, '/source/test.safetensors')
 
+	def test_upload_lora_duplicate_file_path(self):
+		"""Test upload_lora raises error when LoRA with same file path exists."""
+		mock_db = MagicMock()
+		service = LoRAService()
+
+		existing_lora = LoRA(id=999, name='existing', file_path='/cache/loras/test.safetensors', file_size=102400)
+
+		with (
+			patch('app.features.loras.service.lora_file_manager.validate_file', return_value=(True, '')),
+			patch(
+				'app.features.loras.service.lora_file_manager.copy_file',
+				return_value=('/cache/loras/test.safetensors', 'test.safetensors', 102400),
+			),
+			patch('app.features.loras.service.database_service') as mock_database_service,
+		):
+			mock_database_service.get_lora_by_file_path.return_value = existing_lora
+
+			with pytest.raises(ValueError, match='LoRA already exists with this file path'):
+				service.upload_lora(mock_db, '/source/test.safetensors')
+
+	def test_upload_lora_database_failure_cleans_up_file(self):
+		"""Test upload_lora cleans up copied file when database save fails."""
+		mock_db = MagicMock()
+		service = LoRAService()
+
+		with (
+			patch('app.features.loras.service.lora_file_manager.validate_file', return_value=(True, '')),
+			patch(
+				'app.features.loras.service.lora_file_manager.copy_file',
+				return_value=('/cache/loras/test.safetensors', 'test.safetensors', 102400),
+			),
+			patch('app.features.loras.service.lora_file_manager.delete_file') as mock_delete,
+			patch('app.features.loras.service.database_service') as mock_database_service,
+		):
+			mock_database_service.get_lora_by_file_path.return_value = None
+			mock_database_service.add_lora.side_effect = RuntimeError('Database connection failed')
+
+			with pytest.raises(ValueError, match='Failed to save LoRA to database'):
+				service.upload_lora(mock_db, '/source/test.safetensors')
+
+			# Verify file was cleaned up
+			mock_delete.assert_called_once_with('/cache/loras/test.safetensors')
+
 
 class TestGetAllLoRAs:
 	"""Tests for LoRAService.get_all_loras method."""
