@@ -75,6 +75,12 @@ def sample_config():
 	)
 
 
+@pytest.fixture
+def mock_db():
+	"""Create mock database session."""
+	return Mock()
+
+
 class TestGeneratorServiceInit:
 	def test_creates_executor(self, mock_service):
 		service, *_ = mock_service
@@ -100,15 +106,15 @@ class TestApplyHiresFix:
 
 class TestGenerateImage:
 	@pytest.mark.asyncio
-	async def test_raises_error_when_no_model_loaded(self, mock_service, sample_config):
+	async def test_raises_error_when_no_model_loaded(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, *_ = mock_service
 		mock_model_manager.pipe = None
 
 		with pytest.raises(ValueError, match='No model is currently loaded'):
-			await service.generate_image(sample_config)
+			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_clears_cuda_cache_before_generation_when_cuda_available(self, mock_service, sample_config):
+	async def test_clears_cuda_cache_before_generation_when_cuda_available(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, _, _, mock_memory_manager, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 
@@ -117,8 +123,8 @@ class TestGenerateImage:
 		service.executor.submit = Mock(side_effect=Exception('Stop execution'))
 
 		try:
-			await service.generate_image(sample_config)
-		except:
+			await service.generate_image(sample_config, mock_db)
+		except Exception:
 			pass
 
 		mock_memory_manager.clear_cache.assert_called()
@@ -136,8 +142,8 @@ class TestGenerateImage:
 		service.executor.submit = Mock(side_effect=Exception('Stop'))
 
 		try:
-			await service.generate_image(sample_config)
-		except:
+			await service.generate_image(sample_config, mock_db)
+		except Exception:
 			pass
 
 		mock_memory_manager.validate_batch_size.assert_called_once_with(4, 512, 512)
@@ -153,14 +159,14 @@ class TestGenerateImage:
 		service.executor.submit = Mock(side_effect=Exception('Stop'))
 
 		try:
-			await service.generate_image(sample_config)
-		except:
+			await service.generate_image(sample_config, mock_db)
+		except Exception:
 			pass
 
 		# Test passes if no errors occur - batch size validation happens in memory_manager
 
 	@pytest.mark.asyncio
-	async def test_sets_sampler_before_generation(self, mock_service, sample_config):
+	async def test_sets_sampler_before_generation(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 
@@ -168,14 +174,14 @@ class TestGenerateImage:
 		service.executor.submit = Mock(side_effect=Exception('Stop'))
 
 		try:
-			await service.generate_image(sample_config)
-		except:
+			await service.generate_image(sample_config, mock_db)
+		except Exception:
 			pass
 
 		mock_model_manager.set_sampler.assert_called_once_with(SamplerType.EULER_A)
 
 	@pytest.mark.asyncio
-	async def test_applies_styles_via_styles_service(self, mock_service, sample_config):
+	async def test_applies_styles_via_styles_service(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 		mock_styles_service.apply_styles.return_value = ('positive prompt', 'negative prompt')
@@ -186,14 +192,14 @@ class TestGenerateImage:
 		service.executor.submit = Mock(side_effect=Exception('Stop'))
 
 		try:
-			await service.generate_image(sample_config)
-		except:
+			await service.generate_image(sample_config, mock_db)
+		except Exception:
 			pass
 
 		mock_styles_service.apply_styles.assert_called_once_with('test prompt', ['style1', 'style2'])
 
 	@pytest.mark.asyncio
-	async def test_uses_default_negative_prompt_when_none_provided(self, mock_service, sample_config):
+	async def test_uses_default_negative_prompt_when_none_provided(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 		mock_styles_service.apply_styles.return_value = ('positive', None)
@@ -209,15 +215,15 @@ class TestGenerateImage:
 		service.executor.submit = Mock(side_effect=Exception('Stop'))
 
 		try:
-			await service.generate_image(sample_config)
-		except:
+			await service.generate_image(sample_config, mock_db)
+		except Exception:
 			pass
 
 		# Verify styles were applied
 		mock_styles_service.apply_styles.assert_called_once()
 
 	@pytest.mark.asyncio
-	async def test_successful_image_generation(self, mock_service, sample_config):
+	async def test_successful_image_generation(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, _, mock_image_processor, _, _, mock_styles_service, *_ = mock_service
 
 		# Mock the pipe
@@ -234,7 +240,7 @@ class TestGenerateImage:
 		# mock_image_processor.save_image returns ('/static/test.png', 'test')
 		# mock_image_processor.is_nsfw_content_detected returns [False]
 
-		result = await service.generate_image(sample_config)
+		result = await service.generate_image(sample_config, mock_db)
 
 		assert isinstance(result, ImageGenerationResponse)
 		assert len(result.items) == 1
@@ -244,7 +250,7 @@ class TestGenerateImage:
 		assert result.nsfw_content_detected == [False]
 
 	@pytest.mark.asyncio
-	async def test_handles_oom_error_and_clears_cache(self, mock_service, sample_config):
+	async def test_handles_oom_error_and_clears_cache(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, _, _, mock_memory_manager, _, mock_styles_service, *_ = mock_service
 
 		mock_pipe = Mock()
@@ -254,13 +260,13 @@ class TestGenerateImage:
 		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
 
 		with pytest.raises(ValueError, match='Out of memory error'):
-			await service.generate_image(sample_config)
+			await service.generate_image(sample_config, mock_db)
 
 		# Verify cache was cleared in except and finally blocks
 		assert mock_memory_manager.clear_cache.call_count >= 2
 
 	@pytest.mark.asyncio
-	async def test_handles_file_not_found_error(self, mock_service, sample_config):
+	async def test_handles_file_not_found_error(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 
 		mock_pipe = Mock()
@@ -270,10 +276,10 @@ class TestGenerateImage:
 		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
 
 		with pytest.raises(ValueError, match='Model files not found'):
-			await service.generate_image(sample_config)
+			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_handles_general_exception(self, mock_service, sample_config):
+	async def test_handles_general_exception(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 
 		mock_pipe = Mock()
@@ -283,10 +289,10 @@ class TestGenerateImage:
 		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
 
 		with pytest.raises(ValueError, match='Failed to generate image'):
-			await service.generate_image(sample_config)
+			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_clears_cuda_cache_in_finally_block(self, mock_service, sample_config):
+	async def test_clears_cuda_cache_in_finally_block(self, mock_service, sample_config, mock_db):
 		service, mock_model_manager, _, _, mock_memory_manager, _, mock_styles_service, *_ = mock_service
 
 		mock_pipe = Mock()
@@ -296,8 +302,8 @@ class TestGenerateImage:
 		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
 
 		try:
-			await service.generate_image(sample_config)
-		except:
+			await service.generate_image(sample_config, mock_db)
+		except Exception:
 			pass
 
 		# Verify cache was cleared in finally block

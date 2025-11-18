@@ -63,7 +63,7 @@ def get_filename_from_path(file_path: str) -> str:
 
 Fix type errors at their source—never use `# type: ignore` to bypass warnings. When mypy reports an error:
 
-- Define proper types (TypedDict, Pydantic models, Protocol)
+- Define proper types (Pydantic models, Protocol)
 - Use `cast()` with explanatory comments for legitimate type narrowing
 - Add type annotations to function signatures when library stubs are incomplete
 
@@ -73,6 +73,35 @@ Fix type errors at their source—never use `# type: ignore` to bypass warnings.
 - Use TypeVar for generic types
 - Use Protocol for duck-typed interfaces
 - Use proper type annotations even if it requires more work
+
+**Use Pydantic models instead of TypedDict for data structures:**
+
+- Pydantic provides runtime validation
+- Better consistency with the rest of the codebase
+- Clear error messages when validation fails
+- Better IDE support and autocomplete
+
+**Bad example:**
+
+```python
+from typing import TypedDict
+
+class LoRAData(TypedDict):
+    id: int
+    name: str
+    weight: float
+```
+
+**Good example:**
+
+```python
+from pydantic import BaseModel, Field
+
+class LoRAData(BaseModel):
+    id: int = Field(..., description='Database ID')
+    name: str = Field(..., description='Display name')
+    weight: float = Field(..., ge=0.0, le=2.0, description='Weight/strength')
+```
 
 Use public interfaces by default (`lock`, `set_state()`) and reserve underscores for truly private implementation details.
 
