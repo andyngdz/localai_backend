@@ -17,7 +17,7 @@ class TestUploadLoRAEndpoint:
 
 	def test_upload_lora_success(self):
 		"""Test successful LoRA upload via API."""
-		from unittest.mock import AsyncMock
+		from unittest.mock import MagicMock
 
 		mock_lora = LoRA(
 			id=1,
@@ -28,7 +28,7 @@ class TestUploadLoRAEndpoint:
 			file_size=102400,
 		)
 
-		with patch('app.features.loras.api.lora_service.upload_lora', new=AsyncMock(return_value=mock_lora)):
+		with patch('app.features.loras.api.lora_service.upload_lora', new=MagicMock(return_value=mock_lora)):
 			response = client.post('/loras/upload', json={'file_path': '/source/test.safetensors'})
 
 			assert response.status_code == status.HTTP_201_CREATED
@@ -40,10 +40,10 @@ class TestUploadLoRAEndpoint:
 
 	def test_upload_lora_validation_error(self):
 		"""Test upload returns 400 when validation fails."""
-		from unittest.mock import AsyncMock
+		from unittest.mock import MagicMock
 
 		with patch(
-			'app.features.loras.api.lora_service.upload_lora', new=AsyncMock(side_effect=ValueError('File is too large'))
+			'app.features.loras.api.lora_service.upload_lora', new=MagicMock(side_effect=ValueError('File is too large'))
 		):
 			response = client.post('/loras/upload', json={'file_path': '/source/huge.safetensors'})
 
@@ -166,7 +166,7 @@ class TestLoRAAPIEdgeCases:
 
 	def test_upload_lora_with_special_characters(self):
 		"""Test upload handles file paths with special characters."""
-		from unittest.mock import AsyncMock
+		from unittest.mock import MagicMock
 
 		mock_lora = LoRA(
 			id=1,
@@ -177,7 +177,7 @@ class TestLoRAAPIEdgeCases:
 			file_size=50000,
 		)
 
-		with patch('app.features.loras.api.lora_service.upload_lora', new=AsyncMock(return_value=mock_lora)):
+		with patch('app.features.loras.api.lora_service.upload_lora', new=MagicMock(return_value=mock_lora)):
 			response = client.post('/loras/upload', json={'file_path': '/source/special-chars (1).safetensors'})
 
 			assert response.status_code == status.HTTP_201_CREATED

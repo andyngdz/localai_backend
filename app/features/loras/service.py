@@ -15,7 +15,7 @@ logger = logger_service.get_logger(__name__, category='Service')
 class LoRAService:
 	"""Service for managing LoRA operations."""
 
-	async def upload_lora(self, db: Session, file_path: str) -> LoRA:
+	def upload_lora(self, db: Session, file_path: str) -> LoRA:
 		"""Upload a LoRA file from the local filesystem.
 
 		Args:

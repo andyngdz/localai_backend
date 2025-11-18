@@ -2,6 +2,7 @@
 
 from typing import Any, Optional
 
+from app.cores.constants.error_messages import ERROR_NO_MODEL_LOADED
 from app.cores.constants.samplers import DEFAULT_SAMPLE_SIZE
 from app.cores.samplers import SCHEDULER_MAPPING, SamplerType
 from app.schemas.lora import LoRAData
@@ -60,7 +61,7 @@ class PipelineManager:
 			ValueError: If no model is loaded or sampler is unsupported
 		"""
 		if not self.pipe:
-			raise ValueError('No model loaded')
+			raise ValueError(ERROR_NO_MODEL_LOADED)
 
 		scheduler = SCHEDULER_MAPPING.get(sampler)
 		if not scheduler:
@@ -86,7 +87,7 @@ class PipelineManager:
 			ValueError: If no model is loaded
 		"""
 		if not self.pipe:
-			raise ValueError('No model loaded')
+			raise ValueError(ERROR_NO_MODEL_LOADED)
 
 		unet_config = self.pipe.unet.config
 		if hasattr(unet_config, 'sample_size'):
@@ -105,7 +106,7 @@ class PipelineManager:
 			ValueError: If no model is loaded or LoRA loading fails
 		"""
 		if not self.pipe:
-			raise ValueError('No model loaded')
+			raise ValueError(ERROR_NO_MODEL_LOADED)
 
 		if not lora_configs:
 			logger.warning('load_loras called with empty config list')
@@ -139,7 +140,7 @@ class PipelineManager:
 			ValueError: If no model is loaded
 		"""
 		if not self.pipe:
-			raise ValueError('No model loaded')
+			raise ValueError(ERROR_NO_MODEL_LOADED)
 
 		try:
 			self.pipe.unload_lora_weights()

@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.cores.constants.error_messages import ERROR_INTERNAL_SERVER
 from app.database import database_service
 from app.features.loras.schemas import (
 	LoRADeleteResponse,
@@ -22,7 +23,7 @@ loras = APIRouter(
 
 
 @loras.post('/upload', response_model=LoRAInfo, status_code=status.HTTP_201_CREATED)
-async def upload_lora(
+def upload_lora(
 	request: LoRAUploadRequest,
 	db: Session = Depends(database_service.get_db),
 ):
@@ -40,7 +41,7 @@ async def upload_lora(
 	"""
 	try:
 		logger.info(f'Uploading LoRA from: {request.file_path}')
-		lora = await lora_service.upload_lora(db, request.file_path)
+		lora = lora_service.upload_lora(db, request.file_path)
 
 		return LoRAInfo(
 			id=lora.id,
@@ -55,7 +56,7 @@ async def upload_lora(
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 	except Exception as error:
 		logger.error(f'Unexpected error during upload: {error}')
-		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Internal server error')
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=ERROR_INTERNAL_SERVER)
 
 
 @loras.get('/', response_model=LoRAListResponse)
@@ -88,7 +89,7 @@ def list_loras(
 		)
 	except Exception as error:
 		logger.error(f'Failed to list LoRAs: {error}')
-		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Internal server error')
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=ERROR_INTERNAL_SERVER)
 
 
 @loras.get('/{lora_id}', response_model=LoRAInfo)
@@ -124,7 +125,7 @@ def get_lora(
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
 	except Exception as error:
 		logger.error(f'Failed to get LoRA: {error}')
-		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Internal server error')
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=ERROR_INTERNAL_SERVER)
 
 
 @loras.delete('/{lora_id}', response_model=LoRADeleteResponse)
@@ -154,4 +155,4 @@ def delete_lora(
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
 	except Exception as error:
 		logger.error(f'Failed to delete LoRA: {error}')
-		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Internal server error')
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=ERROR_INTERNAL_SERVER)

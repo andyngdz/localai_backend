@@ -11,8 +11,7 @@ from app.features.loras.service import LoRAService
 class TestUploadLoRA:
 	"""Tests for LoRAService.upload_lora method."""
 
-	@pytest.mark.asyncio
-	async def test_upload_lora_success(self):
+	def test_upload_lora_success(self):
 		"""Test successful LoRA upload."""
 		mock_db = MagicMock()
 		service = LoRAService()
@@ -30,7 +29,7 @@ class TestUploadLoRA:
 			mock_lora = LoRA(id=1, name='test', file_path='/cache/loras/test.safetensors', file_size=102400)
 			mock_database_service.add_lora.return_value = mock_lora
 
-			result = await service.upload_lora(mock_db, '/source/path/test.safetensors')
+			result = service.upload_lora(mock_db, '/source/path/test.safetensors')
 
 			assert result.id == 1
 			assert result.name == 'test'
@@ -169,8 +168,7 @@ class TestDeleteLoRA:
 class TestLoRAServiceEdgeCases:
 	"""Test edge cases and error handling."""
 
-	@pytest.mark.asyncio
-	async def test_upload_lora_with_long_filename(self):
+	def test_upload_lora_with_long_filename(self):
 		"""Test upload handles long filenames correctly."""
 		mock_db = MagicMock()
 		service = LoRAService()
@@ -191,7 +189,7 @@ class TestLoRAServiceEdgeCases:
 			mock_lora = LoRA(id=1, name=long_stem, file_path=f'/cache/loras/{long_name}', file_size=50000)
 			mock_database_service.add_lora.return_value = mock_lora
 
-			result = await service.upload_lora(mock_db, long_path)
+			result = service.upload_lora(mock_db, long_path)
 
 			assert result.name == long_stem
 
