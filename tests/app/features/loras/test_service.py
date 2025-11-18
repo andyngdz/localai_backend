@@ -40,18 +40,16 @@ class TestUploadLoRA:
 				db=mock_db, name='test', file_path='/cache/loras/test.safetensors', file_size=102400
 			)
 
-	@pytest.mark.asyncio
-	async def test_upload_lora_validation_fails(self):
+	def test_upload_lora_validation_fails(self):
 		"""Test upload_lora raises ValueError when validation fails."""
 		mock_db = MagicMock()
 		service = LoRAService()
 
 		with patch('app.features.loras.service.lora_file_manager.validate_file', return_value=(False, 'File is too large')):
 			with pytest.raises(ValueError, match='File is too large'):
-				await service.upload_lora(mock_db, '/source/invalid.safetensors')
+				service.upload_lora(mock_db, '/source/invalid.safetensors')
 
-	@pytest.mark.asyncio
-	async def test_upload_lora_handles_copy_failure(self):
+	def test_upload_lora_handles_copy_failure(self):
 		"""Test upload_lora handles file copy errors."""
 		mock_db = MagicMock()
 		service = LoRAService()
@@ -61,7 +59,7 @@ class TestUploadLoRA:
 			patch('app.features.loras.service.lora_file_manager.copy_file', side_effect=IOError('Disk full')),
 		):
 			with pytest.raises(IOError, match='Disk full'):
-				await service.upload_lora(mock_db, '/source/test.safetensors')
+				service.upload_lora(mock_db, '/source/test.safetensors')
 
 	def test_upload_lora_duplicate_file_path(self):
 		"""Test upload_lora raises error when LoRA with same file path exists."""

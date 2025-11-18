@@ -443,13 +443,13 @@ class TestLoadLoRAs:
 
 		lora_config = LoRAData(id=1, name='broken', file_path='/cache/loras/broken.safetensors', weight=1.0)
 
-		with pytest.raises(ValueError, match="Failed to load LoRA 'broken'"):
+		with pytest.raises(ValueError, match='Failed to load LoRAs'):
 			self.pipeline_manager.load_loras([lora_config])
 
-		assert "Failed to load LoRA 'broken'" in caplog.text
+		assert 'Failed to load LoRAs' in caplog.text
 
 	def test_load_loras_partial_failure(self):
-		"""Test load_loras stops on first failure (doesn't load subsequent LoRAs)."""
+		"""Test load_loras rolls back successfully loaded adapters on failure."""
 		from app.schemas.lora import LoRAData
 
 		mock_pipe = MagicMock()
@@ -473,6 +473,9 @@ class TestLoadLoRAs:
 
 		# Verify set_adapters was not called (since loading failed)
 		mock_pipe.set_adapters.assert_not_called()
+
+		# Verify unload_lora_weights was called to cleanup partially loaded adapters
+		mock_pipe.unload_lora_weights.assert_called_once()
 
 
 class TestUnloadLoRAs:

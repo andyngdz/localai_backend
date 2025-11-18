@@ -115,23 +115,32 @@ class PipelineManager:
 		adapter_names = []
 		adapter_weights = []
 
-		for config in lora_configs:
-			name = config.name
-			adapter_name = f'lora_{config.id}'
+		try:
+			for config in lora_configs:
+				name = config.name
+				adapter_name = f'lora_{config.id}'
 
-			logger.info(f"Loading LoRA '{name}' as adapter '{adapter_name}' (weight: {config.weight})")
+				logger.info(f"Loading LoRA '{name}' as adapter '{adapter_name}' (weight: {config.weight})")
 
-			try:
 				self.pipe.load_lora_weights(config.file_path, adapter_name=adapter_name)
 				adapter_names.append(adapter_name)
 				adapter_weights.append(config.weight)
-			except Exception as error:
-				logger.error(f"Failed to load LoRA '{name}': {error}")
-				raise ValueError(f"Failed to load LoRA '{name}': {error}")
 
-		# Set adapter weights
-		self.pipe.set_adapters(adapter_names, adapter_weights=adapter_weights)
-		logger.info(f'Successfully loaded {len(adapter_names)} LoRAs')
+			# Set adapter weights (only if all loaded successfully)
+			self.pipe.set_adapters(adapter_names, adapter_weights=adapter_weights)
+			logger.info(f'Successfully loaded {len(adapter_names)} LoRAs')
+
+		except Exception as error:
+			# Rollback: unload any adapters that were successfully loaded
+			if adapter_names:
+				logger.warning(f'Rolling back {len(adapter_names)} partially loaded LoRAs')
+				try:
+					self.pipe.unload_lora_weights()
+				except Exception as cleanup_error:
+					logger.error(f'Failed to cleanup adapters during rollback: {cleanup_error}')
+
+			logger.error(f'Failed to load LoRAs: {error}')
+			raise ValueError(f'Failed to load LoRAs: {error}')
 
 	def unload_loras(self) -> None:
 		"""Remove all LoRAs from the pipeline.
