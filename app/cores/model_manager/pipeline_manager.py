@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from app.cores.constants.samplers import DEFAULT_SAMPLE_SIZE
 from app.cores.samplers import SCHEDULER_MAPPING, SamplerType
+from app.schemas.lora import LoRAData
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
@@ -93,6 +94,59 @@ class PipelineManager:
 			return sample_size
 		else:
 			return DEFAULT_SAMPLE_SIZE
+
+	def load_loras(self, lora_configs: list[LoRAData]) -> None:
+		"""Load LoRAs with weights into the pipeline.
+
+		Args:
+			lora_configs: List of LoRAData models
+
+		Raises:
+			ValueError: If no model is loaded or LoRA loading fails
+		"""
+		if not self.pipe:
+			raise ValueError('No model loaded')
+
+		if not lora_configs:
+			logger.warning('load_loras called with empty config list')
+			return
+
+		adapter_names = []
+		adapter_weights = []
+
+		for config in lora_configs:
+			name = config.name
+			adapter_name = f'lora_{config.id}'
+
+			logger.info(f"Loading LoRA '{name}' as adapter '{adapter_name}' (weight: {config.weight})")
+
+			try:
+				self.pipe.load_lora_weights(config.file_path, adapter_name=adapter_name)
+				adapter_names.append(adapter_name)
+				adapter_weights.append(config.weight)
+			except Exception as error:
+				logger.error(f"Failed to load LoRA '{name}': {error}")
+				raise ValueError(f"Failed to load LoRA '{name}': {error}")
+
+		# Set adapter weights
+		self.pipe.set_adapters(adapter_names, adapter_weights=adapter_weights)
+		logger.info(f'Successfully loaded {len(adapter_names)} LoRAs')
+
+	def unload_loras(self) -> None:
+		"""Remove all LoRAs from the pipeline.
+
+		Raises:
+			ValueError: If no model is loaded
+		"""
+		if not self.pipe:
+			raise ValueError('No model loaded')
+
+		try:
+			self.pipe.unload_lora_weights()
+			logger.info('Unloaded all LoRAs')
+		except Exception as error:
+			logger.error(f'Failed to unload LoRAs: {error}')
+			raise ValueError(f'Failed to unload LoRAs: {error}')
 
 
 pipeline_manager = PipelineManager()

@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
+from app.schemas.lora import LoRAConfigItem
 
 
 class GeneratorConfig(BaseModel):
@@ -26,6 +27,10 @@ class GeneratorConfig(BaseModel):
 	styles: list[str] = Field(
 		default_factory=list,
 		description='List of styles to apply to the generated image.',
+	)
+	loras: list[LoRAConfigItem] = Field(
+		default_factory=list,
+		description='List of LoRAs to apply during generation with individual weights.',
 	)
 
 

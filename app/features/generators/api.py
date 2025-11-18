@@ -31,7 +31,7 @@ async def generation_image(
 		config = request.config
 		history_id = request.history_id
 
-		response = await generator_service.generate_image(config)
+		response = await generator_service.generate_image(config, db)
 
 		add_generated_image(db, history_id, response)
 

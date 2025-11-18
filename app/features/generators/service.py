@@ -3,9 +3,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 import torch
 from PIL import Image
+from sqlalchemy.orm import Session
 
 from app.cores.generation import image_processor, memory_manager, progress_callback, seed_manager
 from app.cores.model_manager import model_manager
+from app.database import crud as database_service
+from app.schemas.lora import LoRAData
 from app.services import logger_service, styles_service
 
 from .constants import DEFAULT_NEGATIVE_PROMPT
@@ -31,11 +34,12 @@ class GeneratorService:
 				'Hires fix requested, but not fully implemented in this MVP. Generating directly at requested resolution.'
 			)
 
-	async def generate_image(self, config: GeneratorConfig):
+	async def generate_image(self, config: GeneratorConfig, db: Session):
 		"""Generate images from text prompts using text-to-image pipeline.
 
 		Args:
 			config: Generation configuration with prompt and parameters.
+			db: Database session for loading LoRA information
 
 		Returns:
 			ImageGenerationResponse with generated images.
@@ -60,6 +64,29 @@ class GeneratorService:
 
 		# Validate batch size to prevent OOM errors
 		memory_manager.validate_batch_size(config.number_of_images, config.width, config.height)
+
+		# Load LoRAs if specified
+		loras_loaded = False
+		if config.loras:
+			logger.info(f'Loading {len(config.loras)} LoRAs for generation')
+			lora_data: list[LoRAData] = []
+
+			for lora_config in config.loras:
+				lora = database_service.get_lora_by_id(db, lora_config.lora_id)
+				if not lora:
+					raise ValueError(f'LoRA with id {lora_config.lora_id} not found')
+
+				lora_data.append(
+					LoRAData(
+						id=lora.id,
+						name=lora.name,
+						file_path=lora.file_path,
+						weight=lora_config.weight,
+					)
+				)
+
+			model_manager.pipeline_manager.load_loras(lora_data)
+			loras_loaded = True
 
 		try:
 			logger.info(
@@ -169,6 +196,13 @@ class GeneratorService:
 			logger.exception(f'Failed to generate image for prompt: "{config.prompt}"')
 			raise ValueError(f'Failed to generate image: {error}')
 		finally:
+			# Unload LoRAs if they were loaded
+			if loras_loaded:
+				try:
+					model_manager.pipeline_manager.unload_loras()
+				except Exception as error:
+					logger.error(f'Failed to unload LoRAs: {error}')
+
 			# Final safety cleanup
 			memory_manager.clear_cache()
 

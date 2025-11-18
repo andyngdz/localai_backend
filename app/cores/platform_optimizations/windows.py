@@ -16,9 +16,9 @@ class WindowsOptimizer(PlatformOptimizer):
 	Key optimizations:
 	1. TF32: Enabled for faster float32 operations on Ampere+ GPUs (30xx, 40xx series)
 	2. Attention slicing: Only enabled for low-memory GPUs (<8GB VRAM by default)
-	   - Threshold defined in ATTENTION_SLICING_THRESHOLD_GB constant
-	   - High-memory GPUs: Disabled for maximum speed
-	   - Low-memory GPUs: Enabled to prevent OOM errors
+		- Threshold defined in ATTENTION_SLICING_THRESHOLD_GB constant
+		- High-memory GPUs: Disabled for maximum speed
+		- Low-memory GPUs: Enabled to prevent OOM errors
 	3. VAE slicing: Always enabled (minimal performance impact, good memory savings)
 	4. SDPA: Uses PyTorch's built-in Scaled Dot Product Attention (2-4x faster)
 	"""
@@ -61,15 +61,11 @@ class WindowsOptimizer(PlatformOptimizer):
 			# Attention slicing trades speed for memory - it can make generation 5-10x slower!
 			if gpu_memory_gb < ATTENTION_SLICING_THRESHOLD_GB:
 				pipe.enable_attention_slicing(slice_size='auto')
-				logger.info(
-					f'[Windows] Attention slicing ENABLED (memory-saving mode for {gpu_memory_gb:.1f}GB VRAM)'
-				)
+				logger.info(f'[Windows] Attention slicing ENABLED (memory-saving mode for {gpu_memory_gb:.1f}GB VRAM)')
 			else:
 				# Disable attention slicing for better performance on high-memory GPUs
 				pipe.disable_attention_slicing()
-				logger.info(
-					f'[Windows] Attention slicing DISABLED (performance mode for {gpu_memory_gb:.1f}GB VRAM)'
-				)
+				logger.info(f'[Windows] Attention slicing DISABLED (performance mode for {gpu_memory_gb:.1f}GB VRAM)')
 		else:
 			# Fallback: assume high-memory GPU
 			pipe.disable_attention_slicing()
