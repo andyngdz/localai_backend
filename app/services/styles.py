@@ -1,9 +1,8 @@
 import re
 from itertools import chain
-from types import SimpleNamespace
-from typing import Any, Optional, Protocol
+from typing import List, Optional
 
-from transformers import CLIPTokenizer
+from transformers import CLIPTokenizer, GPT2TokenizerFast
 
 from app.services import logger_service
 from app.styles import all_styles
@@ -11,99 +10,183 @@ from app.styles.schemas import StyleItem
 
 logger = logger_service.get_logger(__name__, category='Service')
 
-PROMPT_REMOVE_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
-CLIP_TOKENIZER_MODEL = 'openai/clip-vit-base-patch32'
+PROMPT_PLACEHOLDER_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
+CLIP_MODEL_NAME = 'openai/clip-vit-base-patch32'
+GPT2_MODEL_NAME = 'openai-community/gpt2'
+MAX_CLIP_TOKENS = 77
 
+# Separator between prompt parts
+PROMPT_SEPARATOR = ', '
+SEPARATOR_TOKEN_COST = 2  # Estimated tokens for PROMPT_SEPARATOR
 
-class TokenizerLike(Protocol):
-	def __call__(self, prompt: str) -> Any: ...
-	def decode(self, input_ids, skip_special_tokens: bool = True) -> str: ...
-
-
-class FallbackTokenizer:
-	def __call__(self, prompt: str):
-		# Minimal structure compatible with CLIP tokenizer output
-		return SimpleNamespace(input_ids=[ord(ch) % 256 for ch in prompt])
-
-	def decode(self, input_ids, _skip_special_tokens: bool = True):
-		return ''.join(chr(token) for token in input_ids)
+DEFAULT_NEGATIVE_PROMPT = (
+	'(worst quality, low quality, lowres, blurry, jpeg artifacts, watermark, '
+	'signature, text, logo), '
+	'(bad hands, bad anatomy, mutated, deformed, disfigured, extra limbs, '
+	'cropped, out of frame), '
+	'(cartoon, anime, cgi, render, 3d, doll, toy, painting, sketch)'
+)
 
 
 class StylesService:
-	def __init__(self, tokenizer: Optional[TokenizerLike] = None):
-		self.tokenizer: Optional[TokenizerLike] = tokenizer
-		self.all_styles = chain.from_iterable(all_styles.values())
+	def __init__(self) -> None:
+		super().__init__()
+		self._clip_tokenizer: Optional[CLIPTokenizer] = None
+		self._gpt2_tokenizer: Optional[GPT2TokenizerFast] = None
+		self.all_styles: list[StyleItem] = list(chain.from_iterable(all_styles.values()))
 
-	def _get_tokenizer(self) -> TokenizerLike:
-		if self.tokenizer is not None:
-			return self.tokenizer
+	@property
+	def tokenizer(self) -> CLIPTokenizer:
+		"""Returns the CLIP tokenizer."""
+		if self._clip_tokenizer:
+			return self._clip_tokenizer
+
+		self._clip_tokenizer = CLIPTokenizer.from_pretrained(CLIP_MODEL_NAME, local_files_only=True)
+		return self._clip_tokenizer
+
+	@property
+	def gpt2_tokenizer(self) -> Optional[GPT2TokenizerFast]:
+		"""
+		Returns the GPT-2 tokenizer used for smart truncation.
+		"""
+		if self._gpt2_tokenizer:
+			return self._gpt2_tokenizer
 
 		try:
-			tokenizer: TokenizerLike = CLIPTokenizer.from_pretrained(
-				CLIP_TOKENIZER_MODEL,
-				local_files_only=True,
-			)
-		except Exception as error:
-			logger.warning(
-				'Falling back to no-op tokenizer for styles: %s',
-				error,
-			)
-			tokenizer = FallbackTokenizer()
+			loaded_tokenizer = GPT2TokenizerFast.from_pretrained(GPT2_MODEL_NAME)
+			self._gpt2_tokenizer = loaded_tokenizer
+		except Exception as exception:
+			logger.warning(f'Failed to load GPT-2 tokenizer: {exception}')
 
-		self.tokenizer = tokenizer
-		return self.tokenizer
+		return self._gpt2_tokenizer
 
-	def truncate_clip_prompt(self, prompt: str, max_tokens: int = 77) -> str:
-		tokenizer = self._get_tokenizer()
-		clip_tokenizer = tokenizer(prompt)
-		input_ids = clip_tokenizer.input_ids
+	def count_tokens(self, input_text: str) -> int:
+		"""
+		Counts the number of tokens in the text using the CLIP tokenizer.
+		"""
+		tokenizer = self.tokenizer
+		encoded = tokenizer(input_text, truncation=True, max_length=MAX_CLIP_TOKENS)
+		return len(encoded.input_ids)
 
-		if len(input_ids) > max_tokens:
-			input_ids = input_ids[:max_tokens]
+	def truncate(self, input_text: str, max_tokens: int) -> str:
+		"""
+		Truncates text to fit within max_tokens.
+		Uses GPT-2 tokenizer for smart truncation if available, otherwise splits by words.
+		"""
+		if self.gpt2_tokenizer:
+			tokens = self.gpt2_tokenizer.encode(input_text)
 
-		return tokenizer.decode(input_ids, skip_special_tokens=True)
+			while tokens:
+				decoded = self.gpt2_tokenizer.decode(tokens)
+				decoded_text = decoded.strip()
+				if self.count_tokens(decoded_text) <= max_tokens:
+					return decoded_text
+				tokens.pop()
 
-	def combined_positive_prompt(self, prompt: str, styles: list[StyleItem]):
-		if not styles:
-			return prompt.strip()
+			return ''
 
-		first_style, *rest_styles = styles
-		combined_positive = []
+		# Fallback: Word-based truncation
+		words = input_text.split()
+		while words:
+			current_text = ' '.join(words)
+			if self.count_tokens(current_text) <= max_tokens:
+				return current_text
+			words.pop()
 
+		return ''
+
+	def __extract_style_additions(self, selected_styles: list[StyleItem]) -> str:
+		"""Extract and combine positive style additions from selected styles."""
+		additions: list[str] = []
+
+		# First style: remove {prompt} placeholder completely
+		first_style = selected_styles[0]
 		if first_style.positive:
-			combined_positive.append(first_style.positive.format(prompt=prompt))
+			cleaned = PROMPT_PLACEHOLDER_PATTERN.sub('', first_style.positive).strip(' ,')
+			if cleaned:
+				additions.append(cleaned)
 
-		for style in rest_styles:
+		# Remaining styles: replace {prompt} with space
+		for style in selected_styles[1:]:
 			if style.positive:
-				cleaned = PROMPT_REMOVE_PATTERN.sub(' ', style.positive).strip(' ,')
+				cleaned = PROMPT_PLACEHOLDER_PATTERN.sub(' ', style.positive).strip(' ,')
 				if cleaned:
-					combined_positive.append(cleaned)
+					additions.append(cleaned)
 
-		combined_positive_unique = list(dict.fromkeys(combined_positive))
+		# Remove duplicates while preserving order
+		unique_additions: list[str] = list(dict.fromkeys(additions))
+		return PROMPT_SEPARATOR.join(unique_additions)
 
-		return ', '.join(combined_positive_unique).rstrip(',').strip()
+	def __build_positive_prompt(self, user_prompt: str, selected_styles: list[StyleItem]) -> str:
+		"""Build combined positive prompt from user input and styles."""
+		styles_string = self.__extract_style_additions(selected_styles)
 
-	def combined_negative_prompt(self, styles: list[StyleItem]):
-		combined_negative: list[str] = []
+		if not styles_string:
+			return user_prompt
 
-		for style in styles:
-			if style.negative is not None:
-				combined_negative.append(style.negative)
+		user_tokens = self.count_tokens(user_prompt)
 
-		combined_negative_unique = list(dict.fromkeys(combined_negative))
+		# User prompt alone exceeds limit - truncate and ignore styles
+		if user_tokens >= MAX_CLIP_TOKENS:
+			return self.truncate(user_prompt, MAX_CLIP_TOKENS)
 
-		return ', '.join(combined_negative_unique).strip()
+		# Check if everything fits
+		total_tokens = user_tokens + self.count_tokens(styles_string) + SEPARATOR_TOKEN_COST
+		if total_tokens <= MAX_CLIP_TOKENS:
+			return f'{user_prompt}{PROMPT_SEPARATOR}{styles_string}'
 
-	def apply_styles(self, prompt: str, styles: list[str]):
-		selected_styles = [style_item for style_item in self.all_styles if style_item.id in styles]
+		# Need to truncate styles
+		available_for_styles = MAX_CLIP_TOKENS - user_tokens - SEPARATOR_TOKEN_COST
+		truncated_styles = self.truncate(styles_string, available_for_styles)
 
-		combined_positive = self.combined_positive_prompt(prompt, selected_styles)
-		combined_negative = self.combined_negative_prompt(selected_styles)
+		if truncated_styles:
+			return f'{user_prompt}{PROMPT_SEPARATOR}{truncated_styles}'
 
-		truncated_positive_prompt = self.truncate_clip_prompt(combined_positive)
-		truncated_negative_prompt = self.truncate_clip_prompt(combined_negative)
+		return user_prompt
 
-		return [truncated_positive_prompt, truncated_negative_prompt]
+	def __build_negative_prompt(self, user_negative: str, selected_styles: list[StyleItem]) -> str:
+		"""Build combined negative prompt from user input and styles."""
+		parts: list[str] = []
+
+		if user_negative:
+			parts.append(user_negative)
+
+		for style in selected_styles:
+			if style.negative:
+				parts.append(style.negative)
+
+		# Remove duplicates while preserving order
+		unique_parts: list[str] = list(dict.fromkeys(parts))
+		combined = PROMPT_SEPARATOR.join(unique_parts)
+
+		if not combined:
+			return DEFAULT_NEGATIVE_PROMPT
+
+		# Truncate if exceeds limit
+		if self.count_tokens(combined) > MAX_CLIP_TOKENS:
+			return self.truncate(combined, MAX_CLIP_TOKENS)
+
+		return combined
+
+	def apply_styles(
+		self,
+		user_prompt: str,
+		user_negative_prompt: str,
+		style_identifiers: List[str],
+	) -> List[str]:
+		"""
+		Applies selected styles to the user prompt.
+		Returns a list containing [positive_prompt, negative_prompt].
+		"""
+		selected_styles = [style for style in self.all_styles if style.id in style_identifiers]
+
+		if not selected_styles:
+			return [user_prompt, user_negative_prompt]
+
+		positive_prompt = self.__build_positive_prompt(user_prompt, selected_styles)
+		negative_prompt = self.__build_negative_prompt(user_negative_prompt, selected_styles)
+
+		return [positive_prompt, negative_prompt]
 
 
 styles_service = StylesService()

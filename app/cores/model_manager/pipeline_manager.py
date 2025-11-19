@@ -1,5 +1,6 @@
 """Pipeline instance and configuration management."""
 
+from pathlib import Path
 from typing import Any, Optional
 
 from app.cores.constants.error_messages import ERROR_NO_MODEL_LOADED
@@ -99,11 +100,13 @@ class PipelineManager:
 	def load_loras(self, lora_configs: list[LoRAData]) -> None:
 		"""Load LoRAs with weights into the pipeline.
 
+		Incompatible LoRAs are skipped with warnings. Generation continues with compatible LoRAs.
+
 		Args:
 			lora_configs: List of LoRAData models
 
 		Raises:
-			ValueError: If no model is loaded or LoRA loading fails
+			ValueError: If no model is loaded or all LoRAs fail to load
 		"""
 		if not self.pipe:
 			raise ValueError(ERROR_NO_MODEL_LOADED)
@@ -114,33 +117,47 @@ class PipelineManager:
 
 		adapter_names = []
 		adapter_weights = []
+		failed_loras = []
 
-		try:
-			for config in lora_configs:
-				name = config.name
-				adapter_name = f'lora_{config.id}'
+		for config in lora_configs:
+			name = config.name
+			adapter_name = f'lora_{config.id}'
 
+			try:
 				logger.info(f"Loading LoRA '{name}' as adapter '{adapter_name}' (weight: {config.weight})")
 
-				self.pipe.load_lora_weights(config.file_path, adapter_name=adapter_name)
+				lora_path = Path(config.file_path)
+				lora_dir = str(lora_path.parent)
+				lora_filename = lora_path.name
+
+				self.pipe.load_lora_weights(lora_dir, weight_name=lora_filename, adapter_name=adapter_name)
 				adapter_names.append(adapter_name)
 				adapter_weights.append(config.weight)
+				logger.info(f"Successfully loaded LoRA '{name}'")
 
-			# Set adapter weights (only if all loaded successfully)
-			self.pipe.set_adapters(adapter_names, adapter_weights=adapter_weights)
-			logger.info(f'Successfully loaded {len(adapter_names)} LoRAs')
+			except Exception as error:
+				error_str = str(error)
+				if 'size mismatch' in error_str:
+					logger.warning(
+						f"Skipping LoRA '{name}': incompatible with current model architecture. "
+						f'This LoRA was likely trained for a different model (e.g., SD 1.5 vs SDXL).'
+					)
+				else:
+					logger.warning(f"Skipping LoRA '{name}': {error}")
+				failed_loras.append(name)
 
-		except Exception as error:
-			# Rollback: unload any adapters that were successfully loaded
-			if adapter_names:
-				logger.warning(f'Rolling back {len(adapter_names)} partially loaded LoRAs')
-				try:
-					self.pipe.unload_lora_weights()
-				except Exception as cleanup_error:
-					logger.error(f'Failed to cleanup adapters during rollback: {cleanup_error}')
+		if not adapter_names:
+			error_msg = f'All {len(lora_configs)} LoRAs failed to load. Incompatible with current model.'
+			logger.error(error_msg)
+			raise ValueError(error_msg)
 
-			logger.error(f'Failed to load LoRAs: {error}')
-			raise ValueError(f'Failed to load LoRAs: {error}')
+		if failed_loras:
+			logger.warning(
+				f'Loaded {len(adapter_names)}/{len(lora_configs)} LoRAs. Skipped incompatible: {", ".join(failed_loras)}'
+			)
+
+		self.pipe.set_adapters(adapter_names, adapter_weights=adapter_weights)
+		logger.info(f'Successfully activated {len(adapter_names)} compatible LoRAs')
 
 	def unload_loras(self) -> None:
 		"""Remove all LoRAs from the pipeline.

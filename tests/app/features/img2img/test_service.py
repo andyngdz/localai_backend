@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import torch
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
 from app.cores.samplers import SamplerType
@@ -198,7 +199,7 @@ class TestGenerateImageFromImage:
 		mock_pipe = Mock()
 		mock_pipe.device = 'cpu'
 		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_pipe.return_value = {'images': [test_image], 'nsfw_content_detected': [False]}
+		mock_pipe.return_value = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=[False])
 		mock_model_manager.pipe = mock_pipe
 		mock_pipeline_converter.convert_to_img2img.return_value = mock_pipe
 

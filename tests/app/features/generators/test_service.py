@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import torch
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
 from app.cores.samplers import SamplerType
@@ -10,6 +11,7 @@ from app.features.generators.schemas import (
 	ImageGenerationItem,
 	ImageGenerationResponse,
 )
+from app.services.styles import DEFAULT_NEGATIVE_PROMPT
 
 
 @pytest.fixture
@@ -196,7 +198,9 @@ class TestGenerateImage:
 		except Exception:
 			pass
 
-		mock_styles_service.apply_styles.assert_called_once_with('test prompt', ['style1', 'style2'])
+		mock_styles_service.apply_styles.assert_called_once_with(
+			'test prompt', DEFAULT_NEGATIVE_PROMPT, ['style1', 'style2']
+		)
 
 	@pytest.mark.asyncio
 	async def test_uses_default_negative_prompt_when_none_provided(self, mock_service, sample_config, mock_db):
@@ -230,7 +234,7 @@ class TestGenerateImage:
 		mock_pipe = Mock()
 		mock_pipe.device = 'cpu'
 		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_pipe.return_value = {'images': [test_image], 'nsfw_content_detected': [False]}
+		mock_pipe.return_value = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=[False])
 		mock_model_manager.pipe = mock_pipe
 
 		# Mock styles

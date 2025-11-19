@@ -3,7 +3,6 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import torch
-from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
 from PIL import Image
 from sqlalchemy.orm import Session
 
@@ -13,7 +12,6 @@ from app.database import crud as database_service
 from app.schemas.lora import LoRAData
 from app.services import logger_service, styles_service
 
-from .constants import DEFAULT_NEGATIVE_PROMPT
 from .schemas import (
 	GeneratorConfig,
 	ImageGenerationItem,
@@ -83,15 +81,14 @@ class GeneratorService:
 		"""
 		positive_prompt, negative_prompt = styles_service.apply_styles(
 			config.prompt,
+			config.negative_prompt,
 			config.styles,
 		)
-		final_positive_prompt = positive_prompt
-		final_negative_prompt = negative_prompt or DEFAULT_NEGATIVE_PROMPT
 
-		logger.info(f'Positive prompt after clipping: {final_positive_prompt}')
-		logger.info(f'Negative prompt after clipping: {final_negative_prompt}')
+		logger.info(f'Positive prompt after clipping: {positive_prompt}')
+		logger.info(f'Negative prompt after clipping: {negative_prompt}')
 
-		return final_positive_prompt, final_negative_prompt
+		return positive_prompt, negative_prompt
 
 	def _process_generated_images(self, output: Any) -> tuple[list[ImageGenerationItem], list[bool]]:
 		"""Process generated images and save them to disk.
@@ -110,9 +107,9 @@ class GeneratorService:
 		memory_manager.clear_cache()
 
 		# Now safe to access images with more memory available
-		nsfw_content_detected = image_processor.is_nsfw_content_detected(StableDiffusionPipelineOutput(**output))
+		nsfw_content_detected = image_processor.is_nsfw_content_detected(output)
 
-		generated_images = output.get('images', [])
+		generated_images = output.images
 		items: list[ImageGenerationItem] = []
 
 		# Process and save images one at a time to minimize memory usage
@@ -189,20 +186,25 @@ class GeneratorService:
 
 			loop = asyncio.get_event_loop()
 
+			# Prepare pipeline parameters
+			pipeline_params = {
+				'prompt': final_positive_prompt,
+				'negative_prompt': final_negative_prompt,
+				'num_inference_steps': config.steps,
+				'guidance_scale': config.cfg_scale,
+				'height': config.height,
+				'width': config.width,
+				'generator': torch.Generator(device=pipe.device).manual_seed(random_seed),
+				'num_images_per_prompt': config.number_of_images,
+				'callback_on_step_end': progress_callback.callback_on_step_end,
+				'callback_on_step_end_tensor_inputs': ['latents'],
+				'clip_skip': config.clip_skip,
+			}
+
+			# Run image generation
 			output = await loop.run_in_executor(
 				self.executor,
-				lambda: pipe(
-					prompt=final_positive_prompt,
-					negative_prompt=final_negative_prompt,
-					num_inference_steps=config.steps,
-					guidance_scale=config.cfg_scale,
-					height=config.height,
-					width=config.width,
-					generator=torch.Generator(device=pipe.device).manual_seed(random_seed),
-					num_images_per_prompt=config.number_of_images,
-					callback_on_step_end=progress_callback.callback_on_step_end,
-					callback_on_step_end_tensor_inputs=['latents'],
-				),
+				lambda: pipe(**pipeline_params),
 			)
 
 			logger.info(f'Image generation completed successfully: {output}')

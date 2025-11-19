@@ -78,6 +78,7 @@ Requires-Dist: networkx==3.5
 Requires-Dist: numpy==2.3.2
 Requires-Dist: packaging==25.0
 Requires-Dist: parso==0.8.4
+Requires-Dist: peft>=0.18.0
 Requires-Dist: pexpect==4.9.0
 Requires-Dist: pillow==11.3.0
 Requires-Dist: pip==25.3
@@ -85,6 +86,7 @@ Requires-Dist: pipreqs==0.4.13
 Requires-Dist: pluggy==1.6.0
 Requires-Dist: prompt-toolkit==3.0.51
 Requires-Dist: propcache==0.3.2
+Requires-Dist: protobuf>=6.33.1
 Requires-Dist: psutil==7.0.0
 Requires-Dist: ptyprocess==0.7.0
 Requires-Dist: pure-eval==0.2.3

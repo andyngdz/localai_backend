@@ -78,6 +78,7 @@ dependencies = [
     "numpy==2.3.2",
     "packaging==25.0",
     "parso==0.8.4",
+    "peft>=0.18.0",
     "pexpect==4.9.0",
     "pillow==11.3.0",
     "pip==25.3",
@@ -85,6 +86,7 @@ dependencies = [
     "pluggy==1.6.0",
     "prompt-toolkit==3.0.51",
     "propcache==0.3.2",
+    "protobuf>=6.33.1",
     "psutil==7.0.0",
     "ptyprocess==0.7.0",
     "pure-eval==0.2.3",
@@ -157,6 +159,135 @@ packages = ["app"]
 [tool.setuptools.package-data]
 app = ["py.typed"]
 
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "typings"
+warn_unused_ignores = true
+warn_return_any = false
+warn_redundant_casts = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*"]
+ignore_missing_imports = true
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+stubPath = "typings"
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+# ============================================================
+# IMPORT AND MODULE CHECKS
+# ============================================================
+reportMissingImports = true
+reportMissingTypeStubs = true
+reportUndefinedVariable = true
+reportAssertAlwaysTrue = true
+reportInvalidStringEscapeSequence = true
+
+# ============================================================
+# STRICT NULL SAFETY (like TS strictNullChecks)
+# ============================================================
+reportOptionalSubscript = true
+reportOptionalMemberAccess = true
+reportOptionalCall = true
+reportOptionalIterable = true
+reportOptionalContextManager = true
+reportOptionalOperand = true
+
+# ============================================================
+# TYPE COMPLETENESS (like TS noImplicitAny + strictFunctionTypes)
+# ============================================================
+reportMissingParameterType = true
+reportMissingTypeArgument = true
+reportUnknownParameterType = true
+reportUnknownLambdaType = true
+reportUnknownArgumentType = false  
+reportUnknownVariableType = false  
+reportUnknownMemberType = false
+reportUntypedFunctionDecorator = true
+reportUntypedClassDecorator = true
+reportUntypedBaseClass = true
+reportUntypedNamedTuple = true
+
+# ============================================================
+# CLASS AND INHERITANCE CHECKS
+# ============================================================
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
+reportInconsistentConstructor = true
+reportUninitializedInstanceVariable = true
+reportOverlappingOverload = true
+reportMissingSuperCall = false 
+
+# ============================================================
+# CODE QUALITY (like TS noUnusedLocals + noUnusedParameters)
+# ============================================================
+reportPrivateUsage = true
+reportConstantRedefinition = true
+reportInvalidStubStatement = true
+reportIncompleteStub = true
+reportUnsupportedDunderAll = true
+reportUnusedClass = "error"        # STRICT: Error instead of warning
+reportUnusedFunction = "error"     # STRICT: Error instead of warning
+reportUnusedVariable = "error"     # STRICT: Error instead of warning
+reportUnusedImport = "error"       # STRICT: Error instead of warning
+reportDuplicateImport = "error"    # STRICT: Error instead of warning
+
+# ============================================================
+# UNNECESSARY CODE DETECTION
+# ============================================================
+reportUnnecessaryIsInstance = "error"         # STRICT: Error
+reportUnnecessaryCast = "error"               # STRICT: Error
+reportUnnecessaryComparison = "error"         # STRICT: Error
+reportUnnecessaryContains = "error"           # STRICT: Error
+reportUnnecessaryTypeIgnoreComment = "error"  # STRICT: Error
+
+# ============================================================
+# FUNCTION/METHOD SIGNATURE STRICTNESS
+# ============================================================
+reportGeneralTypeIssues = true
+reportPropertyTypeMismatch = true
+reportFunctionMemberAccess = true
+reportCallInDefaultInitializer = true
+reportImplicitStringConcatenation = true  # STRICT: Enable
+
+# ============================================================
+# ADDITIONAL STRICT CHECKS (Progressive Enhancement)
+# ============================================================
+reportImplicitOverride = true    # STRICT: Require @override decorator (Python 3.12+)
+reportDeprecated = "warning"     # Warn on deprecated usage
+
+# ============================================================
+# ADDITIONAL TYPE CHECKS
+# ============================================================
+reportImportCycles = "warning"
+
+# ============================================================
+# EXCLUSIONS
+# ============================================================
+exclude = [
+    "**/__pycache__",
+    "**/node_modules",
+    ".git",
+    ".mypy_cache",
+    ".pyright_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    ".venv",
+    "venv",
+    "env",
+    "logs",
+    "output",
+    "data",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -196,5 +327,7 @@ dev = [
     "pytest==8.3.3",
     "pytest-asyncio==0.24.0",
     "pytest-cov==5.0.0",
+    "types-psutil>=7.0.0.20251116",
     "types-requests>=2.32.4.20250913",
+    "types-tqdm>=4.67.0.20250809",
 ]

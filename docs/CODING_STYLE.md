@@ -67,6 +67,13 @@ Fix type errors at their source—never use `# type: ignore` to bypass warnings.
 - Use `cast()` with explanatory comments for legitimate type narrowing
 - Add type annotations to function signatures when library stubs are incomplete
 
+**Never use `# type: ignore[return-value]` or any specific type ignore comments.** If a function's return type doesn't match:
+
+- Fix the actual return type
+- Use proper type annotations
+- Refactor the code to match the declared type
+- Use `cast()` only when absolutely necessary with clear explanation
+
 **Never use `any` type.** It defeats the purpose of type checking. Instead:
 
 - Use specific types or Union types
