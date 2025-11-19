@@ -8,8 +8,6 @@ This test suite covers:
 5. Error cases (no pipe loaded, unsupported sampler)
 """
 
-# pyright: reportUninitializedInstanceVariable=false
-
 from unittest.mock import MagicMock, patch
 
 import pytest
