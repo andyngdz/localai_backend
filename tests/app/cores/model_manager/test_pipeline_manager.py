@@ -20,7 +20,7 @@ from app.cores.samplers import SamplerType
 class TestPipelineStorage:
 	"""Test pipeline storage and retrieval methods."""
 
-	pipeline_manager: PipelineManager
+	pipeline_manager: PipelineManager = PipelineManager()
 
 	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
@@ -94,7 +94,7 @@ class TestPipelineStorage:
 class TestSetSampler:
 	"""Test set_sampler() method with various sampler types."""
 
-	pipeline_manager: PipelineManager
+	pipeline_manager: PipelineManager = PipelineManager()
 
 	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
@@ -235,7 +235,7 @@ class TestSetSampler:
 class TestGetSampleSize:
 	"""Test get_sample_size() method."""
 
-	pipeline_manager: PipelineManager
+	pipeline_manager: PipelineManager = PipelineManager()
 
 	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
@@ -308,7 +308,7 @@ class TestGetSampleSize:
 class TestPipelineManagerEdgeCases:
 	"""Test edge cases and state consistency."""
 
-	pipeline_manager: PipelineManager
+	pipeline_manager: PipelineManager = PipelineManager()
 
 	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
@@ -340,7 +340,7 @@ class TestPipelineManagerEdgeCases:
 class TestLoadLoRAs:
 	"""Test load_loras() method for LoRA management."""
 
-	pipeline_manager: PipelineManager
+	pipeline_manager: PipelineManager = PipelineManager()
 
 	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
@@ -499,7 +499,7 @@ class TestLoadLoRAs:
 class TestUnloadLoRAs:
 	"""Test unload_loras() method."""
 
-	pipeline_manager: PipelineManager
+	pipeline_manager: PipelineManager = PipelineManager()
 
 	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
