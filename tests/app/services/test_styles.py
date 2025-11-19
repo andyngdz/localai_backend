@@ -1,5 +1,6 @@
 """Tests for the styles service."""
 
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -10,6 +11,22 @@ from app.styles.schemas import StyleItem
 
 class TestStylesService:
 	"""Test the StylesService class."""
+
+	@pytest.fixture(autouse=True)
+	def mock_tokenizer(self):
+		"""Mock the CLIP tokenizer to avoid loading actual model files."""
+		with patch('app.services.styles.CLIPTokenizer.from_pretrained') as mock_clip:
+			# Mock the CLIP tokenizer
+			mock_tokenizer = Mock()
+
+			# Make the tokenizer callable and return a mock with input_ids
+			def mock_encode(text: str, **kwargs: Any) -> Mock:
+				# Simple mock: return list of token IDs based on word count
+				return Mock(input_ids=list(range(len(text.split()) + 2)))
+
+			mock_tokenizer.side_effect = mock_encode
+			mock_clip.return_value = mock_tokenizer
+			yield
 
 	@pytest.fixture
 	def service(self) -> StylesService:
@@ -308,3 +325,201 @@ class TestStylesService:
 		assert 'user text' in positive
 		assert 'before' in positive
 		assert 'after' in positive
+
+	@patch('app.services.styles.GPT2TokenizerFast')
+	def test_truncate_uses_word_fallback_when_gpt2_unavailable(self, mock_gpt2_class: Mock) -> None:
+		"""Test that word-based truncation is used when GPT-2 tokenizer is unavailable."""
+		# Make GPT-2 fail to load
+		mock_gpt2_class.from_pretrained.side_effect = Exception('Loading failed')
+
+		# Create fresh service so it tries to load GPT-2 and fails
+		fresh_service = StylesService()
+
+		long_text = ' '.join(['word'] * 20)
+		result = fresh_service.truncate(long_text, max_tokens=5)
+
+		# Should still truncate using word-based fallback
+		assert len(result) < len(long_text)
+		assert fresh_service.count_tokens(result) <= 5
+
+	def test_apply_styles_with_empty_positive_fields(self, service: StylesService) -> None:
+		"""Test that styles with empty positive fields are handled correctly."""
+		empty_styles = [
+			StyleItem(
+				id='empty1',
+				name='Empty',
+				positive='',  # Empty positive
+				negative='bad',
+				image='https://example.com/empty.jpg',
+			),
+			StyleItem(
+				id='valid',
+				name='Valid',
+				positive='good quality',
+				negative='poor',
+				image='https://example.com/valid.jpg',
+			),
+		]
+		service.all_styles = empty_styles
+
+		result = service.apply_styles(
+			user_prompt='test',
+			user_negative_prompt='',
+			style_identifiers=['empty1', 'valid'],
+		)
+
+		positive, negative = result
+
+		# Should only include the valid style's positive
+		assert 'good quality' in positive
+		assert 'test' in positive
+
+		# Both negatives should be included
+		assert 'bad' in negative
+		assert 'poor' in negative
+
+	def test_apply_styles_all_empty_positives_returns_user_prompt(self, service: StylesService) -> None:
+		"""Test that when all styles have empty positives, only user prompt is returned."""
+		empty_styles = [
+			StyleItem(
+				id='empty1',
+				name='Empty1',
+				positive='',
+				negative='neg1',
+				image='https://example.com/e1.jpg',
+			),
+			StyleItem(
+				id='empty2',
+				name='Empty2',
+				positive='',
+				negative='neg2',
+				image='https://example.com/e2.jpg',
+			),
+		]
+		service.all_styles = empty_styles
+
+		result = service.apply_styles(
+			user_prompt='my prompt',
+			user_negative_prompt='',
+			style_identifiers=['empty1', 'empty2'],
+		)
+
+		positive, negative = result
+
+		# Positive should just be user prompt since all style positives are empty
+		assert positive == 'my prompt'
+
+		# Negatives should still be combined
+		assert 'neg1' in negative
+		assert 'neg2' in negative
+
+	def test_apply_styles_truncates_styles_when_combined_too_long(self, service: StylesService) -> None:
+		"""Test that style additions are truncated when combined prompt exceeds limit."""
+		# Create user prompt that's large but not exceeding limit
+		medium_prompt = ' '.join(['word'] * 30)
+
+		# Create style that would push combined over limit
+		large_style = StyleItem(
+			id='large',
+			name='Large',
+			positive='{prompt}, ' + ', '.join(['quality'] * 60),
+			negative='',
+			image='https://example.com/large.jpg',
+		)
+		service.all_styles = [large_style]
+
+		result = service.apply_styles(
+			user_prompt=medium_prompt,
+			user_negative_prompt='',
+			style_identifiers=['large'],
+		)
+
+		positive, _ = result
+
+		# Combined should not exceed limit
+		assert service.count_tokens(positive) <= 77
+
+		# User prompt should still be present
+		assert medium_prompt in positive
+
+	def test_apply_styles_truncates_long_negative_prompt(self, service: StylesService) -> None:
+		"""Test that negative prompt is truncated if it exceeds token limit."""
+		# Create very long negative prompt through styles
+		long_neg_styles = [
+			StyleItem(
+				id=f'neg{i}',
+				name=f'Neg{i}',
+				positive='good',
+				negative=', '.join(['bad'] * 30),
+				image=f'https://example.com/neg{i}.jpg',
+			)
+			for i in range(5)
+		]
+		service.all_styles = long_neg_styles
+
+		result = service.apply_styles(
+			user_prompt='test',
+			user_negative_prompt='user negative',
+			style_identifiers=[s.id for s in long_neg_styles],
+		)
+
+		_, negative = result
+
+		# Negative should be truncated to fit within limit
+		assert service.count_tokens(negative) <= 77
+
+	def test_truncate_returns_empty_when_first_word_too_long(self, service: StylesService) -> None:
+		"""Test truncate returns empty string when even first word exceeds max_tokens."""
+		result = service.truncate('verylongword', max_tokens=0)
+
+		assert result == ''
+
+	def test_apply_styles_with_only_placeholder_in_positive(self, service: StylesService) -> None:
+		"""Test that styles with only {prompt} placeholder result in empty positive."""
+		placeholder_only = StyleItem(
+			id='placeholder',
+			name='Placeholder',
+			positive='{prompt}',  # Only placeholder, nothing else
+			negative='neg',
+			image='https://example.com/placeholder.jpg',
+		)
+		service.all_styles = [placeholder_only]
+
+		result = service.apply_styles(
+			user_prompt='user text',
+			user_negative_prompt='',
+			style_identifiers=['placeholder'],
+		)
+
+		positive, _ = result
+
+		# Should return just user prompt since style positive becomes empty after placeholder removal
+		assert positive == 'user text'
+
+	def test_apply_styles_truncated_styles_empty_returns_user_prompt(self, service: StylesService) -> None:
+		"""Test that when truncated styles become empty, only user prompt is returned."""
+		# Create user prompt that takes almost all tokens
+		large_prompt = ' '.join(['word'] * 75)
+
+		# Create style that can't fit even one word
+		style = StyleItem(
+			id='tiny',
+			name='Tiny',
+			positive='{prompt}, quality',
+			negative='',
+			image='https://example.com/tiny.jpg',
+		)
+		service.all_styles = [style]
+
+		result = service.apply_styles(
+			user_prompt=large_prompt,
+			user_negative_prompt='',
+			style_identifiers=['tiny'],
+		)
+
+		positive, _ = result
+
+		# Should return truncated user prompt only (styles can't fit)
+		assert service.count_tokens(positive) <= 77
+		# Result should be similar to user prompt (styles were dropped)
+		assert 'word' in positive
