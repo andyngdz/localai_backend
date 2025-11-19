@@ -143,6 +143,15 @@ def get_file_sizes(self, id: str, repo_info: Optional[RepoInfo] = None) -> Dict[
     pass
 ```
 
+**Use type stubs (.pyi files) for external library types:**
+
+- Create stub files in `typings/{package_name}/` instead of runtime wrapper classes
+- Stubs provide type hints without runtime overhead
+- Follow PEP 561 conventions (`.pyi` extension)
+- Configure `stubPath = "typings"` in `pyproject.toml` under `[tool.pyright]`
+- Never use runtime assertions (`assert isinstance(...)`) to force types
+- Import from stubs using TYPE_CHECKING when needed to avoid circular imports
+
 ## Documentation
 
 **Add examples to docstrings for helper functions.** Examples make the function's behavior immediately clear and serve as inline tests.

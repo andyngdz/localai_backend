@@ -3,10 +3,10 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import torch
-from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.cores.generation import image_processor, memory_manager, progress_callback, seed_manager
+from app.cores.generation.image_utils import process_generated_images
 from app.cores.model_manager import model_manager
 from app.database import crud as database_service
 from app.schemas.lora import LoRAData
@@ -99,34 +99,7 @@ class GeneratorService:
 		Returns:
 			Tuple of (image_items, nsfw_content_detected)
 		"""
-		# Clear preview generation cache immediately after generation completes
-		if hasattr(image_processor, 'clear_tensor_cache'):
-			image_processor.clear_tensor_cache()
-
-		# Clear CUDA cache before accessing final images to maximize available memory
-		memory_manager.clear_cache()
-
-		# Now safe to access images with more memory available
-		nsfw_content_detected = image_processor.is_nsfw_content_detected(output)
-
-		generated_images = output.images
-		items: list[ImageGenerationItem] = []
-
-		# Process and save images one at a time to minimize memory usage
-		for i, image in enumerate(generated_images):
-			if isinstance(image, Image.Image):
-				# Save image to disk (preserves file for history)
-				path, file_name = image_processor.save_image(image)
-				items.append(ImageGenerationItem(path=path, file_name=file_name))
-
-				# Delete the image from memory after saving
-				del image
-
-				# Clear cache after each image to prevent buildup
-				if i < len(generated_images) - 1:  # Skip on last iteration
-					memory_manager.clear_cache()
-
-		return items, nsfw_content_detected
+		return process_generated_images(output)
 
 	async def generate_image(self, config: GeneratorConfig, db: Session):
 		"""Generate images from text prompts using text-to-image pipeline.

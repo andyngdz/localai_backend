@@ -1,11 +1,11 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
 
 import torch
-from PIL import Image
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
-from app.cores.generation import image_processor, memory_manager, progress_callback, seed_manager
+from app.cores.generation import memory_manager, progress_callback, seed_manager
+from app.cores.generation.image_utils import process_generated_images
 from app.cores.model_manager import model_manager
 from app.cores.pipeline_converter import pipeline_converter
 from app.services import image_service, logger_service, styles_service
@@ -25,36 +25,11 @@ class Img2ImgService:
 	def __init__(self):
 		self.executor = ThreadPoolExecutor()
 
-	def _process_generated_images(self, output: Any) -> tuple[list[ImageGenerationItem], list[bool]]:
+	def _process_generated_images(
+		self, output: StableDiffusionPipelineOutput
+	) -> tuple[list[ImageGenerationItem], list[bool]]:
 		"""Process generated images and save them to disk."""
-		# Clear preview generation cache immediately after generation completes
-		if hasattr(image_processor, 'clear_tensor_cache'):
-			image_processor.clear_tensor_cache()
-
-		# Clear CUDA cache before accessing final images to maximize available memory
-		memory_manager.clear_cache()
-
-		# Now safe to access images with more memory available
-		nsfw_content_detected = image_processor.is_nsfw_content_detected(output)
-
-		generated_images = output.images
-		items: list[ImageGenerationItem] = []
-
-		# Process and save images one at a time to minimize memory usage
-		for i, image in enumerate(generated_images):
-			if isinstance(image, Image.Image):
-				# Save image to disk (preserves file for history)
-				path, file_name = image_processor.save_image(image)
-				items.append(ImageGenerationItem(path=path, file_name=file_name))
-
-				# Delete the image from memory after saving
-				del image
-
-				# Clear cache after each image to prevent buildup
-				if i < len(generated_images) - 1:  # Skip on last iteration
-					memory_manager.clear_cache()
-
-		return items, nsfw_content_detected
+		return process_generated_images(output)
 
 	async def generate_image_from_image(self, config: Img2ImgConfig):
 		"""
@@ -99,8 +74,8 @@ class Img2ImgService:
 
 			logger.info(
 				f'Generating img2img: prompt="{config.prompt}", '
-				f'strength={config.strength}, steps={config.steps}, '
-				f'CFG={config.cfg_scale}, size={config.width}x{config.height}'
+				+ f'strength={config.strength}, steps={config.steps}, '
+				+ f'CFG={config.cfg_scale}, size={config.width}x{config.height}'
 			)
 
 			# Set sampler
@@ -164,8 +139,8 @@ class Img2ImgService:
 
 			raise ValueError(
 				f'Out of memory: {config.number_of_images} images at {config.width}x{config.height}. '
-				f'Try: (1) Reduce to 1 image, (2) Lower resolution to 512x512, (3) Reduce strength, '
-				f'or (4) Restart model.'
+				+ 'Try: (1) Reduce to 1 image, (2) Lower resolution to 512x512, (3) Reduce strength, '
+				+ 'or (4) Restart model.'
 			)
 		except Exception as error:
 			logger.exception(f'Failed img2img for prompt: "{config.prompt}"')

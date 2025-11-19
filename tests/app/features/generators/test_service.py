@@ -1,7 +1,10 @@
+from collections.abc import Generator
+from typing import TypeAlias
 from unittest.mock import Mock, patch
 
 import pytest
 import torch
+from _pytest.logging import LogCaptureFixture
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
@@ -11,11 +14,14 @@ from app.features.generators.schemas import (
 	ImageGenerationItem,
 	ImageGenerationResponse,
 )
+from app.features.generators.service import GeneratorService
 from app.services.styles import DEFAULT_NEGATIVE_PROMPT
+
+MockServiceFixture: TypeAlias = tuple[GeneratorService, Mock, Mock, Mock, Mock, Mock, Mock, Mock]
 
 
 @pytest.fixture
-def mock_service():
+def mock_service() -> Generator[MockServiceFixture, None, None]:
 	"""Create GeneratorService with mocked dependencies."""
 	with (
 		patch('app.features.generators.service.model_manager') as mock_model_manager,
@@ -25,17 +31,23 @@ def mock_service():
 		patch('app.features.generators.service.progress_callback') as mock_progress_callback,
 		patch('app.features.generators.service.styles_service') as mock_styles_service,
 		patch('app.features.generators.service.torch') as mock_torch,
+		patch('app.cores.generation.image_utils.image_processor') as mock_image_utils_processor,
+		patch('app.cores.generation.image_utils.memory_manager') as mock_image_utils_memory,
 	):
 		# Configure seed_manager
 		mock_seed_manager.get_seed.return_value = 12345
 
-		# Configure image_processor
+		# Configure image_processor (both instances point to same mock)
 		mock_image_processor.is_nsfw_content_detected.return_value = [False]
 		mock_image_processor.save_image.return_value = ('/static/test.png', 'test')
+		mock_image_utils_processor.is_nsfw_content_detected = mock_image_processor.is_nsfw_content_detected
+		mock_image_utils_processor.save_image = mock_image_processor.save_image
+		mock_image_utils_processor.clear_tensor_cache = Mock()
 
-		# Configure memory_manager
+		# Configure memory_manager (both instances point to same mock)
 		mock_memory_manager.clear_cache = Mock()
 		mock_memory_manager.validate_batch_size = Mock()
+		mock_image_utils_memory.clear_cache = mock_memory_manager.clear_cache
 
 		# Configure progress_callback
 		mock_progress_callback.callback_on_step_end = Mock()
@@ -61,7 +73,7 @@ def mock_service():
 
 
 @pytest.fixture
-def sample_config():
+def sample_config() -> GeneratorConfig:
 	"""Create sample GeneratorConfig for testing."""
 	return GeneratorConfig(
 		prompt='test prompt',
@@ -78,27 +90,31 @@ def sample_config():
 
 
 @pytest.fixture
-def mock_db():
+def mock_db() -> Mock:
 	"""Create mock database session."""
 	return Mock()
 
 
 class TestGeneratorServiceInit:
-	def test_creates_executor(self, mock_service):
+	def test_creates_executor(self, mock_service: MockServiceFixture) -> None:
 		service, *_ = mock_service
 		assert service.executor is not None
 		assert hasattr(service.executor, 'submit')
 
 
 class TestApplyHiresFix:
-	def test_logs_warning_when_hires_fix_enabled(self, mock_service, caplog):
+	def test_logs_warning_when_hires_fix_enabled(
+		self, mock_service: MockServiceFixture, caplog: LogCaptureFixture
+	) -> None:
 		service, *_ = mock_service
 
 		service.apply_hires_fix(True)
 
 		assert 'Hires fix requested, but not fully implemented' in caplog.text
 
-	def test_does_not_log_when_hires_fix_disabled(self, mock_service, caplog):
+	def test_does_not_log_when_hires_fix_disabled(
+		self, mock_service: MockServiceFixture, caplog: LogCaptureFixture
+	) -> None:
 		service, *_ = mock_service
 
 		service.apply_hires_fix(False)
@@ -108,7 +124,9 @@ class TestApplyHiresFix:
 
 class TestGenerateImage:
 	@pytest.mark.asyncio
-	async def test_raises_error_when_no_model_loaded(self, mock_service, sample_config, mock_db):
+	async def test_raises_error_when_no_model_loaded(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, *_ = mock_service
 		mock_model_manager.pipe = None
 
@@ -116,7 +134,9 @@ class TestGenerateImage:
 			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_clears_cuda_cache_before_generation_when_cuda_available(self, mock_service, sample_config, mock_db):
+	async def test_clears_cuda_cache_before_generation_when_cuda_available(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, _, _, mock_memory_manager, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 
@@ -132,7 +152,9 @@ class TestGenerateImage:
 		mock_memory_manager.clear_cache.assert_called()
 
 	@pytest.mark.asyncio
-	async def test_validates_batch_size_with_device_service(self, mock_service, sample_config, caplog):
+	async def test_validates_batch_size_with_device_service(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, _, _, mock_memory_manager, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 
@@ -151,7 +173,9 @@ class TestGenerateImage:
 		mock_memory_manager.validate_batch_size.assert_called_once_with(4, 512, 512)
 
 	@pytest.mark.asyncio
-	async def test_does_not_warn_when_batch_size_within_limit(self, mock_service, sample_config, caplog):
+	async def test_does_not_warn_when_batch_size_within_limit(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 
@@ -168,7 +192,9 @@ class TestGenerateImage:
 		# Test passes if no errors occur - batch size validation happens in memory_manager
 
 	@pytest.mark.asyncio
-	async def test_sets_sampler_before_generation(self, mock_service, sample_config, mock_db):
+	async def test_sets_sampler_before_generation(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 
@@ -183,7 +209,9 @@ class TestGenerateImage:
 		mock_model_manager.set_sampler.assert_called_once_with(SamplerType.EULER_A)
 
 	@pytest.mark.asyncio
-	async def test_applies_styles_via_styles_service(self, mock_service, sample_config, mock_db):
+	async def test_applies_styles_via_styles_service(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 		mock_styles_service.apply_styles.return_value = ('positive prompt', 'negative prompt')
@@ -203,19 +231,14 @@ class TestGenerateImage:
 		)
 
 	@pytest.mark.asyncio
-	async def test_uses_default_negative_prompt_when_none_provided(self, mock_service, sample_config, mock_db):
+	async def test_uses_default_negative_prompt_when_none_provided(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 		mock_model_manager.pipe = Mock()
 		mock_styles_service.apply_styles.return_value = ('positive', None)
 
-		# Create a mock that captures the lambda call
-		async def mock_executor(*args, **kwargs):
-			# Get the lambda function from args
-			if len(args) > 1 and callable(args[1]):
-				# This would be the lambda, but we can't easily inspect it
-				pass
-			raise Exception('Stop')
-
+		service.executor = Mock()
 		service.executor.submit = Mock(side_effect=Exception('Stop'))
 
 		try:
@@ -227,8 +250,10 @@ class TestGenerateImage:
 		mock_styles_service.apply_styles.assert_called_once()
 
 	@pytest.mark.asyncio
-	async def test_successful_image_generation(self, mock_service, sample_config, mock_db):
-		service, mock_model_manager, _, mock_image_processor, _, _, mock_styles_service, *_ = mock_service
+	async def test_successful_image_generation(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 
 		# Mock the pipe
 		mock_pipe = Mock()
@@ -254,7 +279,9 @@ class TestGenerateImage:
 		assert result.nsfw_content_detected == [False]
 
 	@pytest.mark.asyncio
-	async def test_handles_oom_error_and_clears_cache(self, mock_service, sample_config, mock_db):
+	async def test_handles_oom_error_and_clears_cache(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, _, _, mock_memory_manager, _, mock_styles_service, *_ = mock_service
 
 		mock_pipe = Mock()
@@ -270,7 +297,9 @@ class TestGenerateImage:
 		assert mock_memory_manager.clear_cache.call_count >= 2
 
 	@pytest.mark.asyncio
-	async def test_handles_file_not_found_error(self, mock_service, sample_config, mock_db):
+	async def test_handles_file_not_found_error(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 
 		mock_pipe = Mock()
@@ -283,7 +312,9 @@ class TestGenerateImage:
 			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_handles_general_exception(self, mock_service, sample_config, mock_db):
+	async def test_handles_general_exception(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 
 		mock_pipe = Mock()
@@ -296,7 +327,9 @@ class TestGenerateImage:
 			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_clears_cuda_cache_in_finally_block(self, mock_service, sample_config, mock_db):
+	async def test_clears_cuda_cache_in_finally_block(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
 		service, mock_model_manager, _, _, mock_memory_manager, _, mock_styles_service, *_ = mock_service
 
 		mock_pipe = Mock()

@@ -14,7 +14,7 @@ class PipelineConverter:
 	"""
 
 	def convert_to_img2img(
-		self, pipe: AutoPipelineForText2Image | AutoPipelineForImage2Image
+		self, pipe: AutoPipelineForText2Image | AutoPipelineForImage2Image | None
 	) -> AutoPipelineForImage2Image:
 		"""
 		Convert pipeline to image-to-image mode.
@@ -50,7 +50,7 @@ class PipelineConverter:
 			raise
 
 	def convert_to_text2img(
-		self, pipe: AutoPipelineForText2Image | AutoPipelineForImage2Image
+		self, pipe: AutoPipelineForText2Image | AutoPipelineForImage2Image | None
 	) -> AutoPipelineForText2Image:
 		"""
 		Convert pipeline to text-to-image mode.

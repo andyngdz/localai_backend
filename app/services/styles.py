@@ -10,7 +10,7 @@ from app.styles.schemas import StyleItem
 
 logger = logger_service.get_logger(__name__, category='Service')
 
-PROMPT_PLACEHOLDER_PATTERN = re.compile(r'\s*\{prompt\}[,]?\s*')
+PROMPT_PLACEHOLDER_PATTERN = re.compile(r'\s*\{prompt\},?\s*')
 CLIP_MODEL_NAME = 'openai/clip-vit-base-patch32'
 GPT2_MODEL_NAME = 'openai-community/gpt2'
 MAX_CLIP_TOKENS = 77

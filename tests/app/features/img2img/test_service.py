@@ -1,5 +1,6 @@
 """Tests for img2img service."""
 
+from typing import Tuple
 from unittest.mock import Mock, patch
 
 import pytest
@@ -9,6 +10,20 @@ from PIL import Image
 
 from app.cores.samplers import SamplerType
 from app.features.img2img.schemas import ImageGenerationItem, ImageGenerationResponse, Img2ImgConfig
+from app.features.img2img.service import Img2ImgService
+
+MockImg2ImgServiceFixture = Tuple[
+	Img2ImgService,
+	Mock,  # mock_model_manager
+	Mock,  # mock_pipeline_converter
+	Mock,  # mock_seed_manager
+	Mock,  # mock_image_processor
+	Mock,  # mock_memory_manager
+	Mock,  # mock_progress_callback
+	Mock,  # mock_image_service
+	Mock,  # mock_styles_service
+	Mock,  # mock_torch
+]
 
 
 @pytest.fixture
@@ -18,12 +33,13 @@ def mock_img2img_service():
 		patch('app.features.img2img.service.model_manager') as mock_model_manager,
 		patch('app.features.img2img.service.pipeline_converter') as mock_pipeline_converter,
 		patch('app.features.img2img.service.seed_manager') as mock_seed_manager,
-		patch('app.features.img2img.service.image_processor') as mock_image_processor,
 		patch('app.features.img2img.service.memory_manager') as mock_memory_manager,
 		patch('app.features.img2img.service.progress_callback') as mock_progress_callback,
 		patch('app.features.img2img.service.image_service') as mock_image_service,
 		patch('app.features.img2img.service.styles_service') as mock_styles_service,
 		patch('app.features.img2img.service.torch') as mock_torch,
+		patch('app.cores.generation.image_utils.image_processor') as mock_image_processor,
+		patch('app.cores.generation.image_utils.memory_manager') as mock_image_utils_memory,
 	):
 		# Configure seed_manager
 		mock_seed_manager.get_seed.return_value = 12345
@@ -31,10 +47,12 @@ def mock_img2img_service():
 		# Configure image_processor
 		mock_image_processor.is_nsfw_content_detected.return_value = [False]
 		mock_image_processor.save_image.return_value = ('/static/test.png', 'test')
+		mock_image_processor.clear_tensor_cache = Mock()
 
 		# Configure memory_manager
 		mock_memory_manager.clear_cache = Mock()
 		mock_memory_manager.validate_batch_size = Mock()
+		mock_image_utils_memory.clear_cache = mock_memory_manager.clear_cache
 
 		# Configure progress_callback
 		mock_progress_callback.callback_on_step_end = Mock()
@@ -81,7 +99,7 @@ def sample_img2img_config():
 
 
 class TestImg2ImgServiceInit:
-	def test_creates_executor(self, mock_img2img_service):
+	def test_creates_executor(self, mock_img2img_service: MockImg2ImgServiceFixture):
 		service, *_ = mock_img2img_service
 		assert service.executor is not None
 		assert hasattr(service.executor, 'submit')
@@ -89,7 +107,9 @@ class TestImg2ImgServiceInit:
 
 class TestGenerateImageFromImage:
 	@pytest.mark.asyncio
-	async def test_raises_error_when_no_model_loaded(self, mock_img2img_service, sample_img2img_config):
+	async def test_raises_error_when_no_model_loaded(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		service, mock_model_manager, *_ = mock_img2img_service
 		mock_model_manager.pipe = None
 
@@ -97,7 +117,9 @@ class TestGenerateImageFromImage:
 			await service.generate_image_from_image(sample_img2img_config)
 
 	@pytest.mark.asyncio
-	async def test_converts_pipeline_to_img2img(self, mock_img2img_service, sample_img2img_config):
+	async def test_converts_pipeline_to_img2img(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		service, mock_model_manager, mock_pipeline_converter, *_ = mock_img2img_service
 		mock_model_manager.pipe = Mock()
 		mock_converted_pipe = Mock()
@@ -116,7 +138,9 @@ class TestGenerateImageFromImage:
 		assert mock_model_manager.pipe == mock_converted_pipe
 
 	@pytest.mark.asyncio
-	async def test_clears_cache_before_generation(self, mock_img2img_service, sample_img2img_config):
+	async def test_clears_cache_before_generation(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		service, mock_model_manager, _, _, _, mock_memory_manager, *_ = mock_img2img_service
 		mock_model_manager.pipe = Mock()
 
@@ -131,7 +155,9 @@ class TestGenerateImageFromImage:
 		mock_memory_manager.clear_cache.assert_called()
 
 	@pytest.mark.asyncio
-	async def test_validates_batch_size(self, mock_img2img_service, sample_img2img_config):
+	async def test_validates_batch_size(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		service, mock_model_manager, _, _, _, mock_memory_manager, *_ = mock_img2img_service
 		mock_model_manager.pipe = Mock()
 
@@ -146,8 +172,10 @@ class TestGenerateImageFromImage:
 		mock_memory_manager.validate_batch_size.assert_called_once_with(1, 512, 512)
 
 	@pytest.mark.asyncio
-	async def test_decodes_base64_image(self, mock_img2img_service, sample_img2img_config):
-		service, mock_model_manager, _, _, _, _, _, mock_image_service, mock_styles_service, _ = mock_img2img_service
+	async def test_decodes_base64_image(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
+		service, mock_model_manager, _, _, _, _, _, mock_image_service, _, _ = mock_img2img_service
 		mock_model_manager.pipe = Mock()
 		test_image = Image.new('RGB', (64, 64), color='blue')
 		mock_image_service.from_base64.return_value = test_image
@@ -165,7 +193,9 @@ class TestGenerateImageFromImage:
 		mock_image_service.resize_image.assert_called_once()
 
 	@pytest.mark.asyncio
-	async def test_applies_styles(self, mock_img2img_service, sample_img2img_config):
+	async def test_applies_styles(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		service, mock_model_manager, _, _, _, _, _, _, mock_styles_service, _ = mock_img2img_service
 		mock_model_manager.pipe = Mock()
 		mock_styles_service.apply_styles.return_value = ('positive', 'negative')
@@ -181,13 +211,15 @@ class TestGenerateImageFromImage:
 		mock_styles_service.apply_styles.assert_called_once()
 
 	@pytest.mark.asyncio
-	async def test_successful_generation(self, mock_img2img_service, sample_img2img_config):
+	async def test_successful_generation(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		(
 			service,
 			mock_model_manager,
 			mock_pipeline_converter,
 			_,
-			mock_image_processor,
+			_,
 			_,
 			_,
 			mock_image_service,
@@ -219,7 +251,9 @@ class TestGenerateImageFromImage:
 		assert result.nsfw_content_detected == [False]
 
 	@pytest.mark.asyncio
-	async def test_handles_oom_error(self, mock_img2img_service, sample_img2img_config):
+	async def test_handles_oom_error(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		(
 			service,
 			mock_model_manager,
@@ -251,7 +285,9 @@ class TestGenerateImageFromImage:
 		assert mock_memory_manager.clear_cache.call_count >= 2
 
 	@pytest.mark.asyncio
-	async def test_handles_invalid_base64_image(self, mock_img2img_service, sample_img2img_config):
+	async def test_handles_invalid_base64_image(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		service, mock_model_manager, _, _, _, _, _, mock_image_service, *_ = mock_img2img_service
 		mock_model_manager.pipe = Mock()
 		mock_image_service.from_base64.side_effect = ValueError('Invalid base64')
@@ -260,7 +296,9 @@ class TestGenerateImageFromImage:
 			await service.generate_image_from_image(sample_img2img_config)
 
 	@pytest.mark.asyncio
-	async def test_clears_cache_in_finally_block(self, mock_img2img_service, sample_img2img_config):
+	async def test_clears_cache_in_finally_block(
+		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
+	):
 		service, mock_model_manager, _, _, _, mock_memory_manager, _, mock_image_service, mock_styles_service, _ = (
 			mock_img2img_service
 		)
