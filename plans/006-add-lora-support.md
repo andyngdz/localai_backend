@@ -1,9 +1,11 @@
 # Plan 006: Add LoRA Support
 
 ## Overview
+
 Add LoRA (Low-Rank Adaptation) support to enable users to apply style/character LoRAs during image generation.
 
 ## User Workflow
+
 1. User downloads LoRA from any source (HuggingFace, CivitAI, etc.)
 2. User clicks "Add LoRA" in UI and selects file from filesystem
 3. UI sends file path to backend via `POST /loras/upload`
@@ -12,6 +14,7 @@ Add LoRA (Low-Rank Adaptation) support to enable users to apply style/character 
 6. User selects LoRA(s) with weights when generating images
 
 ## Architecture Decisions
+
 - **File handling:** Copy to `.cache/loras/` (preserves original)
 - **API method:** REST endpoint with JSON body `{file_path: "..."}`
 - **Registration:** Explicit only (no auto-scan on startup)
@@ -23,7 +26,9 @@ Add LoRA (Low-Rank Adaptation) support to enable users to apply style/character 
 ## Implementation Tasks
 
 ### **1. Database Schema**
+
 Create `loras` table via Alembic migration:
+
 ```python
 class LoRA(Base, TimestampMixin):
 	id: int (primary key)
@@ -35,7 +40,9 @@ class LoRA(Base, TimestampMixin):
 Add CRUD operations in `app/database/crud.py`
 
 ### **2. Storage Service**
+
 Add to `app/services/storage.py`:
+
 ```python
 def get_loras_dir() -> str:
 	return os.path.join(CACHE_FOLDER, 'loras')
@@ -45,6 +52,7 @@ def get_lora_file_path(filename: str) -> str:
 ```
 
 ### **3. Feature Module: `app/features/loras/`**
+
 ```
 ├── __init__.py
 ├── api.py           # REST endpoints
@@ -54,6 +62,7 @@ def get_lora_file_path(filename: str) -> str:
 ```
 
 **Schemas:**
+
 ```python
 class LoRAUploadRequest(BaseModel):
 	file_path: str
@@ -70,12 +79,14 @@ class LoRAInfo(BaseModel):
 ```
 
 **API Endpoints:**
+
 - `POST /loras/upload` - Copy file from path
 - `GET /loras` - List all LoRAs
 - `DELETE /loras/{id}` - Remove LoRA
 - `GET /loras/{id}` - Get details
 
 **Service logic:**
+
 - Validate file exists and is `.safetensors`
 - Check file size limit (500MB)
 - Copy to `.cache/loras/`
@@ -83,7 +94,9 @@ class LoRAInfo(BaseModel):
 - Save to database
 
 ### **4. Generator Schema Update**
+
 Modify `app/features/generators/schemas.py`:
+
 ```python
 class LoRAConfigItem(BaseModel):
 	lora_id: int
@@ -95,7 +108,9 @@ class GeneratorConfig(BaseModel):
 ```
 
 ### **5. Pipeline Manager Integration**
+
 Add to `app/cores/model_manager/pipeline_manager.py`:
+
 ```python
 def load_loras(self, lora_configs: list[dict]):
 	"""Load LoRAs with weights into pipeline
@@ -131,7 +146,9 @@ def unload_loras(self):
 ```
 
 ### **6. Generator Service Integration**
+
 Modify `app/features/generators/service.py`:
+
 ```python
 # Before generation
 if config.loras:
@@ -156,6 +173,7 @@ finally:
 ```
 
 ### **7. Testing**
+
 - Upload valid/invalid file paths
 - Upload duplicate files
 - List/delete operations
@@ -168,6 +186,7 @@ finally:
 ## Files to Create/Modify
 
 **New:**
+
 - `app/features/loras/__init__.py`
 - `app/features/loras/api.py`
 - `app/features/loras/schemas.py`
@@ -178,6 +197,7 @@ finally:
 - `tests/app/features/loras/test_api.py`
 
 **Modified:**
+
 - `app/features/generators/schemas.py` (add loras field)
 - `app/features/generators/service.py` (LoRA loading/unloading)
 - `app/cores/model_manager/pipeline_manager.py` (LoRA methods)
@@ -186,6 +206,7 @@ finally:
 ## Technical Details
 
 ### Diffusers API Usage
+
 ```python
 # Load multiple LoRAs
 pipe.load_lora_weights("path/to/lora1.safetensors", adapter_name="lora_1")
@@ -202,17 +223,20 @@ pipe.unload_lora_weights()
 ```
 
 ### File Format
+
 - Format: `.safetensors` (preferred for safety and speed)
 - Typical size: 10-200MB per LoRA
 - Compatible sources: HuggingFace, CivitAI, Kohya, Automatic1111
 
 ### Memory Management
+
 - Load LoRAs before each generation
 - Unload immediately after completion
 - Clear on model unload
 - No fusion in Phase 1 (keep simple)
 
 ## Success Criteria
+
 - ✅ Copy LoRA from user path to `.cache/loras/`
 - ✅ List all registered LoRAs with metadata
 - ✅ Delete LoRA (file + DB entry)
@@ -222,9 +246,10 @@ pipe.unload_lora_weights()
 - ✅ Handle duplicate filenames gracefully
 - ✅ Proper error messages for invalid files
 - ✅ LoRAs unload after each generation
-- ✅ All tests pass (ruff, mypy, pytest)
+- ✅ All tests pass (ruff, pyright, pytest)
 
 ## Future Enhancements (Phase 2)
+
 - LoRA fusion for faster inference
 - Fine-grained weight control (per-component)
 - HuggingFace download integration

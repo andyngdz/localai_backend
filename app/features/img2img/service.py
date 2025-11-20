@@ -53,7 +53,6 @@ class Img2ImgService:
 		# Convert pipeline to img2img mode
 		pipe = pipeline_converter.convert_to_img2img(model_manager.pipe)
 		model_manager.pipe = pipe
-		# Type assertion for mypy: pipe has __call__ method
 		assert callable(pipe)
 
 		# Clear CUDA cache before generation

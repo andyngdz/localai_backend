@@ -43,7 +43,7 @@ static/generated_images
 # Caches
 .cache/
 .ruff_cache/
-.mypy_cache/      
+.pyright_cache/
 .pytest_cache/
 
 # ------------------------------------------------------------------

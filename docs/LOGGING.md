@@ -33,5 +33,7 @@ logger.info('Loading model...')  # Output: [INFO] ... [ModelLoad] Loading model.
 
 ```bash
 LOG_LEVEL=DEBUG uv run python main.py              # Set global log level
-LOG_LEVEL_MODEL_LOADER=DEBUG uv run python main.py # Set module-specific level
+# Set module-specific level (format: LOG_LEVEL_<MODULE_PATH_WITH_UNDERSCORES>)
+# Example for app.cores.model_loader.model_loader:
+LOG_LEVEL_CORES_MODEL_LOADER_MODEL_LOADER=DEBUG uv run python main.py
 ```
