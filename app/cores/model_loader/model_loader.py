@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Literal, NotRequired, Optional, TypedDict, Union, cast
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -24,6 +24,20 @@ from .cancellation import CancellationException, CancellationToken
 from .schemas import ModelLoadCompletedResponse, ModelLoadFailed, ModelLoadPhase, ModelLoadProgressResponse
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
+
+
+class SingleFileStrategy(TypedDict):
+	type: Literal[ModelLoadingStrategy.SINGLE_FILE]
+	checkpoint_path: str
+
+
+class PretrainedStrategy(TypedDict):
+	type: Literal[ModelLoadingStrategy.PRETRAINED]
+	use_safetensors: bool
+	variant: NotRequired[str]
+
+
+Strategy = Union[SingleFileStrategy, PretrainedStrategy]
 
 
 def map_step_to_phase(step: int) -> ModelLoadPhase:
@@ -185,8 +199,8 @@ def cleanup_partial_load(pipe: Optional[DiffusersPipeline]) -> None:
 
 def _build_loading_strategies(
 	checkpoint_path: Optional[str],
-) -> list[dict[str, Union[ModelLoadingStrategy, str, bool]]]:
-	strategies: list[dict[str, Union[ModelLoadingStrategy, str, bool]]] = []
+) -> list[Strategy]:
+	strategies: list[Strategy] = []
 
 	if checkpoint_path:
 		strategies.append(
@@ -244,7 +258,7 @@ def _load_single_file(
 
 def _load_pretrained(
 	id: str,
-	params: dict[str, Union[ModelLoadingStrategy, str, bool]],
+	params: PretrainedStrategy,
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
@@ -261,9 +275,66 @@ def _load_pretrained(
 	)
 
 
+def _get_strategy_type(strategy: Strategy) -> ModelLoadingStrategy:
+	strategy_type = cast(ModelLoadingStrategy, strategy['type'])
+	if strategy_type not in (
+		ModelLoadingStrategy.SINGLE_FILE,
+		ModelLoadingStrategy.PRETRAINED,
+	):
+		raise ValueError(f'Unsupported strategy type: {strategy_type}')
+
+	return strategy_type
+
+
+def _load_single_file_strategy(
+	strategy: SingleFileStrategy,
+	safety_checker: StableDiffusionSafetyChecker,
+	feature_extractor: CLIPImageProcessor,
+) -> DiffusersPipeline:
+	checkpoint_path = strategy['checkpoint_path']
+	if not checkpoint_path:
+		raise ValueError('Missing checkpoint path for single-file strategy')
+
+	return _load_single_file(checkpoint_path, safety_checker, feature_extractor)
+
+
+def _load_pretrained_strategy(
+	id: str,
+	strategy: PretrainedStrategy,
+	safety_checker: StableDiffusionSafetyChecker,
+	feature_extractor: CLIPImageProcessor,
+) -> DiffusersPipeline:
+	return _load_pretrained(id, strategy, safety_checker, feature_extractor)
+
+
+def _load_pipeline_from_strategy(
+	id: str,
+	strategy: Strategy,
+	strategy_type: ModelLoadingStrategy,
+	safety_checker: StableDiffusionSafetyChecker,
+	feature_extractor: CLIPImageProcessor,
+) -> DiffusersPipeline:
+	if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
+		return _load_single_file_strategy(
+			cast(SingleFileStrategy, strategy),
+			safety_checker,
+			feature_extractor,
+		)
+
+	if strategy_type == ModelLoadingStrategy.PRETRAINED:
+		return _load_pretrained_strategy(
+			id,
+			cast(PretrainedStrategy, strategy),
+			safety_checker,
+			feature_extractor,
+		)
+
+	raise ValueError(f'Unsupported strategy type: {strategy_type}')
+
+
 def _execute_loading_strategies(
 	id: str,
-	strategies: list[dict[str, Union[ModelLoadingStrategy, str, bool]]],
+	strategies: list[Strategy],
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
 	cancel_token: Optional[CancellationToken],
@@ -277,17 +348,16 @@ def _execute_loading_strategies(
 		emit_progress(id, 5, 'Loading model weights...')
 
 		try:
-			strategy_type = strategy.get('type')
-
+			strategy_type = _get_strategy_type(strategy)
 			logger.info(f'Trying loading strategy {idx}/{len(strategies)} ({strategy_type}): {strategy}')
 
-			if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
-				checkpoint_path = strategy.get('checkpoint_path')
-				if not isinstance(checkpoint_path, str):
-					raise ValueError(f'Invalid checkpoint path for strategy: {strategy}')
-				pipe = _load_single_file(checkpoint_path, safety_checker, feature_extractor)
-			else:
-				pipe = _load_pretrained(id, strategy, safety_checker, feature_extractor)
+			pipe = _load_pipeline_from_strategy(
+				id,
+				strategy,
+				strategy_type,
+				safety_checker,
+				feature_extractor,
+			)
 
 			logger.info(f'Successfully loaded model using strategy {idx}')
 			return pipe

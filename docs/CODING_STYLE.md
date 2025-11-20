@@ -87,11 +87,12 @@ Fix type errors at their source—never use `# type: ignore` to bypass warnings.
 - It is more explicit and readable
 - Consistent with the codebase style
 
-**Avoid `cast` and runtime workarounds:**
+**Minimize use of `cast` and runtime workarounds:**
 
-- Do not use `cast(Type, val)` to silence type errors unless absolutely necessary
+- Avoid using `cast(Type, val)` to silence type errors when possible
 - Do not use `getattr(obj, 'attr')` or `setattr(obj, 'attr', val)` to bypass missing type definitions
-- **Fix the root cause:** Update the type stubs in `typings/` instead
+- **Prefer fixing the root cause:** Update the type stubs in `typings/` instead
+- When `cast` is unavoidable (for example, dynamically resolved methods), add a short comment explaining why
 
 **Use Pydantic models instead of TypedDict for data structures:**
 
