@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Optional, Union, cast
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -35,6 +35,7 @@ def map_step_to_phase(step: int) -> ModelLoadPhase:
 	Returns:
 		Corresponding ModelLoadPhase
 	"""
+
 	if step <= 2:
 		return ModelLoadPhase.INITIALIZATION
 	elif step <= 5:
@@ -53,6 +54,7 @@ def emit_progress(model_id: str, step: int, message: str) -> None:
 		step: Current checkpoint number (1-9)
 		message: Human-readable status message
 	"""
+
 	try:
 		phase = map_step_to_phase(step)
 
@@ -73,7 +75,7 @@ def emit_progress(model_id: str, step: int, message: str) -> None:
 		logger.warning(f'Failed to emit model load progress: {e}')
 
 
-def find_single_file_checkpoint(model_path: str) -> str | None:
+def find_single_file_checkpoint(model_path: str) -> Optional[str]:
 	"""
 	Detect single-file checkpoint (.safetensors) in the model directory.
 	Returns the path to the checkpoint file if found, None otherwise.
@@ -81,6 +83,7 @@ def find_single_file_checkpoint(model_path: str) -> str | None:
 	This handles community models from CivitAI and HuggingFace that use
 	single-file checkpoints instead of the diffusers format.
 	"""
+
 	if not os.path.exists(model_path):
 		return None
 
@@ -96,7 +99,7 @@ def find_single_file_checkpoint(model_path: str) -> str | None:
 	return None
 
 
-def find_checkpoint_in_cache(model_cache_path: str) -> str | None:
+def find_checkpoint_in_cache(model_cache_path: str) -> Optional[str]:
 	"""
 	Find a single-file checkpoint in the model cache directory.
 
@@ -109,6 +112,7 @@ def find_checkpoint_in_cache(model_cache_path: str) -> str | None:
 	Returns:
 		Path to checkpoint file if found, None otherwise
 	"""
+
 	if not os.path.exists(model_cache_path):
 		return None
 
@@ -138,6 +142,7 @@ def apply_device_optimizations(pipe: DiffusersPipeline) -> None:
 	Args:
 		pipe: The pipeline to optimize
 	"""
+
 	optimizer = get_optimizer()
 	optimizer.apply(pipe)
 	logger.info(f'Applied {optimizer.get_platform_name()} optimizations successfully')
@@ -147,6 +152,7 @@ def move_to_device(pipe: DiffusersPipeline, device: str, log_prefix: str) -> Dif
 	"""
 	Helper function to move a model to a device, trying to_empty() first with fallback to to()
 	"""
+
 	try:
 		# Try using to_empty() first for meta tensors
 		pipe = pipe.to_empty(device)
@@ -164,6 +170,7 @@ def cleanup_partial_load(pipe: Optional[DiffusersPipeline]) -> None:
 	Args:
 		pipe: The partially loaded pipeline to clean up
 	"""
+
 	if pipe is None:
 		return
 
@@ -174,6 +181,165 @@ def cleanup_partial_load(pipe: Optional[DiffusersPipeline]) -> None:
 		+ f'{metrics.objects_collected} objects collected'
 		+ (f', error: {metrics.error}' if metrics.error else '')
 	)
+
+
+def _build_loading_strategies(
+	checkpoint_path: Optional[str],
+) -> list[dict[str, Union[ModelLoadingStrategy, str, bool]]]:
+	strategies: list[dict[str, Union[ModelLoadingStrategy, str, bool]]] = []
+
+	if checkpoint_path:
+		strategies.append(
+			{
+				'type': ModelLoadingStrategy.SINGLE_FILE,
+				'checkpoint_path': checkpoint_path,
+			}
+		)
+
+	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': True})
+	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': False})
+	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': True, 'variant': 'fp16'})
+	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': False, 'variant': 'fp16'})
+
+	return strategies
+
+
+def _load_single_file(
+	checkpoint: str,
+	safety_checker: StableDiffusionSafetyChecker,
+	feature_extractor: CLIPImageProcessor,
+) -> DiffusersPipeline:
+	from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import StableDiffusionPipeline
+	from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import StableDiffusionXLPipeline
+
+	errors = []
+
+	for pipeline_class in [StableDiffusionXLPipeline, StableDiffusionPipeline]:
+		try:
+			logger.debug(f'Trying {pipeline_class.__name__} for single-file checkpoint')
+
+			from_single_file = getattr(pipeline_class, 'from_single_file')
+
+			pipe = cast(
+				DiffusersPipeline,
+				from_single_file(
+					checkpoint,
+					torch_dtype=device_service.torch_dtype,
+				),
+			)
+
+			if hasattr(pipe, 'safety_checker'):
+				pipe.safety_checker = safety_checker
+
+			if hasattr(pipe, 'feature_extractor'):
+				pipe.feature_extractor = feature_extractor
+
+			logger.info(f'Successfully loaded with {pipeline_class.__name__}')
+			return pipe
+		except Exception as e:
+			errors.append(f'{pipeline_class.__name__}: {e}')
+
+	raise ValueError(f'Failed to load single-file checkpoint {checkpoint}. Tried: {", ".join(errors)}')
+
+
+def _load_pretrained(
+	id: str,
+	params: dict[str, Union[ModelLoadingStrategy, str, bool]],
+	safety_checker: StableDiffusionSafetyChecker,
+	feature_extractor: CLIPImageProcessor,
+) -> DiffusersPipeline:
+	load_params = {k: v for k, v in params.items() if k != 'type'}
+
+	return AutoPipelineForText2Image.from_pretrained(
+		id,
+		cache_dir=CACHE_FOLDER,
+		low_cpu_mem_usage=True,
+		torch_dtype=device_service.torch_dtype,
+		safety_checker=safety_checker,
+		feature_extractor=feature_extractor,
+		**load_params,
+	)
+
+
+def _execute_loading_strategies(
+	id: str,
+	strategies: list[dict[str, Union[ModelLoadingStrategy, str, bool]]],
+	safety_checker: StableDiffusionSafetyChecker,
+	feature_extractor: CLIPImageProcessor,
+	cancel_token: Optional[CancellationToken],
+) -> DiffusersPipeline:
+	last_error = None
+
+	for idx, strategy in enumerate(strategies, 1):
+		if cancel_token:
+			cancel_token.check_cancelled()
+
+		emit_progress(id, 5, 'Loading model weights...')
+
+		try:
+			strategy_type = strategy.get('type')
+
+			logger.info(f'Trying loading strategy {idx}/{len(strategies)} ({strategy_type}): {strategy}')
+
+			if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
+				checkpoint_path = strategy.get('checkpoint_path')
+				if not isinstance(checkpoint_path, str):
+					raise ValueError(f'Invalid checkpoint path for strategy: {strategy}')
+				pipe = _load_single_file(checkpoint_path, safety_checker, feature_extractor)
+			else:
+				pipe = _load_pretrained(id, strategy, safety_checker, feature_extractor)
+
+			logger.info(f'Successfully loaded model using strategy {idx}')
+			return pipe
+		except Exception as error:
+			last_error = error
+			logger.warning(f'Strategy {idx} failed: {error}')
+
+			continue
+
+	error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
+
+	logger.error(error_msg)
+
+	socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(last_error)))
+	if last_error is not None:
+		raise last_error
+	else:
+		raise RuntimeError(error_msg)
+
+
+def _finalize_model_setup(
+	pipe: DiffusersPipeline, id: str, cancel_token: Optional[CancellationToken]
+) -> DiffusersPipeline:
+	if cancel_token:
+		cancel_token.check_cancelled()
+
+	emit_progress(id, 6, 'Model loaded successfully')
+
+	if hasattr(pipe, 'reset_device_map'):
+		pipe.reset_device_map()
+		logger.info(f'Reset device map for pipeline {id}')
+
+	if cancel_token:
+		cancel_token.check_cancelled()
+
+	emit_progress(id, 7, 'Moving model to device...')
+
+	pipe = move_to_device(pipe, device_service.device, f'Pipeline {id}')
+
+	if cancel_token:
+		cancel_token.check_cancelled()
+
+	emit_progress(id, 8, 'Applying optimizations...')
+
+	apply_device_optimizations(pipe)
+
+	if cancel_token:
+		cancel_token.check_cancelled()
+
+	emit_progress(id, 9, 'Finalizing model setup...')
+
+	return pipe
 
 
 def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> DiffusersPipeline:
@@ -189,12 +355,14 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> D
 	Raises:
 		CancellationException: If loading is cancelled via cancel_token
 	"""
+
 	db = SessionLocal()
+
 	# Initialize pipe to None for exception handler scope (lines 341, 348)
 	# Without this, if an exception occurs before pipe is assigned (e.g., during
 	# SessionLocal, MaxMemoryConfig, or early checkpoints), cleanup_partial_load(pipe)
 	# in exception handlers would raise NameError
-	pipe: DiffusersPipeline | None = None
+	pipe: Optional[DiffusersPipeline] = None
 
 	try:
 		logger.info(f'Loading model {id} to {device_service.device}')
@@ -205,6 +373,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> D
 		# Checkpoint 1: Before initialization
 		if cancel_token:
 			cancel_token.check_cancelled()
+
 		emit_progress(id, 1, 'Initializing model loader...')
 
 		max_memory = MaxMemoryConfig(db).to_dict()
@@ -213,182 +382,41 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> D
 		# Checkpoint 2: Before loading feature extractor
 		if cancel_token:
 			cancel_token.check_cancelled()
+
 		emit_progress(id, 2, 'Loading feature extractor...')
 
 		feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
+
 		safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
 
 		# Checkpoint 3: Before cache lookup
 		if cancel_token:
 			cancel_token.check_cancelled()
+
 		emit_progress(id, 3, 'Checking model cache...')
 
 		# Check if the model exists in cache and look for single-file checkpoints
 		model_cache_path = storage_service.get_model_dir(id)
+
 		checkpoint_path = find_checkpoint_in_cache(model_cache_path)
 
 		# Checkpoint 4: Before building strategies
 		if cancel_token:
 			cancel_token.check_cancelled()
+
 		emit_progress(id, 4, 'Preparing loading strategies...')
 
-		# Build loading strategies based on whether we found a single-file checkpoint
-		loading_strategies: list[dict[str, Any]] = []
+		strategies = _build_loading_strategies(checkpoint_path)
 
-		# Strategy 0: Single-file checkpoint (highest priority for community models)
-		if checkpoint_path:
-			loading_strategies.append(
-				{
-					'type': ModelLoadingStrategy.SINGLE_FILE,
-					'checkpoint_path': checkpoint_path,
-				}
-			)
-
-		# Strategy 1: Standard safetensors (diffusers format)
-		# Reordered to match what download service provides (filters fp16 variants)
-		# This prevents re-downloading fp16 from HuggingFace Hub during model load
-		loading_strategies.append(
-			{
-				'type': ModelLoadingStrategy.PRETRAINED,
-				'use_safetensors': True,
-			}
+		pipe = _execute_loading_strategies(
+			id,
+			strategies,
+			safety_checker_instance,
+			feature_extractor,
+			cancel_token,
 		)
 
-		# Strategy 2: Standard without safetensors (diffusers format, .bin fallback)
-		loading_strategies.append(
-			{
-				'type': ModelLoadingStrategy.PRETRAINED,
-				'use_safetensors': False,
-			}
-		)
-
-		# Strategy 3: FP16 safetensors (diffusers format, fallback only)
-		# Only tried if standard safetensors don't exist
-		loading_strategies.append(
-			{
-				'type': ModelLoadingStrategy.PRETRAINED,
-				'use_safetensors': True,
-				'variant': 'fp16',
-			}
-		)
-
-		# Strategy 4: FP16 without safetensors (diffusers format, fallback only)
-		# Only tried if standard bin files don't exist
-		loading_strategies.append(
-			{
-				'type': ModelLoadingStrategy.PRETRAINED,
-				'use_safetensors': False,
-				'variant': 'fp16',
-			}
-		)
-
-		last_error = None
-
-		for strategy_idx, strategy_params in enumerate(loading_strategies, 1):
-			# Checkpoint 5: Before each loading strategy
-			if cancel_token:
-				cancel_token.check_cancelled()
-			emit_progress(id, 5, 'Loading model weights...')
-
-			try:
-				strategy_type = strategy_params.get('type')
-				logger.info(
-					f'Trying loading strategy {strategy_idx}/{len(loading_strategies)} ({strategy_type}): {strategy_params}'
-				)
-
-				if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
-					# Load from single-file checkpoint - try SDXL first, then SD 1.5
-					from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import StableDiffusionPipeline
-					from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import StableDiffusionXLPipeline
-
-					checkpoint = strategy_params['checkpoint_path']
-					single_file_errors = []
-
-					for pipeline_class in [StableDiffusionXLPipeline, StableDiffusionPipeline]:
-						try:
-							logger.debug(f'Trying {pipeline_class.__name__} for single-file checkpoint')
-							from_single_file = getattr(pipeline_class, 'from_single_file')
-							pipe = cast(
-								DiffusersPipeline,
-								from_single_file(
-									checkpoint,
-									torch_dtype=device_service.torch_dtype,
-								),
-							)
-							# Attach safety checker and feature extractor
-							if hasattr(pipe, 'safety_checker'):
-								pipe.safety_checker = safety_checker_instance
-							if hasattr(pipe, 'feature_extractor'):
-								pipe.feature_extractor = feature_extractor
-							logger.info(f'Successfully loaded with {pipeline_class.__name__}')
-							break
-						except Exception as e:
-							single_file_errors.append(f'{pipeline_class.__name__}: {e}')
-							continue
-
-					if not pipe:
-						error_msg = f'Failed to load single-file checkpoint {checkpoint}. Tried: {", ".join(single_file_errors)}'
-						raise ValueError(error_msg)
-				else:
-					# Load from pretrained (diffusers format)
-					# Create clean params dict without 'type' key for unpacking
-					load_params = {k: v for k, v in strategy_params.items() if k != 'type'}
-					pipe = AutoPipelineForText2Image.from_pretrained(
-						id,
-						cache_dir=CACHE_FOLDER,
-						low_cpu_mem_usage=True,
-						torch_dtype=device_service.torch_dtype,
-						safety_checker=safety_checker_instance,
-						feature_extractor=feature_extractor,
-						**load_params,
-					)
-
-				logger.info(f'Successfully loaded model using strategy {strategy_idx}')
-				break
-			except Exception as error:
-				last_error = error
-				logger.warning(f'Strategy {strategy_idx} failed: {error}')
-				continue
-
-		if pipe is None:
-			error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
-			logger.error(error_msg)
-			socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(last_error)))
-			if last_error is not None:
-				raise last_error
-			else:
-				raise RuntimeError(error_msg)
-
-		# Checkpoint 6: After pipeline loaded, before device operations
-		if cancel_token:
-			cancel_token.check_cancelled()
-		emit_progress(id, 6, 'Model loaded successfully')
-
-		# Reset device map to allow explicit device placement, then move pipeline
-		if hasattr(pipe, 'reset_device_map'):
-			pipe.reset_device_map()
-			logger.info(f'Reset device map for pipeline {id}')
-
-		# Checkpoint 7: Before moving to device
-		if cancel_token:
-			cancel_token.check_cancelled()
-		emit_progress(id, 7, 'Moving model to device...')
-
-		# Move entire pipeline to target device using to_empty() for meta tensors
-		pipe = move_to_device(pipe, device_service.device, f'Pipeline {id}')
-
-		# Checkpoint 8: Before optimizations
-		if cancel_token:
-			cancel_token.check_cancelled()
-		emit_progress(id, 8, 'Applying optimizations...')
-
-		# Apply device-specific optimizations
-		apply_device_optimizations(pipe)
-
-		# Checkpoint 9: Before completion
-		if cancel_token:
-			cancel_token.check_cancelled()
-		emit_progress(id, 9, 'Finalizing model setup...')
+		pipe = _finalize_model_setup(pipe, id, cancel_token)
 
 		db.close()
 
