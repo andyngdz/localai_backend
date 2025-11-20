@@ -63,9 +63,16 @@ def get_filename_from_path(file_path: str) -> str:
 
 Fix type errors at their source—never use `# type: ignore` to bypass warnings. When mypy reports an error:
 
-- Define proper types (TypedDict, Pydantic models, Protocol)
+- Define proper types (Pydantic models, Protocol)
 - Use `cast()` with explanatory comments for legitimate type narrowing
 - Add type annotations to function signatures when library stubs are incomplete
+
+**Never use `# type: ignore[return-value]` or any specific type ignore comments.** If a function's return type doesn't match:
+
+- Fix the actual return type
+- Use proper type annotations
+- Refactor the code to match the declared type
+- Use `cast()` only when absolutely necessary with clear explanation
 
 **Never use `any` type.** It defeats the purpose of type checking. Instead:
 
@@ -73,6 +80,35 @@ Fix type errors at their source—never use `# type: ignore` to bypass warnings.
 - Use TypeVar for generic types
 - Use Protocol for duck-typed interfaces
 - Use proper type annotations even if it requires more work
+
+**Use Pydantic models instead of TypedDict for data structures:**
+
+- Pydantic provides runtime validation
+- Better consistency with the rest of the codebase
+- Clear error messages when validation fails
+- Better IDE support and autocomplete
+
+**Bad example:**
+
+```python
+from typing import TypedDict
+
+class LoRAData(TypedDict):
+    id: int
+    name: str
+    weight: float
+```
+
+**Good example:**
+
+```python
+from pydantic import BaseModel, Field
+
+class LoRAData(BaseModel):
+    id: int = Field(..., description='Database ID')
+    name: str = Field(..., description='Display name')
+    weight: float = Field(..., ge=0.0, le=2.0, description='Weight/strength')
+```
 
 Use public interfaces by default (`lock`, `set_state()`) and reserve underscores for truly private implementation details.
 
@@ -106,6 +142,15 @@ def list_files(self, id: str, repo_info: Optional[RepoInfo] = None) -> List[str]
 def get_file_sizes(self, id: str, repo_info: Optional[RepoInfo] = None) -> Dict[str, int]:
     pass
 ```
+
+**Use type stubs (.pyi files) for external library types:**
+
+- Create stub files in `typings/{package_name}/` instead of runtime wrapper classes
+- Stubs provide type hints without runtime overhead
+- Follow PEP 561 conventions (`.pyi` extension)
+- Configure `stubPath = "typings"` in `pyproject.toml` under `[tool.pyright]`
+- Never use runtime assertions (`assert isinstance(...)`) to force types
+- Import from stubs using TYPE_CHECKING when needed to avoid circular imports
 
 ## Documentation
 

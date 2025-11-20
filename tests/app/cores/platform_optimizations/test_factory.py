@@ -37,8 +37,8 @@ class TestGetOptimizer:
 	@patch('app.cores.platform_optimizations.factory.sys')
 	def test_returns_darwin_optimizer_on_macos(self, mock_sys):
 		"""Test returns DarwinOptimizer on macOS."""
-		from app.cores.platform_optimizations.factory import get_optimizer
 		from app.cores.platform_optimizations.darwin import DarwinOptimizer
+		from app.cores.platform_optimizations.factory import get_optimizer
 
 		mock_sys.platform = 'darwin'
 

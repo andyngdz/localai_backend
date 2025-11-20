@@ -1,13 +1,13 @@
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
+from app.cores.typing_utils import make_default_list_factory
 from app.features.generators.schemas import (
 	ImageGenerationItem,
 	ImageGenerationResponse,
 	ImageGenerationStepEndResponse,
 )
+from app.services.styles import DEFAULT_NEGATIVE_PROMPT
 
 from .constants import IMG2IMG_DEFAULT_STRENGTH
 
@@ -32,14 +32,17 @@ class Img2ImgConfig(BaseModel):
 	height: int = Field(default=512, ge=64, description='Height of the generated image.')
 	number_of_images: int = Field(default=1, ge=1, description='Number of images to generate.')
 	prompt: str = Field(..., max_length=1000, description='The text prompt for image generation.')
-	negative_prompt: Optional[str] = Field(
-		default=None, max_length=1000, description='Negative prompt to avoid certain features.'
+	negative_prompt: str = Field(
+		default=DEFAULT_NEGATIVE_PROMPT, max_length=1000, description='Negative prompt to avoid certain features.'
 	)
 	cfg_scale: float = Field(default=7.5, ge=1, description='Classifier-Free Guidance scale.')
 	steps: int = Field(default=24, ge=1, description='Number of inference steps.')
 	seed: int = Field(default=-1, description='Random seed for reproducibility.')
 	sampler: SamplerType = Field(default=SamplerType.EULER_A, description='Sampler type for image generation.')
-	styles: list[str] = Field(default_factory=list, description='List of styles to apply.')
+	styles: list[str] = Field(
+		default_factory=make_default_list_factory(str),
+		description='List of styles to apply.',
+	)
 
 
 class Img2ImgRequest(BaseModel):

@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with code in this repository.
+## This file provides guidance to Claude Code when working with code in this repository.
+
+### Before working on any task. You must read this file again
 
 - **Plan Mode**: @docs/PLAN_MODE.md
 - **Development Commands**: @docs/DEVELOPMENT_COMMANDS.md

@@ -3,7 +3,7 @@ from typing import List
 
 from sqlalchemy.orm import Session, selectinload
 
-from app.database.models import GeneratedImage, History, Model
+from app.database.models import GeneratedImage, History, LoRA, Model
 from app.schemas.generators import GeneratorConfig, ImageGenerationResponse
 from app.services.logger import logger_service
 
@@ -108,3 +108,57 @@ def add_generated_image(db: Session, history_id: int, response: ImageGenerationR
 		db.add(generated_image)
 
 	db.commit()
+
+
+def add_lora(db: Session, name: str, file_path: str, file_size: int) -> LoRA:
+	"""Add a LoRA to the database."""
+	lora = LoRA(name=name, file_path=file_path, file_size=file_size)
+	db.add(lora)
+	db.commit()
+	db.refresh(lora)
+
+	logger.info(f'Added LoRA: {name} (id={lora.id}, size={file_size} bytes)')
+
+	return lora
+
+
+def get_all_loras(db: Session) -> List[LoRA]:
+	"""Get all LoRAs from the database."""
+	loras = db.query(LoRA).all()
+
+	return loras
+
+
+def get_lora_by_id(db: Session, lora_id: int) -> LoRA | None:
+	"""Get a LoRA by its database ID."""
+	lora = db.query(LoRA).filter(LoRA.id == lora_id).first()
+
+	return lora
+
+
+def get_lora_by_file_path(db: Session, file_path: str) -> LoRA | None:
+	"""Get a LoRA by its file path."""
+	lora = db.query(LoRA).filter(LoRA.file_path == file_path).first()
+
+	return lora
+
+
+def delete_lora(db: Session, lora_id: int) -> str:
+	"""Delete a LoRA entry from the database and its associated file."""
+	lora = db.query(LoRA).filter(LoRA.id == lora_id).first()
+
+	if not lora:
+		raise ValueError(f'LoRA with id {lora_id} does not exist.')
+
+	file_path = lora.file_path
+	db.delete(lora)
+	db.commit()
+
+	logger.info(f'Deleted LoRA: {lora.name} (id={lora_id})')
+
+	# Delete the file if it exists
+	if os.path.exists(file_path):
+		logger.info(f'Deleting LoRA file: {file_path}')
+		os.remove(file_path)
+
+	return file_path
