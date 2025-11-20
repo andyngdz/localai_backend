@@ -2,14 +2,14 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 import torch
-from PIL import Image
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
-from app.cores.generation import image_processor, memory_manager, progress_callback, seed_manager
+from app.cores.generation import memory_manager, progress_callback, seed_manager
+from app.cores.generation.image_utils import process_generated_images
 from app.cores.model_manager import model_manager
 from app.cores.pipeline_converter import pipeline_converter
 from app.services import image_service, logger_service, styles_service
 
-from .constants import DEFAULT_NEGATIVE_PROMPT
 from .schemas import (
 	ImageGenerationItem,
 	ImageGenerationResponse,
@@ -24,6 +24,12 @@ class Img2ImgService:
 
 	def __init__(self):
 		self.executor = ThreadPoolExecutor()
+
+	def _process_generated_images(
+		self, output: StableDiffusionPipelineOutput
+	) -> tuple[list[ImageGenerationItem], list[bool]]:
+		"""Process generated images and save them to disk."""
+		return process_generated_images(output)
 
 	async def generate_image_from_image(self, config: Img2ImgConfig):
 		"""
@@ -47,6 +53,8 @@ class Img2ImgService:
 		# Convert pipeline to img2img mode
 		pipe = pipeline_converter.convert_to_img2img(model_manager.pipe)
 		model_manager.pipe = pipe
+		# Type assertion for mypy: pipe has __call__ method
+		assert callable(pipe)
 
 		# Clear CUDA cache before generation
 		memory_manager.clear_cache()
@@ -66,8 +74,8 @@ class Img2ImgService:
 
 			logger.info(
 				f'Generating img2img: prompt="{config.prompt}", '
-				f'strength={config.strength}, steps={config.steps}, '
-				f'CFG={config.cfg_scale}, size={config.width}x{config.height}'
+				+ f'strength={config.strength}, steps={config.steps}, '
+				+ f'CFG={config.cfg_scale}, size={config.width}x{config.height}'
 			)
 
 			# Set sampler
@@ -79,10 +87,11 @@ class Img2ImgService:
 			# Apply styles to prompts
 			positive_prompt, negative_prompt = styles_service.apply_styles(
 				config.prompt,
+				config.negative_prompt,
 				config.styles,
 			)
 			final_positive_prompt = positive_prompt
-			final_negative_prompt = negative_prompt or DEFAULT_NEGATIVE_PROMPT
+			final_negative_prompt = negative_prompt
 
 			logger.info(f'Positive prompt: {final_positive_prompt}')
 			logger.info(f'Negative prompt: {final_negative_prompt}')
@@ -109,15 +118,12 @@ class Img2ImgService:
 
 			logger.info(f'Img2img generation completed: {output}')
 
-			# Process results
-			nsfw_content_detected = image_processor.is_nsfw_content_detected(output)
-			generated_images = output.get('images', [])
-			items: list[ImageGenerationItem] = []
+			# Process results and save images
+			items, nsfw_content_detected = self._process_generated_images(output)
 
-			for image in generated_images:
-				if isinstance(image, Image.Image):
-					path, file_name = image_processor.save_image(image)
-					items.append(ImageGenerationItem(path=path, file_name=file_name))
+			# Final cleanup of the output object
+			del output
+			memory_manager.clear_cache()
 
 			return ImageGenerationResponse(
 				items=items,
@@ -133,8 +139,8 @@ class Img2ImgService:
 
 			raise ValueError(
 				f'Out of memory: {config.number_of_images} images at {config.width}x{config.height}. '
-				f'Try: (1) Reduce to 1 image, (2) Lower resolution to 512x512, (3) Reduce strength, '
-				f'or (4) Restart model.'
+				+ 'Try: (1) Reduce to 1 image, (2) Lower resolution to 512x512, (3) Reduce strength, '
+				+ 'or (4) Restart model.'
 			)
 		except Exception as error:
 			logger.exception(f'Failed img2img for prompt: "{config.prompt}"')
