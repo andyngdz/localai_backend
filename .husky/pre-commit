@@ -10,19 +10,15 @@ fi
 
 echo "🔍 Running pre-commit checks on Python files..."
 
-# Activate virtual environment
-. .venv/bin/activate
-
 # 1. Format check
 echo "1/4 ✨ Checking code formatting..."
-ruff format $STAGED_FILES
+uv run ruff format $STAGED_FILES
 
 # 2. Linting
 echo "2/4 🔎 Running linter..."
-ruff check $STAGED_FILES
-
+uv run ruff check $STAGED_FILES
 # 3. Type checking
 echo "3/4 🔬 Running type checker..."
-mypy $STAGED_FILES --no-error-summary
+uv run pyright $STAGED_FILES
 
 echo "✅ All pre-commit checks passed!"

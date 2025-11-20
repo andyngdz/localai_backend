@@ -14,6 +14,6 @@
 - Tab indentation, single quotes (ruff.toml)
 - Async/await throughout
 - Pydantic schemas for all API responses (never raw dicts)
-- Type hints required (mypy enforced)
+- Type hints required (pyright enforced)
 
-**Pre-commit validation:** Husky runs `uv run ruff format --check`, `uv run ruff check`, `uv run mypy`, and `uv run pytest -q` on every commit. Commits are blocked if any check fails.
+**Pre-commit validation:** Husky runs `uv run ruff format`, `uv run ruff check`, and `uv run pyright` on staged files. Commits are blocked if any check fails.

@@ -18,7 +18,7 @@ Requires-Dist: attr==0.3.2
 Requires-Dist: attrs==25.3.0
 Requires-Dist: babel==2.17.0
 Requires-Dist: bidict==0.23.1
-Requires-Dist: brotli==1.1.0
+Requires-Dist: brotli==1.2.0
 Requires-Dist: brotlicffi==1.1.0.0
 Requires-Dist: certifi==2025.8.3
 Requires-Dist: cffi==1.17.1
@@ -73,7 +73,6 @@ Requires-Dist: matplotlib-inline==0.1.7
 Requires-Dist: more-itertools==10.7.0
 Requires-Dist: mpmath==1.3.0
 Requires-Dist: multidict==6.6.4
-Requires-Dist: mypy>=1.18.2
 Requires-Dist: networkx==3.5
 Requires-Dist: numpy==2.3.2
 Requires-Dist: packaging==25.0
@@ -95,6 +94,7 @@ Requires-Dist: pydantic==2.11.7
 Requires-Dist: pydantic-core==2.33.2
 Requires-Dist: pygments==2.19.2
 Requires-Dist: pyopenssl==25.1.0
+Requires-Dist: pyright>=1.1.407
 Requires-Dist: pytest==8.3.3
 Requires-Dist: pytest-asyncio==0.24.0
 Requires-Dist: pytest-cov==5.0.0

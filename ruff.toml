@@ -5,7 +5,7 @@ exclude = [
   ".git",
   ".git-rewrite",
   ".hg",
-  ".mypy_cache",
+  ".pyright_cache",
   ".nox",
   ".pants.d",
   ".pytype",

@@ -147,6 +147,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass
 
 		mock_memory_manager.clear_cache.assert_called()
@@ -168,6 +169,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass
 
 		mock_memory_manager.validate_batch_size.assert_called_once_with(4, 512, 512)
@@ -187,6 +189,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass
 
 		# Test passes if no errors occur - batch size validation happens in memory_manager
@@ -204,6 +207,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass
 
 		mock_model_manager.set_sampler.assert_called_once_with(SamplerType.EULER_A)
@@ -224,6 +228,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass
 
 		mock_styles_service.apply_styles.assert_called_once_with(
@@ -244,6 +249,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass
 
 		# Verify styles were applied
@@ -341,6 +347,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass
 
 		# Verify cache was cleared in finally block
@@ -366,6 +373,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass
 
 		# Verify reset was called
@@ -393,6 +401,7 @@ class TestGenerateImage:
 		try:
 			await service.generate_image(sample_config, mock_db)
 		except Exception:
+			# Ignore the intentional exception raised by the mock to stop execution
 			pass  # Expected exception from executor.submit
 
 	@pytest.mark.asyncio

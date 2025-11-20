@@ -128,7 +128,7 @@ def find_checkpoint_in_cache(model_cache_path: str) -> str | None:
 	return find_single_file_checkpoint(latest_snapshot)
 
 
-def apply_device_optimizations(pipe) -> None:
+def apply_device_optimizations(pipe: DiffusersPipeline) -> None:
 	"""
 	Apply platform-specific optimizations to the pipeline.
 
@@ -143,7 +143,7 @@ def apply_device_optimizations(pipe) -> None:
 	logger.info(f'Applied {optimizer.get_platform_name()} optimizations successfully')
 
 
-def move_to_device(pipe, device, log_prefix):
+def move_to_device(pipe: DiffusersPipeline, device: str, log_prefix: str) -> DiffusersPipeline:
 	"""
 	Helper function to move a model to a device, trying to_empty() first with fallback to to()
 	"""
@@ -158,7 +158,7 @@ def move_to_device(pipe, device, log_prefix):
 	return pipe
 
 
-def cleanup_partial_load(pipe) -> None:
+def cleanup_partial_load(pipe: Optional[DiffusersPipeline]) -> None:
 	"""Clean up partially loaded model resources on cancellation.
 
 	Args:
@@ -171,11 +171,12 @@ def cleanup_partial_load(pipe) -> None:
 	metrics = cleanup_gpu_model(pipe, name='partial pipeline')
 	logger.info(
 		f'Partial load cleanup complete: {metrics.time_ms:.1f}ms, '
-		f'{metrics.objects_collected} objects collected' + (f', error: {metrics.error}' if metrics.error else '')
+		+ f'{metrics.objects_collected} objects collected'
+		+ (f', error: {metrics.error}' if metrics.error else '')
 	)
 
 
-def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
+def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> DiffusersPipeline:
 	"""Load a model with optional cancellation support.
 
 	Args:
@@ -306,8 +307,6 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 					for pipeline_class in [StableDiffusionXLPipeline, StableDiffusionPipeline]:
 						try:
 							logger.debug(f'Trying {pipeline_class.__name__} for single-file checkpoint')
-							# from_single_file exists at runtime but mypy type stubs don't expose it on the class type
-							# Use getattr to call it and cast the result to the expected pipeline type
 							from_single_file = getattr(pipeline_class, 'from_single_file')
 							pipe = cast(
 								DiffusersPipeline,

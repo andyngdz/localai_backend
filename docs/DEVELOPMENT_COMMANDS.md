@@ -29,5 +29,6 @@ uv run pytest -q --cov=app       # With coverage
 uv run ruff format               # Format (tabs, single quotes)
 uv run ruff check                # Lint
 uv run ruff check --fix          # Lint and fix
-uv run mypy app tests            # Type checking
+uv run pyright app tests            # Type checking
+uv run pyright path/to/file.py      # Type check specific file (faster)
 ```

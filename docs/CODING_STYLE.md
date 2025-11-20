@@ -49,22 +49,23 @@ def get_filename_from_path(file_path: str) -> str:
 ```
 
 **Benefits:**
+
 - Self-documenting and clear intent
 - Type-safe and tested by Python core team
 - Cross-platform and handles edge cases
 - Follows Python idioms and best practices
 
 **If unsure whether a standard library solution exists:**
+
 1. Use MCP or WebSearch to research
 2. Ask "Is there a Python standard library for X?"
 3. Check the Python docs
 
 ## Type Safety
 
-Fix type errors at their source—never use `# type: ignore` to bypass warnings. When mypy reports an error:
+Fix type errors at their source—never use `# type: ignore` to bypass warnings. When pyright reports an error:
 
 - Define proper types (Pydantic models, Protocol)
-- Use `cast()` with explanatory comments for legitimate type narrowing
 - Add type annotations to function signatures when library stubs are incomplete
 
 **Never use `# type: ignore[return-value]` or any specific type ignore comments.** If a function's return type doesn't match:
@@ -72,7 +73,6 @@ Fix type errors at their source—never use `# type: ignore` to bypass warnings.
 - Fix the actual return type
 - Use proper type annotations
 - Refactor the code to match the declared type
-- Use `cast()` only when absolutely necessary with clear explanation
 
 **Never use `any` type.** It defeats the purpose of type checking. Instead:
 
@@ -80,6 +80,18 @@ Fix type errors at their source—never use `# type: ignore` to bypass warnings.
 - Use TypeVar for generic types
 - Use Protocol for duck-typed interfaces
 - Use proper type annotations even if it requires more work
+
+**Prefer `Optional[T]` over `T | None`:**
+
+- Use `Optional[str]` instead of `str | None`
+- It is more explicit and readable
+- Consistent with the codebase style
+
+**Avoid `cast` and runtime workarounds:**
+
+- Do not use `cast(Type, val)` to silence type errors unless absolutely necessary
+- Do not use `getattr(obj, 'attr')` or `setattr(obj, 'attr', val)` to bypass missing type definitions
+- **Fix the root cause:** Update the type stubs in `typings/` instead
 
 **Use Pydantic models instead of TypedDict for data structures:**
 
@@ -146,6 +158,7 @@ def get_file_sizes(self, id: str, repo_info: Optional[RepoInfo] = None) -> Dict[
 **Use type stubs (.pyi files) for external library types:**
 
 - Create stub files in `typings/{package_name}/` instead of runtime wrapper classes
+- **Update existing stubs** when you encounter missing attributes or methods
 - Stubs provide type hints without runtime overhead
 - Follow PEP 561 conventions (`.pyi` extension)
 - Configure `stubPath = "typings"` in `pyproject.toml` under `[tool.pyright]`
@@ -184,6 +197,7 @@ def get_directory_from_path(file_path: str) -> str:
 ```
 
 **When to add examples:**
+
 - Helper functions with non-obvious behavior
 - Functions that handle edge cases (empty strings, None values)
 - Path manipulation, string parsing, data transformation functions
@@ -225,6 +239,7 @@ class DownloadService:
 ```
 
 **Benefits:**
+
 - Hides implementation details
 - Makes it easier to add logging, caching, or error handling
 - Simplifies testing (mock the wrapper instead of internal dependencies)
