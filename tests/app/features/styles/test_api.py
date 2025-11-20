@@ -112,7 +112,7 @@ class TestStylesEndpoints:
 		result = get_prompt_styles(test_prompt)
 
 		# Assert
-		mock_styles_service.apply_styles.assert_called_once_with(test_prompt, expected_styles)
+		mock_styles_service.apply_styles.assert_called_once_with(test_prompt, '', expected_styles)
 		assert result == ['positive prompt', 'negative prompt']
 
 	@patch('app.features.styles.api.styles_service')

@@ -76,3 +76,46 @@ class TestStorageService:
 		assert service.cache_lock_dir is not None
 		assert isinstance(service.cache_dir, str)
 		assert isinstance(service.cache_lock_dir, str)
+
+	def test_get_loras_dir(self):
+		"""Test get_loras_dir returns correct path."""
+		service = StorageService()
+
+		result = service.get_loras_dir()
+
+		# Should be under cache directory
+		assert 'loras' in result
+		assert service.cache_dir in result or '.cache' in result
+
+	def test_get_lora_file_path(self):
+		"""Test get_lora_file_path returns correct file path."""
+		service = StorageService()
+
+		filename = 'test_lora.safetensors'
+		result = service.get_lora_file_path(filename)
+
+		# Should include loras directory and filename
+		assert 'loras' in result
+		assert filename in result
+		assert result.endswith(filename)
+
+	def test_get_lora_file_path_with_special_characters(self):
+		"""Test get_lora_file_path handles special characters in filename."""
+		service = StorageService()
+
+		filename = 'lora-special_chars (1).safetensors'
+		result = service.get_lora_file_path(filename)
+
+		assert filename in result
+
+	def test_init_creates_loras_directory(self, tmp_path):
+		"""Test that init() creates loras directory."""
+		service = StorageService()
+
+		# Mock the CACHE_FOLDER to use tmp_path
+		with patch('app.services.storage.CACHE_FOLDER', str(tmp_path)):
+			service.init()
+
+			# LoRAs directory should be created
+			loras_dir = tmp_path / 'loras'
+			assert loras_dir.exists()
