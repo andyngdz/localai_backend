@@ -142,3 +142,16 @@ for config in lora_configs:
 - Stable across reorderings
 - Easier to debug (can trace back to database)
 - More predictable behavior
+
+## Code Duplication
+
+**Extract duplicated code into shared utilities to maintain SonarQube quality gates (≤ 3% duplication):**
+
+- Extract when same logic appears in 2+ places (especially 10+ lines)
+- Extract when logic is likely to change together
+- Create shared function in `app/cores/` or `app/services/`
+- Place generation-related utilities in `app/cores/generation/`
+- Place infrastructure utilities in `app/services/`
+- Use TYPE_CHECKING and local imports to avoid circular dependencies
+- Service methods can delegate to shared utilities
+- Add comprehensive tests for shared utilities (aim for 80%+ coverage)

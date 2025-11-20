@@ -11,6 +11,7 @@ This test suite covers:
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _pytest.logging import LogCaptureFixture
 
 from app.cores.model_manager.pipeline_manager import PipelineManager
 from app.cores.samplers import SamplerType
@@ -19,7 +20,9 @@ from app.cores.samplers import SamplerType
 class TestPipelineStorage:
 	"""Test pipeline storage and retrieval methods."""
 
-	def setup_method(self):
+	pipeline_manager: PipelineManager = PipelineManager()
+
+	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
 		self.pipeline_manager = PipelineManager()
 
@@ -37,7 +40,7 @@ class TestPipelineStorage:
 		assert self.pipeline_manager.get_pipeline() == mock_pipe
 		assert self.pipeline_manager.get_model_id() == 'test/model'
 
-	def test_set_pipeline_logs_model_id(self, caplog):
+	def test_set_pipeline_logs_model_id(self, caplog: LogCaptureFixture) -> None:
 		"""Test set_pipeline logs the model_id."""
 		import logging
 
@@ -58,7 +61,7 @@ class TestPipelineStorage:
 		assert self.pipeline_manager.get_pipeline() is None
 		assert self.pipeline_manager.get_model_id() is None
 
-	def test_clear_pipeline_logs_operation(self, caplog):
+	def test_clear_pipeline_logs_operation(self, caplog: LogCaptureFixture) -> None:
 		"""Test clear_pipeline logs the operation."""
 		import logging
 
@@ -91,7 +94,9 @@ class TestPipelineStorage:
 class TestSetSampler:
 	"""Test set_sampler() method with various sampler types."""
 
-	def setup_method(self):
+	pipeline_manager: PipelineManager = PipelineManager()
+
+	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
 		self.pipeline_manager = PipelineManager()
 
@@ -196,7 +201,7 @@ class TestSetSampler:
 			with pytest.raises(ValueError, match='Unsupported sampler type'):
 				self.pipeline_manager.set_sampler(SamplerType.EULER)
 
-	def test_set_sampler_logs_sampler_change(self, caplog):
+	def test_set_sampler_logs_sampler_change(self, caplog: LogCaptureFixture) -> None:
 		"""Test set_sampler logs the sampler change."""
 		import logging
 
@@ -230,7 +235,9 @@ class TestSetSampler:
 class TestGetSampleSize:
 	"""Test get_sample_size() method."""
 
-	def setup_method(self):
+	pipeline_manager: PipelineManager = PipelineManager()
+
+	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
 		self.pipeline_manager = PipelineManager()
 
@@ -301,7 +308,9 @@ class TestGetSampleSize:
 class TestPipelineManagerEdgeCases:
 	"""Test edge cases and state consistency."""
 
-	def setup_method(self):
+	pipeline_manager: PipelineManager = PipelineManager()
+
+	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
 		self.pipeline_manager = PipelineManager()
 
@@ -331,7 +340,9 @@ class TestPipelineManagerEdgeCases:
 class TestLoadLoRAs:
 	"""Test load_loras() method for LoRA management."""
 
-	def setup_method(self):
+	pipeline_manager: PipelineManager = PipelineManager()
+
+	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
 		self.pipeline_manager = PipelineManager()
 
@@ -346,7 +357,7 @@ class TestLoadLoRAs:
 		with pytest.raises(ValueError, match='No model loaded'):
 			self.pipeline_manager.load_loras(lora_configs)
 
-	def test_load_loras_with_empty_list(self, caplog):
+	def test_load_loras_with_empty_list(self, caplog: LogCaptureFixture) -> None:
 		"""Test load_loras handles empty config list gracefully."""
 		import logging
 
@@ -360,7 +371,7 @@ class TestLoadLoRAs:
 		assert 'load_loras called with empty config list' in caplog.text
 		mock_pipe.load_lora_weights.assert_not_called()
 
-	def test_load_loras_single_lora(self, caplog):
+	def test_load_loras_single_lora(self, caplog: LogCaptureFixture) -> None:
 		"""Test load_loras with a single LoRA."""
 		import logging
 
@@ -375,15 +386,17 @@ class TestLoadLoRAs:
 
 		self.pipeline_manager.load_loras([lora_config])
 
-		# Verify load_lora_weights called with correct parameters
-		mock_pipe.load_lora_weights.assert_called_once_with('/cache/loras/style.safetensors', adapter_name='lora_1')
+		# Verify load_lora_weights called with correct parameters (directory + weight_name)
+		mock_pipe.load_lora_weights.assert_called_once_with(
+			'/cache/loras', weight_name='style.safetensors', adapter_name='lora_1'
+		)
 
 		# Verify set_adapters called with correct parameters
 		mock_pipe.set_adapters.assert_called_once_with(['lora_1'], adapter_weights=[0.8])
 
 		# Verify logging
 		assert "Loading LoRA 'style_lora' as adapter 'lora_1' (weight: 0.8)" in caplog.text
-		assert 'Successfully loaded 1 LoRAs' in caplog.text
+		assert 'Successfully activated 1 compatible LoRAs' in caplog.text
 
 	def test_load_loras_multiple_loras(self):
 		"""Test load_loras with multiple LoRAs."""
@@ -429,8 +442,8 @@ class TestLoadLoRAs:
 
 		mock_pipe.set_adapters.assert_called_once_with(['lora_10', 'lora_20', 'lora_30'], adapter_weights=[0.0, 2.0, 1.0])
 
-	def test_load_loras_handles_loading_failure(self, caplog):
-		"""Test load_loras raises ValueError when LoRA loading fails."""
+	def test_load_loras_handles_loading_failure(self, caplog: LogCaptureFixture) -> None:
+		"""Test load_loras raises ValueError when all LoRAs fail to load."""
 		import logging
 
 		from app.schemas.lora import LoRAData
@@ -443,21 +456,25 @@ class TestLoadLoRAs:
 
 		lora_config = LoRAData(id=1, name='broken', file_path='/cache/loras/broken.safetensors', weight=1.0)
 
-		with pytest.raises(ValueError, match='Failed to load LoRAs'):
+		with pytest.raises(ValueError, match='All 1 LoRAs failed to load'):
 			self.pipeline_manager.load_loras([lora_config])
 
-		assert 'Failed to load LoRAs' in caplog.text
+		assert 'All 1 LoRAs failed to load' in caplog.text
 
-	def test_load_loras_partial_failure(self):
-		"""Test load_loras rolls back successfully loaded adapters on failure."""
+	def test_load_loras_partial_failure(self, caplog: LogCaptureFixture) -> None:
+		"""Test load_loras skips incompatible LoRAs and continues with compatible ones."""
+		import logging
+
 		from app.schemas.lora import LoRAData
+
+		caplog.set_level(logging.WARNING)
 
 		mock_pipe = MagicMock()
 
-		# First LoRA succeeds, second fails
-		def side_effect(path, adapter_name):
-			if 'lora2' in path:
-				raise Exception('Loading failed')
+		# Second LoRA fails (incompatible), others succeed
+		def side_effect(path: str, weight_name: str, adapter_name: str) -> None:
+			if 'lora2' in weight_name:
+				raise Exception('size mismatch for down_blocks.1.attentions.0.proj_in.lora_A')
 
 		mock_pipe.load_lora_weights.side_effect = side_effect
 		self.pipeline_manager.pipe = mock_pipe
@@ -468,20 +485,23 @@ class TestLoadLoRAs:
 			LoRAData(id=3, name='lora3', file_path='/cache/loras/lora3.safetensors', weight=0.5),
 		]
 
-		with pytest.raises(ValueError):
-			self.pipeline_manager.load_loras(lora_configs)
+		# Should not raise - incompatible LoRAs are skipped
+		self.pipeline_manager.load_loras(lora_configs)
 
-		# Verify set_adapters was not called (since loading failed)
-		mock_pipe.set_adapters.assert_not_called()
+		# Verify only compatible LoRAs (lora1 and lora3) are activated
+		mock_pipe.set_adapters.assert_called_once_with(['lora_1', 'lora_3'], adapter_weights=[0.8, 0.5])
 
-		# Verify unload_lora_weights was called to cleanup partially loaded adapters
-		mock_pipe.unload_lora_weights.assert_called_once()
+		# Verify warning about incompatible LoRA
+		assert 'Skipping LoRA' in caplog.text
+		assert 'incompatible with current model architecture' in caplog.text
 
 
 class TestUnloadLoRAs:
 	"""Test unload_loras() method."""
 
-	def setup_method(self):
+	pipeline_manager: PipelineManager = PipelineManager()
+
+	def setup_method(self) -> None:
 		"""Create fresh PipelineManager for each test."""
 		self.pipeline_manager = PipelineManager()
 
@@ -492,7 +512,7 @@ class TestUnloadLoRAs:
 		with pytest.raises(ValueError, match='No model loaded'):
 			self.pipeline_manager.unload_loras()
 
-	def test_unload_loras_success(self, caplog):
+	def test_unload_loras_success(self, caplog: LogCaptureFixture) -> None:
 		"""Test successful LoRA unloading."""
 		import logging
 
@@ -506,7 +526,7 @@ class TestUnloadLoRAs:
 		mock_pipe.unload_lora_weights.assert_called_once()
 		assert 'Unloaded all LoRAs' in caplog.text
 
-	def test_unload_loras_handles_failure(self, caplog):
+	def test_unload_loras_handles_failure(self, caplog: LogCaptureFixture) -> None:
 		"""Test unload_loras raises ValueError when unloading fails."""
 		import logging
 

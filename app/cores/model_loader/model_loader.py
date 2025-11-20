@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, cast
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -13,6 +13,7 @@ from app.cores.constants.model_loader import (
 )
 from app.cores.gpu_utils import cleanup_gpu_model
 from app.cores.max_memory import MaxMemoryConfig
+from app.cores.model_manager.pipeline_manager import DiffusersPipeline
 from app.cores.platform_optimizations import get_optimizer
 from app.database.service import SessionLocal
 from app.services import device_service, logger_service, storage_service
@@ -192,7 +193,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 	# Without this, if an exception occurs before pipe is assigned (e.g., during
 	# SessionLocal, MaxMemoryConfig, or early checkpoints), cleanup_partial_load(pipe)
 	# in exception handlers would raise NameError
-	pipe = None
+	pipe: DiffusersPipeline | None = None
 
 	try:
 		logger.info(f'Loading model {id} to {device_service.device}')
@@ -309,7 +310,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None):
 							# Use getattr to call it and cast the result to the expected pipeline type
 							from_single_file = getattr(pipeline_class, 'from_single_file')
 							pipe = cast(
-								Union[StableDiffusionXLPipeline, StableDiffusionPipeline],
+								DiffusersPipeline,
 								from_single_file(
 									checkpoint,
 									torch_dtype=device_service.torch_dtype,
