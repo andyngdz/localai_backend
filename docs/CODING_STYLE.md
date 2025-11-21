@@ -29,10 +29,7 @@ Never guess at API usage—look it up first.
 def get_directory_from_path(file_path: str) -> str:
     if '/' not in file_path:
         return ''
-    return file_path.rsplit('/', 1)[0]  # Hard to read, error-prone
-
-def get_filename_from_path(file_path: str) -> str:
-    return file_path.split('/')[-1]  # What does [-1] mean?
+    return file_path.rsplit('/', 1)[0]
 ```
 
 **Good example (using pathlib):**
@@ -43,9 +40,6 @@ from pathlib import PurePosixPath
 def get_directory_from_path(file_path: str) -> str:
     parent = str(PurePosixPath(file_path).parent)
     return parent if parent != '.' else ''
-
-def get_filename_from_path(file_path: str) -> str:
-    return PurePosixPath(file_path).name
 ```
 
 **Benefits:**
@@ -60,6 +54,41 @@ def get_filename_from_path(file_path: str) -> str:
 1. Use MCP or WebSearch to research
 2. Ask "Is there a Python standard library for X?"
 3. Check the Python docs
+
+## Functional Programming with Pydash
+
+**Use `pydash` for list/collection operations when it improves readability.** Pydash provides a rich set of functional programming helpers that can make complex list transformations and filtering cleaner than nested list comprehensions.
+
+**Bad example (nested list comprehension):**
+
+```python
+def filter_files(files, scopes):
+    return [
+        file_path for file_path in files
+        if any(fnmatch.fnmatch(file_path, scope) for scope in scopes)
+    ]
+```
+
+**Good example (using pydash):**
+
+```python
+import pydash
+
+def filter_files(files, scopes):
+    return list(
+        pydash.filter_(
+            files,
+            lambda file_path: pydash.some(scopes, lambda scope: fnmatch.fnmatch(file_path, scope))
+        )
+    )
+```
+
+**When to use pydash:**
+
+- Complex filtering logic involving multiple conditions
+- Chaining multiple operations (map, filter, reduce)
+- Working with deeply nested data structures (using `pydash.get`)
+- When list comprehensions become hard to read (more than 2 lines or nested)
 
 ## Type Safety
 
@@ -100,6 +129,8 @@ Fix type errors at their source—never use `# type: ignore` to bypass warnings.
 - Better consistency with the rest of the codebase
 - Clear error messages when validation fails
 - Better IDE support and autocomplete
+
+**Always prefer `BaseModel` over `Dict`/`TypedDict`.** If you catch yourself annotating a variable as `dict[str, X]` (or using `TypedDict`) inside application code, extract a dedicated Pydantic model instead and expose helper methods (`get_size()`, `set_size()`, etc.) so callers never need `.get()` accessors.
 
 **Bad example:**
 
@@ -164,7 +195,7 @@ def get_file_sizes(self, id: str, repo_info: Optional[RepoInfo] = None) -> Dict[
 - Follow PEP 561 conventions (`.pyi` extension)
 - Configure `stubPath = "typings"` in `pyproject.toml` under `[tool.pyright]`
 - Never use runtime assertions (`assert isinstance(...)`) to force types
-- Import from stubs using TYPE_CHECKING when needed to avoid circular imports
+- Never use `TYPE_CHECKING`. If you have to use it, then you did it wrong. Go back the find the root cause, then fix it
 
 ## Documentation
 
@@ -190,8 +221,6 @@ def get_directory_from_path(file_path: str) -> str:
         'unet'
         >>> get_directory_from_path('model.safetensors')
         ''
-        >>> get_directory_from_path('a/b/c/model.bin')
-        'a/b/c'
     """
     parent = str(PurePosixPath(file_path).parent)
     return parent if parent != '.' else ''

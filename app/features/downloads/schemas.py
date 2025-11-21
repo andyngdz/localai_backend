@@ -3,6 +3,7 @@
 from enum import Enum
 from typing import Optional
 
+import pydash
 from pydantic import BaseModel, Field
 
 
@@ -36,7 +37,7 @@ class DownloadModelStartResponse(BaseModel):
 	Contains the list of files to be downloaded.
 	"""
 
-	id: str = Field(..., description='The ID of the model being downloaded.')
+	id: str = Field(..., description='The repository ID of the model queued for download.')
 
 
 class DownloadStepProgressResponse(BaseModel):
@@ -44,7 +45,7 @@ class DownloadStepProgressResponse(BaseModel):
 	Response model for a download step progress.
 	"""
 
-	id: str = Field(..., description='The ID of the model being downloaded.')
+	id: str = Field(..., description='The repository ID of the model currently downloading.')
 	step: int = Field(..., description='The current step of the download.')
 	total: int = Field(..., description='The total number of steps in the download.')
 	downloaded_size: int = Field(default=0, description='Total downloaded bytes so far.')
@@ -61,6 +62,51 @@ class DownloadModelResponse(BaseModel):
 	Response schema for the status of a model download.
 	"""
 
-	id: str = Field(..., description='The ID of the model being downloaded.')
+	id: str = Field(..., description='The repository ID of the completed model download.')
 	path: str = Field(..., description='The local directory path where the model is stored.')
 	message: Optional[str] = Field(..., description='A human-readable message about the download status.')
+
+
+class RepositoryFileSize(BaseModel):
+	filename: str = Field(..., description='Relative path of the file in the repository.')
+	size: int = Field(default=0, ge=0, description='File size in bytes.')
+
+
+class RepositoryFileSizes(BaseModel):
+	files: list[RepositoryFileSize] = Field(default_factory=list)
+
+	def get_size(self, filename: str) -> int:
+		file_meta = pydash.find(self.files, lambda item: item.filename == filename)
+		return file_meta.size if file_meta else 0
+
+	def set_size(self, filename: str, size: int) -> None:
+		file_meta = pydash.find(self.files, lambda item: item.filename == filename)
+		if file_meta:
+			file_meta.size = max(size, 0)
+		else:
+			self.files.append(RepositoryFileSize(filename=filename, size=max(size, 0)))
+
+
+class AuthHeaders(BaseModel):
+	authorization: Optional[str] = Field(default=None, description='Bearer token header value.')
+
+	def as_dict(self) -> dict[str, str]:
+		return {'Authorization': self.authorization} if self.authorization else {}
+
+
+class DownloadProgressCache(BaseModel):
+	payloads: dict[str, DownloadStepProgressResponse] = Field(default_factory=dict)
+
+	def upsert(self, payload: DownloadStepProgressResponse) -> None:
+		self.payloads[payload.id] = payload
+
+	def pop(self, model_id: str) -> Optional[DownloadStepProgressResponse]:
+		return self.payloads.pop(model_id, None)
+
+	def pop_all(self) -> list[DownloadStepProgressResponse]:
+		payloads = list(self.payloads.values())
+		self.payloads.clear()
+		return payloads
+
+	def __bool__(self) -> bool:
+		return bool(self.payloads)

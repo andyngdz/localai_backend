@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 from PIL import Image
 
 from app.cores.generation.image_utils import process_generated_images
-from app.features.generators.schemas import ImageGenerationItem
+from app.schemas.generators import ImageGenerationItem
 
 
 class TestProcessGeneratedImages:

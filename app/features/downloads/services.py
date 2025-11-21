@@ -4,6 +4,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
+import pydash
 import requests
 from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
@@ -50,27 +51,20 @@ class DownloadService:
 		revision = getattr(repo_info, 'sha', 'main')
 		# Build the list of candidate files and initial size map up-front so byte totals remain monotonic.
 		components = self.repository.get_components(id, revision=revision)
-		components_scopes = [f'{component}/*' for component in components]
 		files = self.repository.list_files(id, repo_info=repo_info)
-		ignore_components = get_ignore_components(files, components_scopes)
-		file_sizes_map = self.repository.get_file_sizes_map(id, repo_info=repo_info)
+		file_sizes = self.repository.get_file_sizes_map(id, repo_info=repo_info)
 
-		files_to_download = [
-			file_path
-			for file_path in files
-			if (file_path == 'model_index.json' or any(fnmatch.fnmatch(file_path, scope) for scope in components_scopes))
-			and file_path not in ignore_components
-		]
+		files_to_download = self._filter_files_for_download(id, files, components)
 
 		files_to_download.sort(key=lambda file_path: (file_path != 'model_index.json', file_path))
 		# Ensure every file has deterministic size before streaming; fall back to HEAD if missing.
-		file_sizes: List[int] = []
+		file_size_values: List[int] = []
 		for filename in files_to_download:
-			size = file_sizes_map.get(filename, 0)
+			size = file_sizes.get_size(filename)
 			if size <= 0:
 				size = self.file_downloader.fetch_remote_file_size(id, filename, revision=revision)
-				file_sizes_map[filename] = size
-			file_sizes.append(size)
+				file_sizes.set_size(filename, size)
+			file_size_values.append(size)
 
 		total = len(files_to_download)
 		if total == 0:
@@ -83,7 +77,7 @@ class DownloadService:
 			total=total,
 			desc=f'Downloading {id}',
 			unit='files',
-			file_sizes=file_sizes,
+			file_sizes=file_size_values,
 			logger=logger,
 		)
 
@@ -102,7 +96,7 @@ class DownloadService:
 					snapshot_dir=snapshot_dir,
 					file_index=index,
 					progress=progress,
-					file_size=file_sizes[index],
+					file_size=file_size_values[index],
 				)
 				if local_dir is None:
 					local_dir = os.path.dirname(local_path)
@@ -124,6 +118,35 @@ class DownloadService:
 				logger.error(f'Failed to save model {id} to database: {error}')
 
 		return local_dir
+
+	def _should_include_file(
+		self,
+		file_path: str,
+		components_scopes: list[str],
+		ignored_files: set[str],
+	) -> bool:
+		if file_path in ignored_files:
+			return False
+
+		if file_path == 'model_index.json' or not components_scopes:
+			return True
+
+		return pydash.some(components_scopes, lambda scope: fnmatch.fnmatch(file_path, scope))
+
+	def _filter_files_for_download(self, model_id: str, files: List[str], components: List[str]) -> List[str]:
+		components_scopes = pydash.map_(components, lambda component: f'{component}/*')
+		scopes_for_ignore = components_scopes or ['*']
+		ignored_files = set(get_ignore_components(files, scopes_for_ignore))
+
+		if not components_scopes:
+			logger.warning('model_index.json not found for %s, downloading entire repository', model_id)
+
+		return list(
+			pydash.filter_(
+				files,
+				lambda file_path: self._should_include_file(file_path, components_scopes, ignored_files),
+			)
+		)
 
 
 download_service = DownloadService()

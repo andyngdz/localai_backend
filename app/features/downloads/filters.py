@@ -1,6 +1,10 @@
 import fnmatch
 from pathlib import PurePosixPath
-from typing import List
+from typing import List, Set
+
+import pydash
+
+VARIANTS = ['fp16', 'non_ema', 'ema_only']
 
 
 def get_directory_from_path(file_path: str) -> str:
@@ -32,6 +36,48 @@ def get_filename_from_path(file_path: str) -> str:
 	return PurePosixPath(file_path).name
 
 
+def _is_variant_filename(filename: str) -> bool:
+	return pydash.some(VARIANTS, lambda variant: variant in filename)
+
+
+def _filter_files_in_scope(files: List[str], scopes: List[str]) -> List[str]:
+	return list(
+		pydash.filter_(
+			files,
+			lambda file_path: pydash.some(scopes, lambda scope: fnmatch.fnmatch(file_path, scope)),
+		)
+	)
+
+
+def _get_dirs_with_standard_safetensors(files: List[str]) -> Set[str]:
+	dirs = set()
+
+	for file_path in files:
+		if not file_path.endswith('.safetensors'):
+			continue
+
+		filename = get_filename_from_path(file_path)
+		if not _is_variant_filename(filename):
+			directory = get_directory_from_path(file_path)
+			if directory:
+				dirs.add(directory)
+
+	return dirs
+
+
+def _should_ignore_file(file_path: str, dirs_with_standard: Set[str]) -> bool:
+	directory = get_directory_from_path(file_path)
+	if directory not in dirs_with_standard:
+		return False
+
+	if file_path.endswith('.bin'):
+		return True
+
+	filename = get_filename_from_path(file_path)
+
+	return _is_variant_filename(filename)
+
+
 def get_ignore_components(files: List[str], scopes: List[str]) -> List[str]:
 	"""
 	Return files that should be ignored to avoid downloading bloat.
@@ -52,32 +98,7 @@ def get_ignore_components(files: List[str], scopes: List[str]) -> List[str]:
 	Example with fp16-only files:
 		- "unet/diffusion_pytorch_model.fp16.safetensors" → kept (only available file)
 	"""
-	in_scope = [file_path for file_path in files if any(fnmatch.fnmatch(file_path, scope) for scope in scopes)]
+	in_scope = _filter_files_in_scope(files, scopes)
+	dirs_with_standard = _get_dirs_with_standard_safetensors(in_scope)
 
-	ignored = []
-
-	dirs_with_standard_safetensors = set()
-	for file_path in in_scope:
-		if file_path.endswith('.safetensors'):
-			directory = get_directory_from_path(file_path)
-			if directory:
-				filename = get_filename_from_path(file_path)
-				if not any(variant in filename for variant in ['fp16', 'non_ema', 'ema_only']):
-					dirs_with_standard_safetensors.add(directory)
-
-	for file_path in in_scope:
-		if file_path.endswith('.bin'):
-			directory = get_directory_from_path(file_path)
-			if directory in dirs_with_standard_safetensors:
-				ignored.append(file_path)
-
-	for file_path in in_scope:
-		if file_path not in ignored:
-			filename = get_filename_from_path(file_path)
-			if any(variant in filename for variant in ['fp16', 'non_ema', 'ema_only']):
-				directory = get_directory_from_path(file_path)
-				# Only filter variants if standard file exists in the same directory
-				if directory in dirs_with_standard_safetensors:
-					ignored.append(file_path)
-
-	return ignored
+	return list(pydash.filter_(in_scope, lambda f: _should_ignore_file(f, dirs_with_standard)))

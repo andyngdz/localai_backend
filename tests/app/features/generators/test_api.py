@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from app.features.generators.schemas import ImageGenerationItem, ImageGenerationResponse
+from app.schemas.generators import ImageGenerationItem, ImageGenerationResponse
 from main import app
 
 client = TestClient(app)

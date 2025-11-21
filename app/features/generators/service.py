@@ -9,14 +9,13 @@ from app.cores.generation import image_processor, memory_manager, progress_callb
 from app.cores.generation.image_utils import process_generated_images
 from app.cores.model_manager import model_manager
 from app.database import crud as database_service
-from app.schemas.lora import LoRAData
-from app.services import logger_service, styles_service
-
-from .schemas import (
+from app.schemas.generators import (
 	GeneratorConfig,
 	ImageGenerationItem,
 	ImageGenerationResponse,
 )
+from app.schemas.lora import LoRAData
+from app.services import logger_service, styles_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
 

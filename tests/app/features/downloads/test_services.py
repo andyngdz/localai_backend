@@ -1,15 +1,20 @@
 import json
+from collections.abc import Generator
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import requests
+from huggingface_hub.errors import EntryNotFoundError
 from requests import Session
+
+from app.features.downloads.services import DownloadService
 
 
 @pytest.fixture
-def mock_service():
+def mock_service() -> Generator[tuple[DownloadService, Mock, Mock], None, None]:
 	"""Create DownloadService with mocked dependencies."""
 	with (
 		patch('app.features.downloads.repository.HfApi') as mock_api,
@@ -17,8 +22,6 @@ def mock_service():
 		patch('app.features.downloads.services.storage_service') as mock_storage_service,
 	):
 		mock_storage_service.get_model_dir.return_value = '/tmp/test-models'
-
-		from app.features.downloads.services import DownloadService
 
 		service = DownloadService()
 		service.repository.api = mock_api
@@ -28,7 +31,7 @@ def mock_service():
 
 
 @pytest.fixture
-def mock_progress():
+def mock_progress() -> Mock:
 	"""Create mock progress tracker."""
 	progress = Mock()
 	progress.set_file_size = Mock()
@@ -40,7 +43,7 @@ def mock_progress():
 
 
 class TestDownloadServiceInit:
-	def test_creates_executor_and_modules(self, mock_service):
+	def test_creates_executor_and_modules(self, mock_service: tuple[DownloadService, Mock, Mock]) -> None:
 		service, _, _ = mock_service
 		assert service.executor is not None
 		assert hasattr(service, 'repository')
@@ -49,7 +52,7 @@ class TestDownloadServiceInit:
 
 class TestDownloadServiceStart:
 	@pytest.mark.asyncio
-	async def test_invokes_download_model_in_executor(self, mock_service):
+	async def test_invokes_download_model_in_executor(self, mock_service: tuple[DownloadService, Mock, Mock]) -> None:
 		service, _, _ = mock_service
 		service.download_model = Mock(return_value='/fake/path')
 		mock_db = Mock()
@@ -68,24 +71,37 @@ class TestDownloadModelValidation:
 			('   ', 'Model ID cannot be empty'),
 		],
 	)
-	def test_raises_error_for_invalid_model_id(self, mock_service, model_id, error_msg):
+	def test_raises_error_for_invalid_model_id(
+		self, mock_service: tuple[DownloadService, Mock, Mock], model_id: str, error_msg: str
+	) -> None:
 		service, _, _ = mock_service
 		with pytest.raises(ValueError, match=error_msg):
 			service.download_model(model_id, Mock())
 
 
 class TestDownloadModel:
-	def test_returns_none_when_no_files_to_download(self, mock_service, monkeypatch):
+	def test_returns_none_when_no_files_to_download(
+		self, mock_service: tuple[DownloadService, Mock, Mock], monkeypatch: pytest.MonkeyPatch
+	) -> None:
 		service, _, _ = mock_service
-		service.repository.api.repo_info.return_value = SimpleNamespace(sha='main', siblings=[])
-		monkeypatch.setattr(service.repository, 'get_components', lambda *args, **kwargs: [])
-		monkeypatch.setattr(service.repository, 'list_files', lambda *args, **kwargs: [])
+		cast(Mock, service.repository.api).repo_info.return_value = SimpleNamespace(sha='main', siblings=[])
+
+		def mock_get_components(*args: object, **kwargs: object) -> list[str]:
+			return []
+
+		def mock_list_files(*args: object, **kwargs: object) -> list[str]:
+			return []
+
+		monkeypatch.setattr(service.repository, 'get_components', mock_get_components)
+		monkeypatch.setattr(service.repository, 'list_files', mock_list_files)
 
 		result = service.download_model('test/repo', Mock())
 
 		assert result is None
 
-	def test_logs_error_when_database_save_fails(self, mock_service, tmp_path, monkeypatch):
+	def test_logs_error_when_database_save_fails(
+		self, mock_service: tuple[DownloadService, Mock, Mock], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+	) -> None:
 		service, mock_model_service, mock_storage_service = mock_service
 		mock_storage_service.get_model_dir.return_value = str(tmp_path)
 		mock_model_service.add_model.side_effect = ValueError('DB error')
@@ -93,13 +109,20 @@ class TestDownloadModel:
 		model_index = tmp_path / 'model_index.json'
 		model_index.write_text(json.dumps({'unet': ['cfg']}))
 
-		service.repository.api.repo_info.return_value = SimpleNamespace(
+		cast(Mock, service.repository.api).repo_info.return_value = SimpleNamespace(
 			sha='main', siblings=[SimpleNamespace(rfilename='unet/model.bin', size=10)]
 		)
-		monkeypatch.setattr(service.repository, 'get_components', lambda *args, **kwargs: ['unet'])
-		monkeypatch.setattr(service.repository, 'list_files', lambda *args, **kwargs: ['unet/model.bin'])
 
-		def fake_download(**kwargs):
+		def mock_get_components(*args: object, **kwargs: object) -> list[str]:
+			return ['unet']
+
+		def mock_list_files(*args: object, **kwargs: object) -> list[str]:
+			return ['unet/model.bin']
+
+		monkeypatch.setattr(service.repository, 'get_components', mock_get_components)
+		monkeypatch.setattr(service.repository, 'list_files', mock_list_files)
+
+		def fake_download(**kwargs: str) -> str:
 			path = tmp_path / 'snapshots' / 'main' / kwargs['filename']
 			path.parent.mkdir(parents=True, exist_ok=True)
 			path.write_bytes(b'test')
@@ -115,18 +138,27 @@ class TestDownloadModel:
 			assert result is not None
 			mock_logger.error.assert_called_once()
 
-	def test_closes_progress_on_exception(self, mock_service, tmp_path, monkeypatch):
+	def test_closes_progress_on_exception(
+		self, mock_service: tuple[DownloadService, Mock, Mock], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+	) -> None:
 		service, _, mock_storage_service = mock_service
 		mock_storage_service.get_model_dir.return_value = str(tmp_path)
 
 		model_index = tmp_path / 'model_index.json'
 		model_index.write_text(json.dumps({'unet': ['cfg']}))
 
-		service.repository.api.repo_info.return_value = SimpleNamespace(
+		cast(Mock, service.repository.api).repo_info.return_value = SimpleNamespace(
 			sha='main', siblings=[SimpleNamespace(rfilename='unet/model.bin', size=10)]
 		)
-		monkeypatch.setattr(service.repository, 'get_components', lambda *args, **kwargs: ['unet'])
-		monkeypatch.setattr(service.repository, 'list_files', lambda *args, **kwargs: ['unet/model.bin'])
+
+		def mock_get_components(*args: object, **kwargs: object) -> list[str]:
+			return ['unet']
+
+		def mock_list_files(*args: object, **kwargs: object) -> list[str]:
+			return ['unet/model.bin']
+
+		monkeypatch.setattr(service.repository, 'get_components', mock_get_components)
+		monkeypatch.setattr(service.repository, 'list_files', mock_list_files)
 		monkeypatch.setattr(service.file_downloader, 'download_file', Mock(side_effect=ConnectionError('Failed')))
 
 		mock_progress = Mock()
@@ -138,6 +170,62 @@ class TestDownloadModel:
 				service.download_model('test/repo', Mock())
 
 		mock_progress.close.assert_called_once()
+
+	def test_downloads_all_files_when_model_index_missing(
+		self, mock_service: tuple[DownloadService, Mock, Mock], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+	) -> None:
+		from app.features.downloads.schemas import RepositoryFileSize, RepositoryFileSizes
+
+		service, _, mock_storage_service = mock_service
+		mock_storage_service.get_model_dir.return_value = str(tmp_path)
+
+		repo_files = ['tokenizer.json', 'weights.bin']
+		cast(Mock, service.repository.api).repo_info.return_value = SimpleNamespace(
+			sha='main',
+			siblings=[
+				SimpleNamespace(rfilename='tokenizer.json', size=5),
+				SimpleNamespace(rfilename='weights.bin', size=10),
+			],
+		)
+
+		def mock_get_components(*args: object, **kwargs: object) -> list[str]:
+			return []
+
+		def mock_list_files(*args: object, **kwargs: object) -> list[str]:
+			return list(repo_files)
+
+		monkeypatch.setattr(service.repository, 'get_components', mock_get_components)
+		monkeypatch.setattr(service.repository, 'list_files', mock_list_files)
+
+		mock_sizes = RepositoryFileSizes(
+			files=[
+				RepositoryFileSize(filename='tokenizer.json', size=5),
+				RepositoryFileSize(filename='weights.bin', size=10),
+			]
+		)
+
+		def mock_get_file_sizes_map(*args: object, **kwargs: object) -> RepositoryFileSizes:
+			return mock_sizes
+
+		monkeypatch.setattr(service.repository, 'get_file_sizes_map', mock_get_file_sizes_map)
+
+		downloaded_files: list[str] = []
+
+		def fake_download(**kwargs: str) -> str:
+			downloaded_files.append(kwargs['filename'])
+			path = tmp_path / 'snapshots' / 'main' / kwargs['filename']
+			path.parent.mkdir(parents=True, exist_ok=True)
+			path.write_bytes(b'data')
+			return str(path)
+
+		monkeypatch.setattr(service.file_downloader, 'download_file', fake_download)
+
+		with patch('app.features.downloads.services.logger') as mock_logger:
+			result = service.download_model('test/repo', Mock())
+
+		assert result is not None
+		assert downloaded_files == ['tokenizer.json', 'weights.bin']
+		mock_logger.warning.assert_any_call('model_index.json not found for %s, downloading entire repository', 'test/repo')
 
 
 class TestGetIgnoreComponents:
@@ -212,7 +300,7 @@ class TestGetIgnoreComponents:
 			(['out_of_scope/model.non_ema.safetensors'], ['unet/*'], []),
 		],
 	)
-	def test_filters_bloat_files_correctly(self, files, scopes, expected):
+	def test_filters_bloat_files_correctly(self, files: list[str], scopes: list[str], expected: list[str]) -> None:
 		from app.features.downloads.filters import get_ignore_components
 
 		result = get_ignore_components(files, scopes)
@@ -220,7 +308,7 @@ class TestGetIgnoreComponents:
 
 
 class TestListFiles:
-	def test_returns_filenames_from_siblings(self):
+	def test_returns_filenames_from_siblings(self) -> None:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
@@ -236,7 +324,7 @@ class TestListFiles:
 
 		assert result == ['a.txt', 'b/c.bin']
 
-	def test_handles_empty_siblings(self):
+	def test_handles_empty_siblings(self) -> None:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
@@ -249,7 +337,7 @@ class TestListFiles:
 
 
 class TestGetFileSizesMap:
-	def test_returns_size_dict(self):
+	def test_returns_size_dict(self) -> None:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
@@ -263,9 +351,10 @@ class TestGetFileSizesMap:
 
 		result = repository.get_file_sizes_map('test/repo')
 
-		assert result == {'file1.bin': 100, 'file2.bin': 200}
+		assert result.get_size('file1.bin') == 100
+		assert result.get_size('file2.bin') == 200
 
-	def test_handles_missing_size_attribute(self):
+	def test_handles_missing_size_attribute(self) -> None:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
@@ -280,11 +369,13 @@ class TestGetFileSizesMap:
 
 		result = repository.get_file_sizes_map('test/repo')
 
-		assert result == {'file1.bin': 100, 'file2.bin': 0, 'file3.bin': 0}
+		assert result.get_size('file1.bin') == 100
+		assert result.get_size('file2.bin') == 0
+		assert result.get_size('file3.bin') == 0
 
 
 class TestGetComponents:
-	def test_parses_model_index_json(self, tmp_path):
+	def test_parses_model_index_json(self, tmp_path: Path) -> None:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
@@ -304,7 +395,7 @@ class TestGetComponents:
 
 		assert result == ['unet']
 
-	def test_handles_malformed_json(self, tmp_path):
+	def test_handles_malformed_json(self, tmp_path: Path) -> None:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
@@ -315,25 +406,38 @@ class TestGetComponents:
 			with pytest.raises(json.JSONDecodeError):
 				repository.get_components('test/repo')
 
+	def test_returns_empty_list_when_model_index_missing(self) -> None:
+		from app.features.downloads.repository import HuggingFaceRepository
+
+		repository = HuggingFaceRepository()
+
+		with patch(
+			'app.features.downloads.repository.hf_hub_download',
+			side_effect=EntryNotFoundError('missing model_index.json'),
+		):
+			result = repository.get_components('test/repo')
+
+		assert result == []
+
 
 class TestAuthHeaders:
 	@pytest.mark.parametrize(
 		'token,expected',
 		[
-			(None, {}),
-			('test-token-123', {'Authorization': 'Bearer test-token-123'}),
+			(None, None),
+			('test-token-123', 'Bearer test-token-123'),
 		],
 	)
-	def test_builds_headers_correctly(self, token, expected):
+	def test_builds_headers_correctly(self, token: str | None, expected: str | None) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()
 		result = downloader.auth_headers(token)
-		assert result == expected
+		assert result.authorization == expected
 
 
 class TestDownloadFile:
-	def test_skips_when_file_exists(self, mock_progress, tmp_path):
+	def test_skips_when_file_exists(self, mock_progress: Mock, tmp_path: Path) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()
@@ -357,7 +461,7 @@ class TestDownloadFile:
 		mock_progress.set_file_size.assert_called_once_with(0, 8)
 		mock_progress.update_bytes.assert_not_called()
 
-	def test_removes_zero_size_files(self, mock_progress, tmp_path):
+	def test_removes_zero_size_files(self, mock_progress: Mock, tmp_path: Path) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()
@@ -370,8 +474,15 @@ class TestDownloadFile:
 		mock_response = Mock()
 		mock_response.headers.get.return_value = '5'
 		mock_response.iter_content.return_value = [b'hello']
-		mock_response.__enter__ = lambda self: mock_response
-		mock_response.__exit__ = lambda *args: None
+
+		def mock_enter(self: object) -> Mock:
+			return mock_response
+
+		def mock_exit(*args: object) -> None:
+			pass
+
+		mock_response.__enter__ = mock_enter
+		mock_response.__exit__ = mock_exit
 
 		downloader.session.get.return_value = mock_response
 		result = downloader.download_file(
@@ -386,7 +497,7 @@ class TestDownloadFile:
 
 		assert Path(result).read_bytes() == b'hello'
 
-	def test_downloads_successfully(self, mock_progress, tmp_path):
+	def test_downloads_successfully(self, mock_progress: Mock, tmp_path: Path) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()
@@ -397,8 +508,15 @@ class TestDownloadFile:
 		mock_response = Mock()
 		mock_response.headers.get.return_value = '10'
 		mock_response.iter_content.return_value = [b'hello', b'world']
-		mock_response.__enter__ = lambda self: mock_response
-		mock_response.__exit__ = lambda *args: None
+
+		def mock_enter(self: object) -> Mock:
+			return mock_response
+
+		def mock_exit(*args: object) -> None:
+			pass
+
+		mock_response.__enter__ = mock_enter
+		mock_response.__exit__ = mock_exit
 
 		downloader.session.get.return_value = mock_response
 		result = downloader.download_file(
@@ -414,7 +532,7 @@ class TestDownloadFile:
 		assert Path(result).read_bytes() == b'helloworld'
 		assert mock_progress.update_bytes.call_count == 2
 
-	def test_cleans_up_part_file_on_error(self, mock_progress, tmp_path):
+	def test_cleans_up_part_file_on_error(self, mock_progress: Mock, tmp_path: Path) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()
@@ -425,8 +543,15 @@ class TestDownloadFile:
 		mock_response = Mock()
 		mock_response.headers.get.return_value = '10'
 		mock_response.iter_content.side_effect = ConnectionError('Network error')
-		mock_response.__enter__ = lambda self: mock_response
-		mock_response.__exit__ = lambda *args: None
+
+		def mock_enter(self: object) -> Mock:
+			return mock_response
+
+		def mock_exit(*args: object) -> None:
+			pass
+
+		mock_response.__enter__ = mock_enter
+		mock_response.__exit__ = mock_exit
 
 		downloader.session.get.return_value = mock_response
 		with pytest.raises(ConnectionError):
@@ -444,7 +569,7 @@ class TestDownloadFile:
 
 
 class TestFetchRemoteFileSize:
-	def test_returns_content_length(self):
+	def test_returns_content_length(self) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()
@@ -465,7 +590,7 @@ class TestFetchRemoteFileSize:
 			('-100', 0),
 		],
 	)
-	def test_handles_invalid_content_length(self, header_value, expected):
+	def test_handles_invalid_content_length(self, header_value: str | None, expected: int) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()
@@ -478,7 +603,7 @@ class TestFetchRemoteFileSize:
 
 		assert size == expected
 
-	def test_handles_http_error(self):
+	def test_handles_http_error(self) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()

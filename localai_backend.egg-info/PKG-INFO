@@ -92,6 +92,7 @@ Requires-Dist: pure-eval==0.2.3
 Requires-Dist: pycparser==2.22
 Requires-Dist: pydantic==2.11.7
 Requires-Dist: pydantic-core==2.33.2
+Requires-Dist: pydash>=8.0.5
 Requires-Dist: pygments==2.19.2
 Requires-Dist: pyopenssl==25.1.0
 Requires-Dist: pyright>=1.1.407
