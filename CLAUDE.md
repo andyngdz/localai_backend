@@ -8,7 +8,6 @@
 - **Development Commands**: @docs/DEVELOPMENT_COMMANDS.md
 - **Architecture**: @docs/ARCHITECTURE.md
 - **Coding Style**: @docs/CODING_STYLE.md
-- **Best Practices**: @docs/BEST_PRACTICES.md
 - **Communication Guidelines**: `@docs/COMMUNICATION_GUIDELINES.md
 - **Testing**: @docs/TESTING.md
 - **Error Handling**: `@docs/ERROR_HANDLING.md
