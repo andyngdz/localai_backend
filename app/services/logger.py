@@ -1,18 +1,20 @@
 import logging
 import os
-from typing import Optional
+from typing import Any, MutableMapping, Optional
 
 import colorlog
+from typing_extensions import override
 
 
-class CategoryAdapter(logging.LoggerAdapter):
+class CategoryAdapter(logging.LoggerAdapter[logging.Logger]):
 	"""Logger adapter that prepends category prefix to messages."""
 
 	def __init__(self, logger: logging.Logger, category: str):
 		super().__init__(logger, {})
 		self.category = category
 
-	def process(self, msg: str, kwargs):
+	@override
+	def process(self, msg: str, kwargs: MutableMapping[str, Any]) -> tuple[str, MutableMapping[str, Any]]:
 		"""Add category prefix to the message."""
 		return f'[{self.category}] {msg}', kwargs
 

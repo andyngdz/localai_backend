@@ -16,7 +16,7 @@ uv run ruff format $STAGED_FILES
 
 # 2. Linting
 echo "2/3 🔎 Running linter..."
-uv run ruff check $STAGED_FILES
+uv run ruff check --fix $STAGED_FILES
 # 3. Type checking
 echo "3/3 🔬 Running type checker..."
 uv run pyright $STAGED_FILES
