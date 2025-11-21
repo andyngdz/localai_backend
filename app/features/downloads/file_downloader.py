@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import requests
 from huggingface_hub import hf_hub_url
@@ -9,6 +9,7 @@ from requests.adapters import HTTPAdapter
 from app.services import logger_service
 
 from .progress import DownloadProgress
+from .schemas import AuthHeaders
 
 logger = logger_service.get_logger(__name__, category='Download')
 
@@ -31,12 +32,12 @@ class FileDownloader:
 		session.mount('https://', adapter)
 		return session
 
-	def auth_headers(self, token: Optional[str] = None) -> Dict[str, str]:
+	def auth_headers(self, token: Optional[str] = None) -> AuthHeaders:
 		"""Build authorization headers for HuggingFace API requests."""
-		headers = {}
 		if token:
-			headers['Authorization'] = f'Bearer {token}'
-		return headers
+			return AuthHeaders(authorization=f'Bearer {token}')
+
+		return AuthHeaders()
 
 	def download_file(
 		self,
@@ -94,7 +95,7 @@ class FileDownloader:
 			os.remove(temp_path)
 
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
-		headers = self.auth_headers(token)
+		headers = self.auth_headers(token).as_dict()
 
 		try:
 			with self.session.get(url, stream=True, headers=headers, timeout=60) as response:
@@ -119,6 +120,7 @@ class FileDownloader:
 			os.replace(temp_path, local_path_str)
 			final_size = os.path.getsize(local_path_str)
 			progress.set_file_size(file_index, final_size)
+
 			return local_path_str
 		finally:
 			if os.path.exists(temp_path):
@@ -133,7 +135,7 @@ class FileDownloader:
 	) -> int:
 		"""Best-effort size lookup for repositories that do not publish sibling metadata."""
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
-		headers = self.auth_headers(token)
+		headers = self.auth_headers(token).as_dict()
 
 		try:
 			response = self.session.head(url, headers=headers, timeout=30, allow_redirects=True)

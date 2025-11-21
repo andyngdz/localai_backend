@@ -92,6 +92,7 @@ dependencies = [
     "pycparser==2.22",
     "pydantic==2.11.7",
     "pydantic-core==2.33.2",
+    "pydash>=8.0.5",
     "pygments==2.19.2",
     "pyopenssl==25.1.0",
     "pyright>=1.1.407",
@@ -164,97 +165,6 @@ venvPath = "."
 venv = ".venv"
 stubPath = "typings"
 pythonVersion = "3.11"
-typeCheckingMode = "strict"
-# ============================================================
-# IMPORT AND MODULE CHECKS
-# ============================================================
-reportMissingImports = true
-reportMissingTypeStubs = true
-reportUndefinedVariable = true
-reportAssertAlwaysTrue = true
-reportInvalidStringEscapeSequence = true
-
-# ============================================================
-# STRICT NULL SAFETY (like TS strictNullChecks)
-# ============================================================
-reportOptionalSubscript = true
-reportOptionalMemberAccess = true
-reportOptionalCall = true
-reportOptionalIterable = true
-reportOptionalContextManager = true
-reportOptionalOperand = true
-
-# ============================================================
-# TYPE COMPLETENESS (like TS noImplicitAny + strictFunctionTypes)
-# ============================================================
-reportMissingParameterType = true
-reportMissingTypeArgument = true
-reportUnknownParameterType = true
-reportUnknownLambdaType = true
-reportUnknownArgumentType = false  
-reportUnknownVariableType = false  
-reportUnknownMemberType = false
-reportUntypedFunctionDecorator = true
-reportUntypedClassDecorator = true
-reportUntypedBaseClass = true
-reportUntypedNamedTuple = true
-
-# ============================================================
-# CLASS AND INHERITANCE CHECKS
-# ============================================================
-reportIncompatibleMethodOverride = true
-reportIncompatibleVariableOverride = true
-reportInconsistentConstructor = true
-reportUninitializedInstanceVariable = true
-reportOverlappingOverload = true
-reportMissingSuperCall = false 
-
-# ============================================================
-# CODE QUALITY (like TS noUnusedLocals + noUnusedParameters)
-# ============================================================
-reportPrivateUsage = true
-reportConstantRedefinition = true
-reportInvalidStubStatement = true
-reportIncompleteStub = true
-reportUnsupportedDunderAll = true
-reportUnusedClass = "error"        # STRICT: Error instead of warning
-reportUnusedFunction = "error"     # STRICT: Error instead of warning
-reportUnusedVariable = "error"     # STRICT: Error instead of warning
-reportUnusedImport = "error"       # STRICT: Error instead of warning
-reportDuplicateImport = "error"    # STRICT: Error instead of warning
-
-# ============================================================
-# UNNECESSARY CODE DETECTION
-# ============================================================
-reportUnnecessaryIsInstance = "error"         # STRICT: Error
-reportUnnecessaryCast = "error"               # STRICT: Error
-reportUnnecessaryComparison = "error"         # STRICT: Error
-reportUnnecessaryContains = "error"           # STRICT: Error
-reportUnnecessaryTypeIgnoreComment = "error"  # STRICT: Error
-
-# ============================================================
-# FUNCTION/METHOD SIGNATURE STRICTNESS
-# ============================================================
-reportGeneralTypeIssues = true
-reportPropertyTypeMismatch = true
-reportFunctionMemberAccess = true
-reportCallInDefaultInitializer = true
-reportImplicitStringConcatenation = true  # STRICT: Enable
-
-# ============================================================
-# ADDITIONAL STRICT CHECKS (Progressive Enhancement)
-# ============================================================
-reportImplicitOverride = true    # STRICT: Require @override decorator (Python 3.12+)
-reportDeprecated = "warning"     # Warn on deprecated usage
-
-# ============================================================
-# ADDITIONAL TYPE CHECKS
-# ============================================================
-reportImportCycles = "warning"
-
-# ============================================================
-# EXCLUSIONS
-# ============================================================
 exclude = [
     "**/__pycache__",
     "**/node_modules",

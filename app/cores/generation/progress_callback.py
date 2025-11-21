@@ -1,8 +1,11 @@
 """Progress callback handler for step-by-step generation updates."""
 
+from typing import Any
+
 import torch
 
 from app.cores.generation.image_processor import image_processor
+from app.cores.model_manager.pipeline_manager import DiffusersPipeline
 from app.services import image_service, logger_service
 from app.socket import socket_service
 
@@ -23,7 +26,9 @@ class ProgressCallback:
 		if hasattr(self.image_processor, 'clear_tensor_cache'):
 			self.image_processor.clear_tensor_cache()
 
-	def callback_on_step_end(self, _pipe, current_step: int, timestep: float, callback_kwargs: dict) -> dict:
+	def callback_on_step_end(
+		self, _pipe: DiffusersPipeline, current_step: int, timestep: float, callback_kwargs: dict[str, Any]
+	) -> dict[str, Any]:
 		"""Callback for step-by-step progress updates via WebSocket with memory cleanup.
 
 		Args:
@@ -40,7 +45,7 @@ class ProgressCallback:
 		latents = callback_kwargs['latents']
 
 		# Import here to avoid circular dependency
-		from app.features.generators.schemas import ImageGenerationStepEndResponse
+		from app.schemas.generators import ImageGenerationStepEndResponse
 
 		for index, latent in enumerate(latents):
 			# Generate preview image

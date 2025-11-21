@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
 from app.cores.typing_utils import make_default_list_factory
-from app.features.generators.schemas import (
+from app.schemas.generators import (
 	ImageGenerationItem,
 	ImageGenerationResponse,
 	ImageGenerationStepEndResponse,

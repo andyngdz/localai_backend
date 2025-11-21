@@ -9,12 +9,12 @@ from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusion
 from PIL import Image
 
 from app.cores.samplers import SamplerType
-from app.features.generators.schemas import (
+from app.features.generators.service import GeneratorService
+from app.schemas.generators import (
 	GeneratorConfig,
 	ImageGenerationItem,
 	ImageGenerationResponse,
 )
-from app.features.generators.service import GeneratorService
 from app.services.styles import DEFAULT_NEGATIVE_PROMPT
 
 MockServiceFixture: TypeAlias = tuple[GeneratorService, Mock, Mock, Mock, Mock, Mock, Mock, Mock]

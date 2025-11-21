@@ -85,6 +85,7 @@ pure-eval==0.2.3
 pycparser==2.22
 pydantic==2.11.7
 pydantic-core==2.33.2
+pydash>=8.0.5
 pygments==2.19.2
 pyopenssl==25.1.0
 pyright>=1.1.407

@@ -1,9 +1,14 @@
 from typing import Optional
 
+import pydash
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
 
-from app.cores.constants.model_loader import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
+from app.cores.constants.model_loader import (
+	CLIP_IMAGE_PROCESSOR_MODEL,
+	MODEL_LOADING_PROGRESS_STEPS,
+	SAFETY_CHECKER_MODEL,
+)
 from app.cores.max_memory import MaxMemoryConfig
 from app.cores.model_manager.pipeline_manager import DiffusersPipeline
 from app.database.service import SessionLocal
@@ -46,6 +51,19 @@ __all__ = [
 ]
 
 
+def _emit_progress_step(
+	model_id: str,
+	step_id: int,
+	cancel_token: Optional[CancellationToken],
+) -> None:
+	if cancel_token:
+		cancel_token.check_cancelled()
+
+	step = pydash.find(MODEL_LOADING_PROGRESS_STEPS, lambda entry: entry.id == step_id)
+	if step:
+		emit_progress(model_id, step_id, step.message)
+
+
 def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> DiffusersPipeline:
 	"""Load a model with optional cancellation support.
 
@@ -75,29 +93,20 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> D
 		socket_service.model_load_started(ModelLoadCompletedResponse(id=id))
 
 		# Checkpoint 1: Before initialization
-		if cancel_token:
-			cancel_token.check_cancelled()
-
-		emit_progress(id, 1, 'Initializing model loader...')
+		_emit_progress_step(id, 1, cancel_token)
 
 		max_memory = MaxMemoryConfig(db).to_dict()
 		logger.info(f'Max memory configuration: {max_memory}')
 
 		# Checkpoint 2: Before loading feature extractor
-		if cancel_token:
-			cancel_token.check_cancelled()
-
-		emit_progress(id, 2, 'Loading feature extractor...')
+		_emit_progress_step(id, 2, cancel_token)
 
 		feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
 
 		safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
 
 		# Checkpoint 3: Before cache lookup
-		if cancel_token:
-			cancel_token.check_cancelled()
-
-		emit_progress(id, 3, 'Checking model cache...')
+		_emit_progress_step(id, 3, cancel_token)
 
 		# Check if the model exists in cache and look for single-file checkpoints
 		model_cache_path = storage_service.get_model_dir(id)
@@ -105,10 +114,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> D
 		checkpoint_path = find_checkpoint_in_cache(model_cache_path)
 
 		# Checkpoint 4: Before building strategies
-		if cancel_token:
-			cancel_token.check_cancelled()
-
-		emit_progress(id, 4, 'Preparing loading strategies...')
+		_emit_progress_step(id, 4, cancel_token)
 
 		strategies = build_loading_strategies(checkpoint_path)
 
