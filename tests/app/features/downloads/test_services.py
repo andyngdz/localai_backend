@@ -479,6 +479,7 @@ class TestDownloadFile:
 			return mock_response
 
 		def mock_exit(*args: object) -> None:
+			"""Context manager exit - intentionally does nothing in this mock."""
 			pass
 
 		mock_response.__enter__ = mock_enter
@@ -513,6 +514,7 @@ class TestDownloadFile:
 			return mock_response
 
 		def mock_exit(*args: object) -> None:
+			"""Context manager exit - intentionally does nothing in this mock."""
 			pass
 
 		mock_response.__enter__ = mock_enter
@@ -548,6 +550,7 @@ class TestDownloadFile:
 			return mock_response
 
 		def mock_exit(*args: object) -> None:
+			"""Context manager exit - intentionally does nothing in this mock."""
 			pass
 
 		mock_response.__enter__ = mock_enter
