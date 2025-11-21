@@ -5,6 +5,8 @@ This module provides type hints for the socketio library APIs used in this proje
 
 from typing import Any, Literal
 
+from starlette.types import Receive, Scope, Send
+
 class AsyncServer:
 	"""Socket.IO AsyncServer for ASGI applications."""
 
@@ -29,8 +31,15 @@ class AsyncServer:
 		...
 
 class ASGIApp:
-	"""ASGI application wrapper for Socket.IO server."""
+	"""ASGI application wrapper for Socket.IO server.
+
+	This class implements the ASGI3 protocol and is compatible with starlette.types.ASGIApp.
+	"""
 
 	def __init__(self, socketio_server: AsyncServer, **kwargs: Any) -> None:
 		"""Wrap AsyncServer as ASGI application."""
+		...
+
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		"""ASGI3 application callable interface."""
 		...
