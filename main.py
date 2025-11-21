@@ -22,6 +22,7 @@ from app.features.generators import generators
 from app.features.hardware import hardware
 from app.features.histories import histories
 from app.features.img2img import img2img
+from app.features.loras import loras
 from app.features.models import models
 from app.features.resizes import resizes
 from app.features.styles import styles
@@ -62,6 +63,7 @@ app.mount('/static', StaticFiles(directory='static'), name='static')
 app.mount('/socket.io', app=socket_service.sio_app)
 app.include_router(users)
 app.include_router(models)
+app.include_router(loras)
 app.include_router(downloads)
 app.include_router(hardware)
 app.include_router(generators)

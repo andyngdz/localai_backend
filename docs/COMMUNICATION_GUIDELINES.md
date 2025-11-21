@@ -1,6 +1,6 @@
 # Communication & Workflow
 
-Ask clarifying questions for ambiguous or complex requests using the `AskUserQuestion` tool (max 4 options per question). Examples:
+Ask clarifying questions for ambiguous or complex requests. Examples:
 
 - **Ambiguous:** "optimize this" → Ask: speed, memory, or readability?
 - **Complex:** "add authentication" → Ask: JWT, OAuth, session duration?

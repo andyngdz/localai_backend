@@ -21,6 +21,7 @@ class StorageService:
 		"""
 
 		os.makedirs(GENERATED_IMAGES_FOLDER, exist_ok=True)
+		os.makedirs(self.get_loras_dir(), exist_ok=True)
 
 		logger.info('Storage service initialized successfully.')
 
@@ -39,6 +40,14 @@ class StorageService:
 		dir = os.path.join(CACHE_LOCK_FOLDER, f'models--{name_serialized}')
 
 		return dir
+
+	def get_loras_dir(self) -> str:
+		"""Get the directory path for LoRA files."""
+		return os.path.join(CACHE_FOLDER, 'loras')
+
+	def get_lora_file_path(self, filename: str) -> str:
+		"""Get the full path for a LoRA file."""
+		return os.path.join(self.get_loras_dir(), filename)
 
 
 storage_service = StorageService()

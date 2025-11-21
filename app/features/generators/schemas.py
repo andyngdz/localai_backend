@@ -1,8 +1,9 @@
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
+from app.cores.typing_utils import make_default_list_factory
+from app.schemas.lora import LoRAConfigItem
+from app.services.styles import DEFAULT_NEGATIVE_PROMPT
 
 
 class GeneratorConfig(BaseModel):
@@ -13,8 +14,8 @@ class GeneratorConfig(BaseModel):
 	hires_fix: bool = Field(default=False, description='Enable high-resolution fix.')
 	number_of_images: int = Field(default=1, ge=1, description='Number of images to generate.')
 	prompt: str = Field(..., max_length=1000, description='The text prompt for image generation.')
-	negative_prompt: Optional[str] = Field(
-		default=None, max_length=1000, description='Negative prompt to avoid certain features.'
+	negative_prompt: str = Field(
+		default=DEFAULT_NEGATIVE_PROMPT, max_length=1000, description='Negative prompt to avoid certain features.'
 	)
 	cfg_scale: float = Field(default=7.5, ge=1, description='Classifier-Free Guidance scale (CFG scale).')
 	steps: int = Field(default=24, ge=1, description='Number of inference steps.')
@@ -24,8 +25,18 @@ class GeneratorConfig(BaseModel):
 		description='Sampler type for image generation.',
 	)
 	styles: list[str] = Field(
-		default_factory=list,
+		default_factory=make_default_list_factory(str),
 		description='List of styles to apply to the generated image.',
+	)
+	loras: list[LoRAConfigItem] = Field(
+		default_factory=make_default_list_factory(LoRAConfigItem),
+		description='List of LoRAs to apply during generation with individual weights.',
+	)
+	clip_skip: int = Field(
+		default=1,
+		ge=1,
+		le=12,
+		description='Number of CLIP layers to skip (1=no skip, 2=skip last layer). Required for some LoRAs.',
 	)
 
 
@@ -48,9 +59,10 @@ class ImageGenerationItem(BaseModel):
 
 class ImageGenerationResponse(BaseModel):
 	items: list[ImageGenerationItem] = Field(
-		default_factory=list,
+		default_factory=make_default_list_factory(ImageGenerationItem),
 		description='List of images with their paths and file names.',
 	)
 	nsfw_content_detected: list[bool] = Field(
-		default_factory=list, description='Indicates if the generated image is NSFW (Not Safe For Work).'
+		default_factory=make_default_list_factory(bool),
+		description='Indicates if the generated image is NSFW (Not Safe For Work).',
 	)

@@ -18,7 +18,7 @@ Requires-Dist: attr==0.3.2
 Requires-Dist: attrs==25.3.0
 Requires-Dist: babel==2.17.0
 Requires-Dist: bidict==0.23.1
-Requires-Dist: brotli==1.1.0
+Requires-Dist: brotli==1.2.0
 Requires-Dist: brotlicffi==1.1.0.0
 Requires-Dist: certifi==2025.8.3
 Requires-Dist: cffi==1.17.1
@@ -31,7 +31,7 @@ Requires-Dist: configparser==7.2.0
 Requires-Dist: coverage==7.10.4
 Requires-Dist: cryptography==45.0.5
 Requires-Dist: decorator==5.2.1
-Requires-Dist: diffusers==0.34.0
+Requires-Dist: diffusers==0.35.2
 Requires-Dist: docopt==0.6.2
 Requires-Dist: docutils==0.21.2
 Requires-Dist: executing==2.2.0
@@ -43,12 +43,12 @@ Requires-Dist: fsspec==2025.7.0
 Requires-Dist: greenlet==3.2.4
 Requires-Dist: h11==0.16.0
 Requires-Dist: h2==4.2.0
-Requires-Dist: hf-xet==1.1.8
+Requires-Dist: hf-xet==1.2.0
 Requires-Dist: hpack==4.1.0
 Requires-Dist: htmlparser==0.0.2
 Requires-Dist: httpcore==1.0.9
 Requires-Dist: httpx==0.27.2
-Requires-Dist: huggingface-hub==0.33.4
+Requires-Dist: huggingface-hub==0.34.0
 Requires-Dist: hyperframe==6.1.0
 Requires-Dist: idna==3.10
 Requires-Dist: imagesize==1.4.1
@@ -73,18 +73,19 @@ Requires-Dist: matplotlib-inline==0.1.7
 Requires-Dist: more-itertools==10.7.0
 Requires-Dist: mpmath==1.3.0
 Requires-Dist: multidict==6.6.4
-Requires-Dist: mypy>=1.18.2
 Requires-Dist: networkx==3.5
 Requires-Dist: numpy==2.3.2
 Requires-Dist: packaging==25.0
 Requires-Dist: parso==0.8.4
+Requires-Dist: peft>=0.18.0
 Requires-Dist: pexpect==4.9.0
 Requires-Dist: pillow==11.3.0
-Requires-Dist: pip==25.2
+Requires-Dist: pip==25.3
 Requires-Dist: pipreqs==0.4.13
 Requires-Dist: pluggy==1.6.0
 Requires-Dist: prompt-toolkit==3.0.51
 Requires-Dist: propcache==0.3.2
+Requires-Dist: protobuf>=6.33.1
 Requires-Dist: psutil==7.0.0
 Requires-Dist: ptyprocess==0.7.0
 Requires-Dist: pure-eval==0.2.3
@@ -93,6 +94,7 @@ Requires-Dist: pydantic==2.11.7
 Requires-Dist: pydantic-core==2.33.2
 Requires-Dist: pygments==2.19.2
 Requires-Dist: pyopenssl==25.1.0
+Requires-Dist: pyright>=1.1.407
 Requires-Dist: pytest==8.3.3
 Requires-Dist: pytest-asyncio==0.24.0
 Requires-Dist: pytest-cov==5.0.0
@@ -104,6 +106,7 @@ Requires-Dist: regex==2025.7.34
 Requires-Dist: requests==2.32.5
 Requires-Dist: roman-numerals-py==3.1.0
 Requires-Dist: safetensors==0.6.2
+Requires-Dist: scipy>=1.16.3
 Requires-Dist: secretstorage==3.3.3
 Requires-Dist: setuptools==80.9.0
 Requires-Dist: simple-websocket==1.1.0
@@ -123,11 +126,13 @@ Requires-Dist: starlette==0.47.2
 Requires-Dist: sympy==1.13.1
 Requires-Dist: tenacity==9.1.2
 Requires-Dist: thread==2.0.5
-Requires-Dist: tokenizers==0.21.4
+Requires-Dist: tokenizers==0.22.1
 Requires-Dist: torch==2.6.0+cu124
+Requires-Dist: torchsde>=0.2.6
 Requires-Dist: tqdm==4.67.1
 Requires-Dist: traitlets==5.14.3
-Requires-Dist: transformers==4.53.2
+Requires-Dist: trampoline>=0.1.2
+Requires-Dist: transformers==4.57.1
 Requires-Dist: triton==3.2.0; sys_platform == "linux"
 Requires-Dist: typing-extensions==4.15.0
 Requires-Dist: typing-inspection==0.4.1

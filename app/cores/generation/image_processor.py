@@ -2,6 +2,7 @@
 
 import os
 from datetime import datetime
+from typing import Optional
 
 import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
@@ -81,8 +82,7 @@ class ImageProcessor:
 		Note:
 			SDXL models don't have NSFW detection, only SD 1.5 models do.
 		"""
-		# Check if NSFW detection is available (SD 1.5 models have it, SDXL models don't)
-		nsfw_detected = getattr(output, 'nsfw_content_detected', None)
+		nsfw_detected: Optional[list[bool]] = getattr(output, 'nsfw_content_detected', None)
 
 		if nsfw_detected is None:
 			# NSFW detection not available (e.g., SDXL models)
