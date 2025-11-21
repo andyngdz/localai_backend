@@ -3,8 +3,7 @@
 from enum import Enum
 from typing import Optional
 
-import pydash
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 
 class DownloadPhase(str, Enum):
@@ -73,18 +72,29 @@ class RepositoryFileSize(BaseModel):
 
 
 class RepositoryFileSizes(BaseModel):
-	files: list[RepositoryFileSize] = Field(default_factory=list)
+	_files_dict: dict[str, RepositoryFileSize] = PrivateAttr(default_factory=dict)
+
+	def __init__(self, files: Optional[list[RepositoryFileSize]] = None, **data):
+		super().__init__(**data)
+		if files:
+			self._files_dict = {file.filename: file for file in files}
+
+	@property
+	def files(self) -> list[RepositoryFileSize]:
+		"""Get list of files for backward compatibility."""
+		return list(self._files_dict.values())
 
 	def get_size(self, filename: str) -> int:
-		file_meta = pydash.find(self.files, lambda item: item.filename == filename)
+		file_meta = self._files_dict.get(filename)
 		return file_meta.size if file_meta else 0
 
 	def set_size(self, filename: str, size: int) -> None:
-		file_meta = pydash.find(self.files, lambda item: item.filename == filename)
-		if file_meta:
-			file_meta.size = max(size, 0)
+		normalized_size = max(size, 0)
+
+		if filename in self._files_dict:
+			self._files_dict[filename].size = normalized_size
 		else:
-			self.files.append(RepositoryFileSize(filename=filename, size=max(size, 0)))
+			self._files_dict[filename] = RepositoryFileSize(filename=filename, size=normalized_size)
 
 
 class AuthHeaders(BaseModel):
