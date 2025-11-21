@@ -6,7 +6,7 @@ from app.cores.samplers import SamplerType
 from app.services import logger_service
 
 from .loader_service import LoaderService
-from .pipeline_manager import PipelineManager
+from .pipeline_manager import DiffusersPipeline, PipelineManager
 from .resource_manager import ResourceManager
 from .state_manager import ModelState, StateManager, StateTransitionReason
 
@@ -97,7 +97,7 @@ class ModelManager:
 		return self.pipeline_manager.get_sample_size()
 
 	@property
-	def pipe(self):
+	def pipe(self) -> Optional[DiffusersPipeline]:
 		"""Get current pipeline (backward compatibility).
 
 		Returns:
@@ -106,7 +106,7 @@ class ModelManager:
 		return self.pipeline_manager.get_pipeline()
 
 	@pipe.setter
-	def pipe(self, value):
+	def pipe(self, value: Optional[DiffusersPipeline]) -> None:
 		"""Set pipeline directly (for img2img conversion).
 
 		Args:
@@ -118,6 +118,8 @@ class ModelManager:
 		model_id = self.pipeline_manager.get_model_id()
 		if model_id is None:
 			raise ValueError('Cannot set pipeline without loading a model first')
+		if value is None:
+			raise ValueError('Cannot set pipeline to None')
 		self.pipeline_manager.set_pipeline(value, model_id)
 
 	@property
