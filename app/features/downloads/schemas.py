@@ -108,5 +108,9 @@ class DownloadProgressCache(BaseModel):
 		self.payloads.clear()
 		return payloads
 
+	def clear(self) -> None:
+		"""Clear all cached payloads."""
+		self.payloads.clear()
+
 	def __bool__(self) -> bool:
 		return bool(self.payloads)
