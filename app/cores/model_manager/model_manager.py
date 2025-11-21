@@ -106,7 +106,7 @@ class ModelManager:
 		return self.pipeline_manager.get_pipeline()
 
 	@pipe.setter
-	def pipe(self, value: Optional[DiffusersPipeline]) -> None:
+	def pipe(self, value: DiffusersPipeline) -> None:
 		"""Set pipeline directly (for img2img conversion).
 
 		Args:
@@ -118,8 +118,7 @@ class ModelManager:
 		model_id = self.pipeline_manager.get_model_id()
 		if model_id is None:
 			raise ValueError('Cannot set pipeline without loading a model first')
-		if value is None:
-			raise ValueError('Cannot set pipeline to None')
+
 		self.pipeline_manager.set_pipeline(value, model_id)
 
 	@property
