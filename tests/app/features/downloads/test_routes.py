@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.features.downloads import downloads as downloads_router
-from app.features.downloads.schemas import DownloadModelRequest, DownloadModelResponse, DownloadModelStartResponse
+from app.schemas.downloads import DownloadModelRequest, DownloadModelResponse, DownloadModelStartResponse
 
 
 class DummySocketService:

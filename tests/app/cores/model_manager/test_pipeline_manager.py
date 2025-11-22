@@ -267,7 +267,7 @@ class TestGetSampleSize:
 
 	def test_get_sample_size_returns_default_when_no_sample_size_attribute(self):
 		"""Test get_sample_size returns DEFAULT_SAMPLE_SIZE when sample_size not in config."""
-		from app.cores.constants.samplers import DEFAULT_SAMPLE_SIZE
+		from app.constants.samplers import DEFAULT_SAMPLE_SIZE
 
 		# Setup - config without sample_size attribute
 		mock_unet_config = MagicMock(spec_set=['other_attr'])
@@ -348,7 +348,7 @@ class TestLoadLoRAs:
 
 	def test_load_loras_raises_when_no_pipe_loaded(self):
 		"""Test load_loras raises ValueError when no pipe is loaded."""
-		from app.schemas.lora import LoRAData
+		from app.schemas.loras import LoRAData
 
 		self.pipeline_manager.pipe = None
 
@@ -375,7 +375,7 @@ class TestLoadLoRAs:
 		"""Test load_loras with a single LoRA."""
 		import logging
 
-		from app.schemas.lora import LoRAData
+		from app.schemas.loras import LoRAData
 
 		caplog.set_level(logging.INFO)
 
@@ -400,7 +400,7 @@ class TestLoadLoRAs:
 
 	def test_load_loras_multiple_loras(self):
 		"""Test load_loras with multiple LoRAs."""
-		from app.schemas.lora import LoRAData
+		from app.schemas.loras import LoRAData
 
 		mock_pipe = MagicMock()
 		self.pipeline_manager.pipe = mock_pipe
@@ -427,7 +427,7 @@ class TestLoadLoRAs:
 
 	def test_load_loras_with_different_weights(self):
 		"""Test load_loras handles various weight values."""
-		from app.schemas.lora import LoRAData
+		from app.schemas.loras import LoRAData
 
 		mock_pipe = MagicMock()
 		self.pipeline_manager.pipe = mock_pipe
@@ -446,7 +446,7 @@ class TestLoadLoRAs:
 		"""Test load_loras raises ValueError when all LoRAs fail to load."""
 		import logging
 
-		from app.schemas.lora import LoRAData
+		from app.schemas.loras import LoRAData
 
 		caplog.set_level(logging.ERROR)
 
@@ -465,7 +465,7 @@ class TestLoadLoRAs:
 		"""Test load_loras skips incompatible LoRAs and continues with compatible ones."""
 		import logging
 
-		from app.schemas.lora import LoRAData
+		from app.schemas.loras import LoRAData
 
 		caplog.set_level(logging.WARNING)
 

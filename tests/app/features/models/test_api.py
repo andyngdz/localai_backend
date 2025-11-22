@@ -27,7 +27,7 @@ from app.features.models.api import (
 	load_model,
 	unload_model,
 )
-from app.features.models.schemas import (
+from app.schemas.models import (
 	LoadModelRequest,
 	LoadModelResponse,
 	ModelAvailableResponse,

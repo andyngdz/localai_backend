@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from app.cores.model_loader import CancellationException, CancellationToken, model_loader
-from app.cores.model_loader.schemas import ModelLoadCompletedResponse
+from app.schemas.model_loader import ModelLoadCompletedResponse
 from app.services import logger_service
 from app.socket import socket_service
 

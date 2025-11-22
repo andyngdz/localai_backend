@@ -6,9 +6,8 @@ from typing import Any, Optional
 from tqdm import tqdm as BaseTqdm
 from typing_extensions import override
 
+from app.schemas.downloads import DownloadPhase, DownloadProgressCache, DownloadStepProgressResponse
 from app.socket import socket_service
-
-from .schemas import DownloadPhase, DownloadProgressCache, DownloadStepProgressResponse
 
 
 class ChunkEmitter:

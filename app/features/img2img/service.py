@@ -8,13 +8,12 @@ from app.cores.generation import memory_manager, progress_callback, seed_manager
 from app.cores.generation.image_utils import process_generated_images
 from app.cores.model_manager import model_manager
 from app.cores.pipeline_converter import pipeline_converter
-from app.services import image_service, logger_service, styles_service
-
-from .schemas import (
+from app.schemas.img2img import (
 	ImageGenerationItem,
 	ImageGenerationResponse,
 	Img2ImgConfig,
 )
+from app.services import image_service, logger_service, styles_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
 

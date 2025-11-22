@@ -6,15 +6,15 @@ from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
 
-from app.cores.constants.model_loader import ModelLoadingStrategy
+from app.constants.model_loader import ModelLoadingStrategy
 from app.cores.model_manager.pipeline_manager import DiffusersPipeline
+from app.schemas.model_loader import ModelLoadFailed
 from app.services import device_service, logger_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
 from .cancellation import CancellationToken
 from .progress import emit_progress
-from .schemas import ModelLoadFailed
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
 

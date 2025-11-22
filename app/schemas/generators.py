@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
 from app.cores.typing_utils import make_default_list_factory
-from app.schemas.lora import LoRAConfigItem
+from app.schemas.loras import LoRAConfigItem
 
 # Default negative prompt to avoid circular import with app.services.styles
 _DEFAULT_NEGATIVE_PROMPT = (

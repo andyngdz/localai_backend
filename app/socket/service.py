@@ -5,9 +5,8 @@ import socketio
 from pydantic import BaseModel
 from starlette.types import ASGIApp
 
+from app.schemas.socket import SocketEvents
 from app.services.logger import logger_service
-
-from .schemas import SocketEvents
 
 logger = logger_service.get_logger(__name__, category='Socket')
 

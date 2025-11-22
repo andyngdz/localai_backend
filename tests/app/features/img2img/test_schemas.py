@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from app.cores.samplers import SamplerType
 from app.features.img2img.constants import IMG2IMG_DEFAULT_STRENGTH
-from app.features.img2img.schemas import Img2ImgConfig, Img2ImgRequest
+from app.schemas.img2img import Img2ImgConfig, Img2ImgRequest
 
 
 class TestImg2ImgConfig:

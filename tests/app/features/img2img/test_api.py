@@ -6,7 +6,7 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from app.features.img2img.schemas import ImageGenerationItem, ImageGenerationResponse
+from app.schemas.img2img import ImageGenerationItem, ImageGenerationResponse
 from main import app
 
 client = TestClient(app)

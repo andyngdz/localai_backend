@@ -452,7 +452,7 @@ class TestGenerateImage:
 	async def test_unloads_loras_in_finally_block(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
-		from app.schemas.lora import LoRAConfigItem
+		from app.schemas.loras import LoRAConfigItem
 
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 
@@ -483,7 +483,7 @@ class TestGenerateImage:
 	async def test_handles_error_during_lora_unload(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock, caplog: LogCaptureFixture
 	) -> None:
-		from app.schemas.lora import LoRAConfigItem
+		from app.schemas.loras import LoRAConfigItem
 
 		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
 

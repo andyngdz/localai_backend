@@ -5,10 +5,10 @@ from typing import Optional
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForText2Image
 
-from app.cores.constants.error_messages import ERROR_NO_MODEL_LOADED
-from app.cores.constants.samplers import DEFAULT_SAMPLE_SIZE
+from app.constants.error_messages import ERROR_NO_MODEL_LOADED
+from app.constants.samplers import DEFAULT_SAMPLE_SIZE
 from app.cores.samplers import SCHEDULER_MAPPING, SamplerType
-from app.schemas.lora import LoRAData
+from app.schemas.loras import LoRAData
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')

@@ -11,7 +11,7 @@ from app.features.hardware.api import (
 	get_system_gpu_info,
 )
 from app.features.hardware.info import GPUInfo
-from app.features.hardware.schemas import GPUDriverInfo, GPUDriverStatusStates
+from app.schemas.hardware import GPUDriverInfo, GPUDriverStatusStates
 
 
 class TestDefaultGPUInfo:
@@ -464,7 +464,7 @@ class TestHardwareEndpoints:
 	def test_set_device_endpoint(self, mock_add_device_index):
 		"""Test POST /hardware/device sets device index."""
 		from app.features.hardware.api import set_device
-		from app.features.hardware.schemas import SelectDeviceRequest
+		from app.schemas.hardware import SelectDeviceRequest
 
 		mock_db = MagicMock()
 		request = SelectDeviceRequest(device_index=1)
@@ -511,7 +511,7 @@ class TestHardwareEndpoints:
 	def test_set_max_memory_endpoint(self, mock_add_max_memory):
 		"""Test POST /hardware/max-memory sets memory configuration."""
 		from app.features.hardware.api import set_max_memory
-		from app.features.hardware.schemas import MaxMemoryConfigRequest
+		from app.schemas.hardware import MaxMemoryConfigRequest
 
 		mock_db = MagicMock()
 		config = MaxMemoryConfigRequest(ram_scale_factor=0.8, gpu_scale_factor=0.9)

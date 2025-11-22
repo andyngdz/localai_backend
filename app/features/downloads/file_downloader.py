@@ -6,10 +6,10 @@ import requests
 from huggingface_hub import hf_hub_url
 from requests.adapters import HTTPAdapter
 
+from app.schemas.downloads import AuthHeaders
 from app.services import logger_service
 
 from .progress import DownloadProgress
-from .schemas import AuthHeaders
 
 logger = logger_service.get_logger(__name__, category='Download')
 

@@ -9,8 +9,8 @@ from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusion
 from PIL import Image
 
 from app.cores.samplers import SamplerType
-from app.features.img2img.schemas import ImageGenerationItem, ImageGenerationResponse, Img2ImgConfig
 from app.features.img2img.service import Img2ImgService
+from app.schemas.img2img import ImageGenerationItem, ImageGenerationResponse, Img2ImgConfig
 
 MockImg2ImgServiceFixture = Tuple[
 	Img2ImgService,

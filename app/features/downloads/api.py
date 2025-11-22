@@ -7,14 +7,14 @@ from sqlalchemy.orm import Session
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from app.database import database_service
-from app.services import logger_service
-from app.socket import socket_service
-
-from .schemas import (
+from app.schemas.downloads import (
 	DownloadModelRequest,
 	DownloadModelResponse,
 	DownloadModelStartResponse,
 )
+from app.services import logger_service
+from app.socket import socket_service
+
 from .services import download_service
 
 logger = logger_service.get_logger(__name__, category='Download')

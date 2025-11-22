@@ -22,6 +22,7 @@ coverage.xml
 *.xlsx
 *.csv
 .claude
+.worktrees/
 
 # Build artifacts and distribution directories
 # PyInstaller output (e.g., dist/app.exe or dist/app)

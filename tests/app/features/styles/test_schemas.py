@@ -13,8 +13,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from app.features.styles.schemas import StyleSectionResponse
-from app.styles.schemas import StyleItem
+from app.schemas.styles import StyleItem, StyleSectionResponse
 
 
 class TestStyleSectionResponse:

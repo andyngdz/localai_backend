@@ -441,7 +441,7 @@ class TestChunkEmitterBehavior:
 	def test_coalesces_chunk_updates(self, mock_socket, fast_chunk_emitter):
 		"""Ensure the chunk emitter only forwards the latest payload per model."""
 		from app.features.downloads.progress import DownloadStepProgressResponse
-		from app.features.downloads.schemas import DownloadPhase
+		from app.schemas.downloads import DownloadPhase
 
 		mock_socket.download_step_progress.reset_mock()
 		payload1 = DownloadStepProgressResponse(

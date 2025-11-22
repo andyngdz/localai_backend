@@ -4,9 +4,9 @@ from typing import List, Optional
 
 from transformers import CLIPTokenizer, GPT2TokenizerFast
 
+from app.constants.styles import all_styles
+from app.schemas.styles import StyleItem
 from app.services import logger_service
-from app.styles import all_styles
-from app.styles.schemas import StyleItem
 
 logger = logger_service.get_logger(__name__, category='Service')
 

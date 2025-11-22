@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 from huggingface_hub import DatasetInfo, HfApi, ModelInfo, SpaceInfo, hf_hub_download
 from huggingface_hub.errors import EntryNotFoundError
 
-from .schemas import RepositoryFileSize, RepositoryFileSizes
+from app.schemas.downloads import RepositoryFileSize, RepositoryFileSizes
 
 RepoInfo = Union[ModelInfo, DatasetInfo, SpaceInfo]
 

@@ -472,7 +472,7 @@ class TestGetRecommendedBatchSize:
 
 	def test_uses_batch_size_thresholds_constant(self):
 		# Verify that the function uses the BATCH_SIZE_THRESHOLDS constant
-		from app.cores.constants.batch_size import BATCH_SIZE_THRESHOLDS
+		from app.constants.batch_size import BATCH_SIZE_THRESHOLDS
 
 		with patch('app.services.device.torch') as mock_torch:
 			mock_torch.cuda.is_available.return_value = True

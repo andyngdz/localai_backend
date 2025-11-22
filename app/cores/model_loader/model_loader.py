@@ -4,7 +4,7 @@ import pydash
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
 
-from app.cores.constants.model_loader import (
+from app.constants.model_loader import (
 	CLIP_IMAGE_PROCESSOR_MODEL,
 	MODEL_LOADING_PROGRESS_STEPS,
 	SAFETY_CHECKER_MODEL,
@@ -12,12 +12,12 @@ from app.cores.constants.model_loader import (
 from app.cores.max_memory import MaxMemoryConfig
 from app.cores.model_manager.pipeline_manager import DiffusersPipeline
 from app.database.service import SessionLocal
+from app.schemas.model_loader import ModelLoadCompletedResponse
 from app.services import device_service, logger_service, storage_service
 from app.socket import socket_service
 
 from .cancellation import CancellationException, CancellationToken
 from .progress import emit_progress, map_step_to_phase
-from .schemas import ModelLoadCompletedResponse
 from .setup import (
 	apply_device_optimizations,
 	cleanup_partial_load,

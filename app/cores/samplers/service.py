@@ -1,5 +1,6 @@
+from app.schemas.samplers import SamplerItem
+
 from .schedulers import SCHEDULER_DESCRIPTIONS, SCHEDULER_NAMES, SamplerType
-from .schemas import SamplerItem
 
 
 class SamplersService:
