@@ -4,7 +4,7 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from app.cores.constants.recommendations import SECTION_CONFIGS
+from app.constants.recommendations import SECTION_CONFIGS
 from app.cores.max_memory import MaxMemoryConfig
 from app.schemas.recommendations import (
 	DeviceCapabilities,

@@ -1,7 +1,6 @@
+from app.schemas.model_loader import ModelLoadPhase, ModelLoadProgressResponse
 from app.services import logger_service
 from app.socket import socket_service
-
-from .schemas import ModelLoadPhase, ModelLoadProgressResponse
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
 

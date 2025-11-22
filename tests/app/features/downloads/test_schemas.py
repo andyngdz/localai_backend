@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.features.downloads.schemas import (
+from app.schemas.downloads import (
 	DownloadModelRequest,
 	DownloadModelResponse,
 	DownloadModelStartResponse,

@@ -174,7 +174,7 @@ class TestDownloadModel:
 	def test_downloads_all_files_when_model_index_missing(
 		self, mock_service: tuple[DownloadService, Mock, Mock], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 	) -> None:
-		from app.features.downloads.schemas import RepositoryFileSize, RepositoryFileSizes
+		from app.schemas.downloads import RepositoryFileSize, RepositoryFileSizes
 
 		service, _, mock_storage_service = mock_service
 		mock_storage_service.get_model_dir.return_value = str(tmp_path)

@@ -127,7 +127,7 @@ class DeviceService:
 			- 12-16GB: 4 images
 			- >= 16GB: 6 images
 		"""
-		from app.cores.constants.batch_size import BATCH_SIZE_THRESHOLDS
+		from app.constants.batch_size import BATCH_SIZE_THRESHOLDS
 
 		if not self.is_available:
 			return 1  # CPU only - be conservative

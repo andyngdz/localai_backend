@@ -3,15 +3,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.cores.constants.error_messages import ERROR_INTERNAL_SERVER
+from app.constants.error_messages import ERROR_INTERNAL_SERVER
 from app.database import database_service
-from app.features.loras.schemas import (
+from app.features.loras.service import lora_service
+from app.schemas.loras import (
 	LoRADeleteResponse,
 	LoRAInfo,
 	LoRAListResponse,
 	LoRAUploadRequest,
 )
-from app.features.loras.service import lora_service
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='API')

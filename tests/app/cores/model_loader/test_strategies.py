@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.cores.constants.model_loader import ModelLoadingStrategy
+from app.constants.model_loader import ModelLoadingStrategy
 from app.cores.model_loader.strategies import (
 	PretrainedStrategy,
 	SingleFileStrategy,

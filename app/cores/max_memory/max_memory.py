@@ -2,7 +2,7 @@ from typing import Dict, Union
 
 from sqlalchemy.orm import Session
 
-from app.cores.constants.max_memory import BYTES_TO_GB
+from app.constants.max_memory import BYTES_TO_GB
 from app.database.config_crud import get_device_index, get_gpu_scale_factor, get_ram_scale_factor
 from app.services import MemoryService, device_service
 

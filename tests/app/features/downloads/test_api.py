@@ -20,7 +20,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.features.downloads.schemas import (
+from app.schemas.downloads import (
 	DownloadModelRequest,
 	DownloadModelResponse,
 	DownloadModelStartResponse,

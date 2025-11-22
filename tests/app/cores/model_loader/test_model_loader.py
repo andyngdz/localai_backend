@@ -8,11 +8,10 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from app.cores.constants.model_loader import ModelLoadingStrategy
+from app.constants.model_loader import ModelLoadingStrategy
 from app.cores.model_loader.cancellation import CancellationException, CancellationToken
 from app.cores.model_loader.model_loader import model_loader
 from app.cores.model_loader.progress import emit_progress, map_step_to_phase
-from app.cores.model_loader.schemas import ModelLoadPhase
 from app.cores.model_loader.setup import (
 	apply_device_optimizations,
 	cleanup_partial_load,
@@ -25,6 +24,7 @@ from app.cores.model_loader.strategies import (
 	find_checkpoint_in_cache,
 	find_single_file_checkpoint,
 )
+from app.schemas.model_loader import ModelLoadPhase
 
 
 def return_first_arg(arg: Any, *args: Any, **kwargs: Any) -> Any:

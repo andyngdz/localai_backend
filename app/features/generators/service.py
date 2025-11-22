@@ -14,7 +14,7 @@ from app.schemas.generators import (
 	ImageGenerationItem,
 	ImageGenerationResponse,
 )
-from app.schemas.lora import LoRAData
+from app.schemas.loras import LoRAData
 from app.services import logger_service, styles_service
 
 logger = logger_service.get_logger(__name__, category='Generate')

@@ -11,11 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.database import database_service
 from app.database.config_crud import add_device_index, add_max_memory, get_device_index
-from app.services import device_service, logger_service
-from app.services.memory import MemoryService
-
-from .info import GPUInfo
-from .schemas import (
+from app.schemas.hardware import (
 	GetCurrentDeviceIndex,
 	GPUDeviceInfo,
 	GPUDriverInfo,
@@ -24,6 +20,10 @@ from .schemas import (
 	MemoryResponse,
 	SelectDeviceRequest,
 )
+from app.services import device_service, logger_service
+from app.services.memory import MemoryService
+
+from .info import GPUInfo
 
 logger = logger_service.get_logger(__name__, category='API')
 
