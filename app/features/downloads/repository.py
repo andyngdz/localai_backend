@@ -34,11 +34,11 @@ class HuggingFaceRepository:
 		Returns:
 			Repository information (ModelInfo, DatasetInfo, or SpaceInfo)
 		"""
-		return self.api.repo_info(id)
+		return self.api.repo_info(id, files_metadata=True)
 
 	def list_files(self, id: str, repo_info: Optional[RepoInfo] = None) -> List[str]:
 		"""Get list of all files in a HuggingFace repository."""
-		info = repo_info or self.api.repo_info(id)
+		info = repo_info or self.api.repo_info(id, files_metadata=True)
 
 		if not info.siblings:
 			return []
