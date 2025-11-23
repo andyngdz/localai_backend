@@ -119,6 +119,19 @@ class DownloadProgress(BaseTqdm):
 		self.current_file = filename
 		self.emit_progress(DownloadPhase.FILE_START, current_file=filename)
 
+	def register_existing_bytes(self, byte_count: int) -> None:
+		"""Register bytes that were already present on disk (resumed download)."""
+		if byte_count <= 0:
+			return
+
+		self.downloaded_size += byte_count
+		if self.total_downloaded_size > 0 and self.downloaded_size > self.total_downloaded_size:
+			self.downloaded_size = self.total_downloaded_size
+
+		self.logger.info(f'Resuming download with {byte_count} existing bytes')
+		# Emit immediately so UI updates to the resumed percentage
+		self.emit_progress(DownloadPhase.CHUNK)
+
 	def set_file_size(self, index: int, size: int) -> None:
 		"""Update the recorded size for a file and adjust totals accordingly."""
 		if index < 0 or index >= len(self.file_sizes):
