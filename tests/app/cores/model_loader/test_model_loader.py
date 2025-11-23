@@ -19,6 +19,8 @@ from app.cores.model_loader.setup import (
 	move_to_device,
 )
 from app.cores.model_loader.strategies import (
+	PretrainedStrategy,
+	SingleFileStrategy,
 	build_loading_strategies,
 	execute_loading_strategies,
 	find_checkpoint_in_cache,
@@ -71,8 +73,9 @@ class TestStrategyHelpers:
 
 	def test_build_loading_strategies_includes_single_file(self) -> None:
 		strategies = build_loading_strategies('/tmp/foo.safetensors')
-		assert strategies[0]['type'] == ModelLoadingStrategy.SINGLE_FILE
-		assert strategies[0]['checkpoint_path'] == '/tmp/foo.safetensors'
+		assert strategies[0].type == ModelLoadingStrategy.SINGLE_FILE
+		# use cast if we want type checking here, or just ignore for test since we know index 0 is single file
+		assert getattr(strategies[0], 'checkpoint_path', '') == '/tmp/foo.safetensors'
 
 	@patch('app.cores.model_loader.strategies._load_strategy_pipeline', return_value=MagicMock())
 	@patch('app.cores.model_loader.strategies._get_strategy_type', return_value=ModelLoadingStrategy.SINGLE_FILE)
@@ -85,7 +88,7 @@ class TestStrategyHelpers:
 	) -> None:
 		pipe = execute_loading_strategies(
 			id='mid',
-			strategies=[{'type': ModelLoadingStrategy.SINGLE_FILE, 'checkpoint_path': '/tmp/foo.safetensors'}],
+			strategies=[SingleFileStrategy(checkpoint_path='/tmp/foo.safetensors')],
 			safety_checker=MagicMock(),
 			feature_extractor=MagicMock(),
 			cancel_token=None,
@@ -107,7 +110,7 @@ class TestStrategyHelpers:
 		with pytest.raises(RuntimeError):
 			execute_loading_strategies(
 				id='mid',
-				strategies=[{'type': ModelLoadingStrategy.SINGLE_FILE, 'checkpoint_path': '/tmp/foo.safetensors'}],
+				strategies=[SingleFileStrategy(checkpoint_path='/tmp/foo.safetensors')],
 				safety_checker=MagicMock(),
 				feature_extractor=MagicMock(),
 				cancel_token=None,
@@ -168,7 +171,7 @@ class TestModelLoader:
 	@patch('app.cores.model_loader.model_loader.socket_service')
 	@patch('app.cores.model_loader.model_loader.finalize_model_setup', side_effect=return_first_arg)
 	@patch('app.cores.model_loader.model_loader.execute_loading_strategies', return_value=MagicMock(name='pipe'))
-	@patch('app.cores.model_loader.model_loader.build_loading_strategies', return_value=[{'type': 'dummy'}])
+	@patch('app.cores.model_loader.model_loader.build_loading_strategies', return_value=[PretrainedStrategy(use_safetensors=True)])
 	@patch('app.cores.model_loader.model_loader.find_checkpoint_in_cache', return_value=None)
 	@patch('app.cores.model_loader.model_loader.StableDiffusionSafetyChecker')
 	@patch('app.cores.model_loader.model_loader.CLIPImageProcessor')
@@ -219,7 +222,7 @@ class TestModelLoader:
 	@patch('app.cores.model_loader.model_loader.cleanup_partial_load')
 	@patch('app.cores.model_loader.model_loader.finalize_model_setup')
 	@patch('app.cores.model_loader.model_loader.execute_loading_strategies', side_effect=RuntimeError('boom'))
-	@patch('app.cores.model_loader.model_loader.build_loading_strategies', return_value=[{'type': 'dummy'}])
+	@patch('app.cores.model_loader.model_loader.build_loading_strategies', return_value=[PretrainedStrategy(use_safetensors=True)])
 	@patch('app.cores.model_loader.model_loader.find_checkpoint_in_cache', return_value=None)
 	@patch('app.cores.model_loader.model_loader.StableDiffusionSafetyChecker')
 	@patch('app.cores.model_loader.model_loader.CLIPImageProcessor')

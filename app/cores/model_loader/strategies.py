@@ -1,6 +1,7 @@
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, NotRequired, Optional, TypedDict, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -19,15 +20,17 @@ from .progress import emit_progress
 logger = logger_service.get_logger(__name__, category='ModelLoad')
 
 
-class SingleFileStrategy(TypedDict):
-	type: Literal[ModelLoadingStrategy.SINGLE_FILE]
+@dataclass
+class SingleFileStrategy:
 	checkpoint_path: str
+	type: Literal[ModelLoadingStrategy.SINGLE_FILE] = ModelLoadingStrategy.SINGLE_FILE
 
 
-class PretrainedStrategy(TypedDict):
-	type: Literal[ModelLoadingStrategy.PRETRAINED]
+@dataclass
+class PretrainedStrategy:
 	use_safetensors: bool
-	variant: NotRequired[str]
+	variant: Optional[str] = None
+	type: Literal[ModelLoadingStrategy.PRETRAINED] = ModelLoadingStrategy.PRETRAINED
 
 
 Strategy = Union[SingleFileStrategy, PretrainedStrategy]
@@ -65,17 +68,12 @@ def find_checkpoint_in_cache(model_cache_path: str) -> Optional[str]:
 def build_loading_strategies(checkpoint_path: Optional[str]) -> list[Strategy]:
 	strategies: list[Strategy] = []
 	if checkpoint_path:
-		strategies.append(
-			{
-				'type': ModelLoadingStrategy.SINGLE_FILE,
-				'checkpoint_path': checkpoint_path,
-			}
-		)
+		strategies.append(SingleFileStrategy(checkpoint_path=checkpoint_path))
 
-	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': True})
-	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': False})
-	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': True, 'variant': 'fp16'})
-	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': False, 'variant': 'fp16'})
+	strategies.append(PretrainedStrategy(use_safetensors=True))
+	strategies.append(PretrainedStrategy(use_safetensors=False))
+	strategies.append(PretrainedStrategy(use_safetensors=True, variant='fp16'))
+	strategies.append(PretrainedStrategy(use_safetensors=False, variant='fp16'))
 
 	return strategies
 
@@ -123,11 +121,13 @@ def _load_single_file(
 
 def _load_pretrained(
 	id: str,
-	params: PretrainedStrategy,
+	strategy: PretrainedStrategy,
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
-	load_params = {key: value for key, value in params.items() if key != 'type'}
+	load_params: dict[str, Any] = {'use_safetensors': strategy.use_safetensors}
+	if strategy.variant:
+		load_params['variant'] = strategy.variant
 
 	return AutoPipelineForText2Image.from_pretrained(
 		id,
@@ -141,7 +141,7 @@ def _load_pretrained(
 
 
 def _get_strategy_type(strategy: Strategy) -> ModelLoadingStrategy:
-	return cast(ModelLoadingStrategy, strategy['type'])
+	return strategy.type
 
 
 def _load_strategy_pipeline(
@@ -152,19 +152,27 @@ def _load_strategy_pipeline(
 	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
 	if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
-		checkpoint_path = cast(SingleFileStrategy, strategy).get('checkpoint_path')
+		# No cast needed if we trust the type check, but for strict mypy/pyright
+		# combined with the shared Strategy union, isinstance is cleaner,
+		# but here we follow the established pattern.
+		# With dataclasses, we can just access the attribute if we are sure.
+		# However, 'checkpoint_path' is only on SingleFileStrategy.
+		# A runtime check or cast is still implicitly needed for the type checker
+		# unless we use isinstance.
+		if isinstance(strategy, SingleFileStrategy):
+			if not strategy.checkpoint_path:
+				raise ValueError('Missing checkpoint path for single-file strategy')
+			return _load_single_file(strategy.checkpoint_path, safety_checker, feature_extractor)
 
-		if not checkpoint_path:
-			raise ValueError('Missing checkpoint path for single-file strategy')
+	if isinstance(strategy, PretrainedStrategy):
+		return _load_pretrained(
+			id,
+			strategy,
+			safety_checker,
+			feature_extractor,
+		)
 
-		return _load_single_file(checkpoint_path, safety_checker, feature_extractor)
-
-	return _load_pretrained(
-		id,
-		cast(PretrainedStrategy, strategy),
-		safety_checker,
-		feature_extractor,
-	)
+	raise ValueError(f'Unknown strategy type: {strategy}')
 
 
 def execute_loading_strategies(
