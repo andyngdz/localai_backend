@@ -104,6 +104,9 @@ def _load_single_file(
 				),
 			)
 
+			if pipeline_class.__name__ == 'StableDiffusionXLPipeline' and getattr(pipe, 'tokenizer_2', None) is None:
+				raise ValueError('StableDiffusionXLPipeline loaded without tokenizer_2 (likely SD 1.5 checkpoint)')
+
 			if hasattr(pipe, 'safety_checker'):
 				pipe.safety_checker = safety_checker
 
