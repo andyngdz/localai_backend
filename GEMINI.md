@@ -1,4 +1,4 @@
-# Claude Code Guide
+# Code Guide
 
 ## Essential Documentation
 
@@ -49,6 +49,7 @@ except torch.cuda.OutOfMemoryError:
 Write tests for all features/fixes before marking complete. Mirror `app/` structure in `tests/`.
 
 **Patterns:**
+
 - Use `pytest.mark.asyncio` for async tests
 - Mock external dependencies (database, GPU, network)
 - Cover happy paths, error cases, edge cases
@@ -65,6 +66,7 @@ uv run pytest -q
 ## Communication
 
 Ask clarifying questions for ambiguous/complex requests:
+
 - **Ambiguous:** "optimize this" → Ask: speed, memory, or readability?
 - **Complex:** "add authentication" → Ask: JWT, OAuth, session duration?
 

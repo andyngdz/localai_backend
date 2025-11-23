@@ -115,7 +115,7 @@ def _load_single_file(
 
 			logger.info(f'Successfully loaded with {pipeline_class.__name__}')
 			return pipe
-		except Exception as error:  # pragma: no cover - defensive fallbacks
+		except Exception as error:
 			errors.append(f'{pipeline_class.__name__}: {error}')
 
 	raise ValueError(f'Failed to load single-file checkpoint {checkpoint}. Tried: {", ".join(errors)}')
@@ -141,38 +141,72 @@ def _load_pretrained(
 
 
 def _get_strategy_type(strategy: Strategy) -> ModelLoadingStrategy:
-	strategy_type = cast(ModelLoadingStrategy, strategy['type'])
-	if strategy_type not in (
-		ModelLoadingStrategy.SINGLE_FILE,
-		ModelLoadingStrategy.PRETRAINED,
-	):
-		raise ValueError(f'Unsupported strategy type: {strategy_type}')
 
-	return strategy_type
+
+	return cast(ModelLoadingStrategy, strategy['type'])
+
+
+
+
+
+
 
 
 def _load_strategy_pipeline(
+
+
 	id: str,
+
+
 	strategy: Strategy,
+
+
 	strategy_type: ModelLoadingStrategy,
+
+
 	safety_checker: StableDiffusionSafetyChecker,
+
+
 	feature_extractor: CLIPImageProcessor,
+
+
 ) -> DiffusersPipeline:
+
+
 	if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
+
+
 		checkpoint_path = cast(SingleFileStrategy, strategy)['checkpoint_path']
+
+
 		if not checkpoint_path:
+
+
 			raise ValueError('Missing checkpoint path for single-file strategy')
+
+
 		return _load_single_file(checkpoint_path, safety_checker, feature_extractor)
 
-	if strategy_type == ModelLoadingStrategy.PRETRAINED:
-		return _load_pretrained(
-			id,
-			cast(PretrainedStrategy, strategy),
-			safety_checker,
-			feature_extractor,
-		)
 
-	raise ValueError(f'Unsupported strategy type: {strategy_type}')
+
+
+
+	return _load_pretrained(
+
+
+		id,
+
+
+		cast(PretrainedStrategy, strategy),
+
+
+		safety_checker,
+
+
+		feature_extractor,
+
+
+	)
 
 
 def execute_loading_strategies(

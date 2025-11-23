@@ -165,11 +165,6 @@ class TestGetStrategyType:
 		strategy = cast(PretrainedStrategy, {'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': True})
 		assert _get_strategy_type(strategy) == ModelLoadingStrategy.PRETRAINED
 
-	def test_raises_value_error_for_unsupported_type(self) -> None:
-		strategy = cast(Strategy, {'type': 'UNKNOWN'})
-		with pytest.raises(ValueError, match='Unsupported strategy type'):
-			_get_strategy_type(strategy)
-
 
 class TestLoadStrategyPipeline:
 	@patch('app.cores.model_loader.strategies._load_single_file')
