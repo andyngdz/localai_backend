@@ -5,7 +5,7 @@ from typing import Any
 import torch
 
 from app.cores.generation.image_processor import image_processor
-from app.cores.model_manager.pipeline_manager import DiffusersPipeline
+from app.schemas.model_loader import DiffusersPipeline
 from app.services import image_service, logger_service
 from app.socket import socket_service
 

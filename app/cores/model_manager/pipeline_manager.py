@@ -3,26 +3,22 @@
 from pathlib import Path
 from typing import Optional
 
-from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForText2Image
-
 from app.constants.error_messages import ERROR_NO_MODEL_LOADED
 from app.constants.samplers import DEFAULT_SAMPLE_SIZE
 from app.cores.samplers import SCHEDULER_MAPPING, SamplerType
 from app.schemas.loras import LoRAData
+from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
-
-# Type alias for diffusers pipelines
-DiffusersPipeline = AutoPipelineForText2Image | AutoPipelineForImage2Image
 
 
 class PipelineManager:
 	"""Manages the active diffusion pipeline and its configuration."""
 
 	def __init__(self) -> None:
-		self.pipe: DiffusersPipeline | None = None
-		self.model_id: str | None = None
+		self.pipe: Optional[DiffusersPipeline] = None
+		self.model_id: Optional[str] = None
 
 	def set_pipeline(self, pipe: DiffusersPipeline, model_id: str) -> None:
 		"""Store pipeline and model ID.
@@ -41,7 +37,7 @@ class PipelineManager:
 		self.model_id = None
 		logger.info('Pipeline cleared')
 
-	def get_pipeline(self) -> DiffusersPipeline | None:
+	def get_pipeline(self) -> Optional[DiffusersPipeline]:
 		"""Get current pipeline.
 
 		Returns:

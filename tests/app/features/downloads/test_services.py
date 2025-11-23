@@ -479,7 +479,9 @@ class TestDownloadFile:
 			return mock_response
 
 		def mock_exit(*args: object) -> None:
-			"""Context manager exit - intentionally does nothing in this mock."""
+			# sonarqube(python:S1186): This method is intentionally empty
+			# as it serves as a mock for a context manager's __exit__
+			# method in tests, and no cleanup is required for the mock.
 			pass
 
 		mock_response.__enter__ = mock_enter
@@ -514,7 +516,9 @@ class TestDownloadFile:
 			return mock_response
 
 		def mock_exit(*args: object) -> None:
-			"""Context manager exit - intentionally does nothing in this mock."""
+			# sonarqube(python:S1186): This method is intentionally empty
+			# as it serves as a mock for a context manager's __exit__
+			# method in tests, and no cleanup is required for the mock.
 			pass
 
 		mock_response.__enter__ = mock_enter
@@ -534,7 +538,7 @@ class TestDownloadFile:
 		assert Path(result).read_bytes() == b'helloworld'
 		assert mock_progress.update_bytes.call_count == 2
 
-	def test_cleans_up_part_file_on_error(self, mock_progress: Mock, tmp_path: Path) -> None:
+	def test_keeps_part_file_on_error(self, mock_progress: Mock, tmp_path: Path) -> None:
 		from app.features.downloads.file_downloader import FileDownloader
 
 		downloader = FileDownloader()
@@ -550,7 +554,9 @@ class TestDownloadFile:
 			return mock_response
 
 		def mock_exit(*args: object) -> None:
-			"""Context manager exit - intentionally does nothing in this mock."""
+			# sonarqube(python:S1186): This method is intentionally empty
+			# as it serves as a mock for a context manager's __exit__
+			# method in tests, and no cleanup is required for the mock.
 			pass
 
 		mock_response.__enter__ = mock_enter
@@ -568,7 +574,51 @@ class TestDownloadFile:
 				file_size=10,
 			)
 
-		assert not (snapshot_dir / 'model.bin.part').exists()
+		assert (snapshot_dir / 'model.bin.part').exists()
+
+	def test_resumes_download_if_part_file_exists(self, mock_progress: Mock, tmp_path: Path) -> None:
+		from app.features.downloads.file_downloader import FileDownloader
+
+		downloader = FileDownloader()
+		downloader.session = MagicMock(spec=requests.Session)
+		snapshot_dir = tmp_path / 'snapshots'
+		snapshot_dir.mkdir()
+		part_file = snapshot_dir / 'model.bin.part'
+		part_file.write_bytes(b'hello')
+
+		mock_response = Mock()
+		mock_response.status_code = 206
+		mock_response.headers.get.return_value = '5'  # Remaining bytes
+		mock_response.iter_content.return_value = [b'world']
+
+		def mock_enter(self: object) -> Mock:
+			return mock_response
+
+		def mock_exit(*args: object) -> None:
+			# sonarqube(python:S1186): This method is intentionally empty
+			# as it serves as a mock for a context manager's __exit__
+			# method in tests, and no cleanup is required for the mock.
+			pass
+
+		mock_response.__enter__ = mock_enter
+		mock_response.__exit__ = mock_exit
+
+		downloader.session.get.return_value = mock_response
+		result = downloader.download_file(
+			repo_id='test/repo',
+			filename='model.bin',
+			revision='main',
+			snapshot_dir=str(snapshot_dir),
+			file_index=0,
+			progress=mock_progress,
+			file_size=10,
+		)
+
+		assert Path(result).read_bytes() == b'helloworld'
+		mock_progress.register_existing_bytes.assert_called_once_with(5)
+		downloader.session.get.assert_called_once()
+		call_kwargs = downloader.session.get.call_args[1]
+		assert call_kwargs['headers']['Range'] == 'bytes=5-'
 
 
 class TestFetchRemoteFileSize:
