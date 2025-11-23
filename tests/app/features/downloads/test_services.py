@@ -473,7 +473,7 @@ class TestDownloadFile:
 
 		mock_response = Mock()
 		mock_response.headers.get.return_value = '5'
-		mock_response.iter_content.return_value = [b'hello']  # Added this line from original working context
+		mock_response.iter_content.return_value = [b'hello']
 
 		def mock_enter(self: object) -> Mock:
 			return mock_response
