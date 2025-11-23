@@ -141,71 +141,29 @@ def _load_pretrained(
 
 
 def _get_strategy_type(strategy: Strategy) -> ModelLoadingStrategy:
-
-
 	return cast(ModelLoadingStrategy, strategy['type'])
 
 
-
-
-
-
-
-
 def _load_strategy_pipeline(
-
-
 	id: str,
-
-
 	strategy: Strategy,
-
-
 	strategy_type: ModelLoadingStrategy,
-
-
 	safety_checker: StableDiffusionSafetyChecker,
-
-
 	feature_extractor: CLIPImageProcessor,
-
-
 ) -> DiffusersPipeline:
-
-
 	if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
-
-
-		checkpoint_path = cast(SingleFileStrategy, strategy)['checkpoint_path']
-
+		checkpoint_path = cast(SingleFileStrategy, strategy).get('checkpoint_path')
 
 		if not checkpoint_path:
-
-
 			raise ValueError('Missing checkpoint path for single-file strategy')
-
 
 		return _load_single_file(checkpoint_path, safety_checker, feature_extractor)
 
-
-
-
-
 	return _load_pretrained(
-
-
 		id,
-
-
 		cast(PretrainedStrategy, strategy),
-
-
 		safety_checker,
-
-
 		feature_extractor,
-
-
 	)
 
 
