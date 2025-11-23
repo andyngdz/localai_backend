@@ -1,15 +1,19 @@
 import os
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, Optional, cast
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
 
 from app.constants.model_loader import ModelLoadingStrategy
-from app.cores.model_manager.pipeline_manager import DiffusersPipeline
-from app.schemas.model_loader import ModelLoadFailed
+from app.schemas.model_loader import (
+	DiffusersPipeline,
+	ModelLoadFailed,
+	PretrainedStrategy,
+	SingleFileStrategy,
+	Strategy,
+)
 from app.services import device_service, logger_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
@@ -18,22 +22,6 @@ from .cancellation import CancellationToken
 from .progress import emit_progress
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
-
-
-@dataclass
-class SingleFileStrategy:
-	checkpoint_path: str
-	type: Literal[ModelLoadingStrategy.SINGLE_FILE] = ModelLoadingStrategy.SINGLE_FILE
-
-
-@dataclass
-class PretrainedStrategy:
-	use_safetensors: bool
-	variant: Optional[str] = None
-	type: Literal[ModelLoadingStrategy.PRETRAINED] = ModelLoadingStrategy.PRETRAINED
-
-
-Strategy = Union[SingleFileStrategy, PretrainedStrategy]
 
 
 def find_single_file_checkpoint(model_path: str) -> Optional[str]:
@@ -102,14 +90,11 @@ def _load_single_file(
 				),
 			)
 
-			if pipeline_class.__name__ == 'StableDiffusionXLPipeline' and getattr(pipe, 'tokenizer_2', None) is None:
+			if isinstance(pipe, StableDiffusionXLPipeline) and pipe.tokenizer_2 is None:
 				raise ValueError('StableDiffusionXLPipeline loaded without tokenizer_2 (likely SD 1.5 checkpoint)')
 
-			if hasattr(pipe, 'safety_checker'):
-				pipe.safety_checker = safety_checker
-
-			if hasattr(pipe, 'feature_extractor'):
-				pipe.feature_extractor = feature_extractor
+			pipe.safety_checker = safety_checker
+			pipe.feature_extractor = feature_extractor
 
 			logger.info(f'Successfully loaded with {pipeline_class.__name__}')
 			return pipe
@@ -141,7 +126,7 @@ def _load_pretrained(
 
 
 def _get_strategy_type(strategy: Strategy) -> ModelLoadingStrategy:
-	return strategy.type
+	return ModelLoadingStrategy(strategy.type)
 
 
 def _load_strategy_pipeline(
@@ -152,16 +137,10 @@ def _load_strategy_pipeline(
 	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
 	if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
-		# No cast needed if we trust the type check, but for strict mypy/pyright
-		# combined with the shared Strategy union, isinstance is cleaner,
-		# but here we follow the established pattern.
-		# With dataclasses, we can just access the attribute if we are sure.
-		# However, 'checkpoint_path' is only on SingleFileStrategy.
-		# A runtime check or cast is still implicitly needed for the type checker
-		# unless we use isinstance.
 		if isinstance(strategy, SingleFileStrategy):
 			if not strategy.checkpoint_path:
 				raise ValueError('Missing checkpoint path for single-file strategy')
+
 			return _load_single_file(strategy.checkpoint_path, safety_checker, feature_extractor)
 
 	if isinstance(strategy, PretrainedStrategy):
@@ -204,7 +183,7 @@ def execute_loading_strategies(
 
 			logger.info(f'Successfully loaded model using strategy {idx}')
 			return pipe
-		except Exception as error:  # pragma: no cover - log/continue until last failure
+		except Exception as error:
 			last_error = error
 			logger.warning(f'Strategy {idx} failed: {error}')
 
@@ -220,9 +199,6 @@ def execute_loading_strategies(
 
 
 __all__ = [
-	'SingleFileStrategy',
-	'PretrainedStrategy',
-	'Strategy',
 	'find_single_file_checkpoint',
 	'find_checkpoint_in_cache',
 	'build_loading_strategies',

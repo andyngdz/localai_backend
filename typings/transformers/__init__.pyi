@@ -39,6 +39,22 @@ class CLIPTokenizer:
 		"""Tokenize text and return BatchEncoding."""
 		...
 
+class CLIPTextModel:
+	"""CLIP text encoder model."""
+
+	@classmethod
+	def from_pretrained(cls, pretrained_model_name_or_path: str, **kwargs: Any) -> 'CLIPTextModel':
+		"""Load pre-trained text encoder."""
+		...
+
+class CLIPTextModelWithProjection:
+	"""CLIP text encoder model with projection layer (used in SDXL)."""
+
+	@classmethod
+	def from_pretrained(cls, pretrained_model_name_or_path: str, **kwargs: Any) -> 'CLIPTextModelWithProjection':
+		"""Load pre-trained text encoder with projection."""
+		...
+
 class GPT2TokenizerFast:
 	"""GPT-2 fast tokenizer."""
 

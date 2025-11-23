@@ -4,16 +4,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
 
 from app.constants.model_loader import ModelLoadingStrategy
 from app.cores.model_loader.strategies import (
-	PretrainedStrategy,
-	SingleFileStrategy,
-	Strategy,
 	_get_strategy_type,
 	_load_pretrained,
 	_load_single_file,
@@ -23,6 +20,7 @@ from app.cores.model_loader.strategies import (
 	find_checkpoint_in_cache,
 	find_single_file_checkpoint,
 )
+from app.schemas.model_loader import PretrainedStrategy, SingleFileStrategy, Strategy
 
 
 class TestFindSingleFileCheckpoint:
@@ -100,22 +98,32 @@ class TestLoadSingleFile:
 		safety_checker = Mock()
 		feature_extractor = Mock()
 
+		# Define dummy classes to satisfy isinstance checks
+		class DummySDPipeline:
+			safety_checker: Any = None
+			feature_extractor: Any = None
+
+			@classmethod
+			def from_single_file(cls, *args: Any, **kwargs: Any) -> Any:
+				return Mock(spec=DummySDPipeline)
+
+		class DummySDXLPipeline:
+			@classmethod
+			def from_single_file(cls, *args: Any, **kwargs: Any) -> Any:
+				raise Exception('Not XL')
+
 		# Mock the pipeline classes imported inside the function
-		with patch('diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline') as MockSD:
-			MockSD.__name__ = 'StableDiffusionPipeline'
-			mock_pipe = Mock()
-			MockSD.from_single_file.return_value = mock_pipe
-
-			# Ensure StableDiffusionXLPipeline fails so it tries StableDiffusionPipeline
+		with patch(
+			'diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline',
+			new=DummySDPipeline,
+		):
 			with patch(
-				'diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline'
-			) as MockSDXL:
-				MockSDXL.__name__ = 'StableDiffusionXLPipeline'
-				MockSDXL.from_single_file.side_effect = Exception('Not XL')
-
+				'diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline',
+				new=DummySDXLPipeline,
+			):
 				result = _load_single_file(checkpoint, safety_checker, feature_extractor)
 
-				assert result is mock_pipe
+				assert isinstance(result, Mock)  # It returns the mock from DummySDPipeline
 				assert result.safety_checker == safety_checker
 				assert result.feature_extractor == feature_extractor
 
@@ -124,15 +132,24 @@ class TestLoadSingleFile:
 		safety_checker = Mock()
 		feature_extractor = Mock()
 
-		with patch('diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline') as MockSD:
-			MockSD.__name__ = 'StableDiffusionPipeline'
-			MockSD.from_single_file.side_effect = Exception('Fail SD')
-			with patch(
-				'diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline'
-			) as MockSDXL:
-				MockSDXL.__name__ = 'StableDiffusionXLPipeline'
-				MockSDXL.from_single_file.side_effect = Exception('Fail XL')
+		class DummySDPipeline:
+			@classmethod
+			def from_single_file(cls, *args: Any, **kwargs: Any) -> Any:
+				raise Exception('Fail SD')
 
+		class DummySDXLPipeline:
+			@classmethod
+			def from_single_file(cls, *args: Any, **kwargs: Any) -> Any:
+				raise Exception('Fail XL')
+
+		with patch(
+			'diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline',
+			new=DummySDPipeline,
+		):
+			with patch(
+				'diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline',
+				new=DummySDXLPipeline,
+			):
 				with pytest.raises(ValueError, match='Failed to load single-file checkpoint'):
 					_load_single_file(checkpoint, safety_checker, feature_extractor)
 

@@ -1,5 +1,9 @@
 from enum import Enum
+from typing import Literal, Optional, Union
 
+from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForText2Image
+from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
+from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipeline
 from pydantic import BaseModel, Field
 
 
@@ -43,3 +47,27 @@ class ModelLoaderProgressStep(BaseModel):
 
 	id: int = Field(..., description='Step number.')
 	message: str = Field(..., description='Progress message for this step.')
+
+
+class SingleFileStrategy(BaseModel):
+	"""Strategy for loading models from a single checkpoint file."""
+
+	checkpoint_path: str
+	type: Literal['single_file'] = 'single_file'
+
+
+class PretrainedStrategy(BaseModel):
+	"""Strategy for loading pretrained models from HuggingFace Hub."""
+
+	use_safetensors: bool
+	variant: Optional[str] = None
+	type: Literal['pretrained'] = 'pretrained'
+
+
+Strategy = Union[SingleFileStrategy, PretrainedStrategy]
+
+
+# Type alias for diffusers pipelines - includes both auto pipelines and specific implementations
+DiffusersPipeline = (
+	AutoPipelineForText2Image | AutoPipelineForImage2Image | StableDiffusionXLPipeline | StableDiffusionPipeline
+)

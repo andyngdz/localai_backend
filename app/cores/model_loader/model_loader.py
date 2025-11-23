@@ -10,9 +10,8 @@ from app.constants.model_loader import (
 	SAFETY_CHECKER_MODEL,
 )
 from app.cores.max_memory import MaxMemoryConfig
-from app.cores.model_manager.pipeline_manager import DiffusersPipeline
 from app.database.service import SessionLocal
-from app.schemas.model_loader import ModelLoadCompletedResponse
+from app.schemas.model_loader import DiffusersPipeline, ModelLoadCompletedResponse
 from app.services import device_service, logger_service, storage_service
 from app.socket import socket_service
 

@@ -1,8 +1,8 @@
 from typing import Optional
 
 from app.cores.gpu_utils import cleanup_gpu_model
-from app.cores.model_manager.pipeline_manager import DiffusersPipeline
 from app.cores.platform_optimizations import get_optimizer
+from app.schemas.model_loader import DiffusersPipeline
 from app.services import device_service, logger_service
 
 from .cancellation import CancellationToken

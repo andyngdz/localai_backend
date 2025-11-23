@@ -19,14 +19,12 @@ from app.cores.model_loader.setup import (
 	move_to_device,
 )
 from app.cores.model_loader.strategies import (
-	PretrainedStrategy,
-	SingleFileStrategy,
 	build_loading_strategies,
 	execute_loading_strategies,
 	find_checkpoint_in_cache,
 	find_single_file_checkpoint,
 )
-from app.schemas.model_loader import ModelLoadPhase
+from app.schemas.model_loader import ModelLoadPhase, PretrainedStrategy, SingleFileStrategy
 
 
 def return_first_arg(arg: Any, *args: Any, **kwargs: Any) -> Any:
@@ -171,7 +169,10 @@ class TestModelLoader:
 	@patch('app.cores.model_loader.model_loader.socket_service')
 	@patch('app.cores.model_loader.model_loader.finalize_model_setup', side_effect=return_first_arg)
 	@patch('app.cores.model_loader.model_loader.execute_loading_strategies', return_value=MagicMock(name='pipe'))
-	@patch('app.cores.model_loader.model_loader.build_loading_strategies', return_value=[PretrainedStrategy(use_safetensors=True)])
+	@patch(
+		'app.cores.model_loader.model_loader.build_loading_strategies',
+		return_value=[PretrainedStrategy(use_safetensors=True)],
+	)
 	@patch('app.cores.model_loader.model_loader.find_checkpoint_in_cache', return_value=None)
 	@patch('app.cores.model_loader.model_loader.StableDiffusionSafetyChecker')
 	@patch('app.cores.model_loader.model_loader.CLIPImageProcessor')
@@ -222,7 +223,10 @@ class TestModelLoader:
 	@patch('app.cores.model_loader.model_loader.cleanup_partial_load')
 	@patch('app.cores.model_loader.model_loader.finalize_model_setup')
 	@patch('app.cores.model_loader.model_loader.execute_loading_strategies', side_effect=RuntimeError('boom'))
-	@patch('app.cores.model_loader.model_loader.build_loading_strategies', return_value=[PretrainedStrategy(use_safetensors=True)])
+	@patch(
+		'app.cores.model_loader.model_loader.build_loading_strategies',
+		return_value=[PretrainedStrategy(use_safetensors=True)],
+	)
 	@patch('app.cores.model_loader.model_loader.find_checkpoint_in_cache', return_value=None)
 	@patch('app.cores.model_loader.model_loader.StableDiffusionSafetyChecker')
 	@patch('app.cores.model_loader.model_loader.CLIPImageProcessor')
