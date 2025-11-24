@@ -2,8 +2,6 @@
 
 from unittest.mock import Mock, patch
 
-import pytest
-
 from app.schemas.generators import ImageGenerationItem, ImageGenerationResponse
 
 

@@ -1,8 +1,6 @@
 """Tests for resource_manager module."""
 
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 
 class TestPrepareForGeneration:

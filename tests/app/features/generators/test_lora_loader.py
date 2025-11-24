@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from app.schemas.generators import GeneratorConfig
-from app.schemas.loras import LoRAConfigItem, LoRAData
+from app.schemas.loras import LoRAConfigItem
 
 
 @pytest.fixture
