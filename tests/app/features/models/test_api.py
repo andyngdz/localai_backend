@@ -58,7 +58,7 @@ class TestDeleteModelEndpoint:
 		mock_model_service.delete_model.assert_called_once_with(self.db_mock, self.model_id)
 		assert isinstance(result, JSONResponseMessage)
 		# Check the content dict that was passed to JSONResponse
-		assert result.body.decode() == '{"message":"Model test/model deleted successfully"}'
+		assert bytes(result.body).decode() == '{"message":"Model test/model deleted successfully"}'
 
 	@patch('app.features.models.api.model_manager')
 	def test_delete_model_in_use(self, mock_model_manager):
@@ -192,7 +192,7 @@ class TestUnloadModelEndpoint:
 		# Assert
 		mock_model_manager.unload_model_async.assert_called_once()
 		assert isinstance(result, JSONResponseMessage)
-		assert 'Model unloaded successfully' in result.body.decode()
+		assert 'Model unloaded successfully' in bytes(result.body).decode()
 
 	@pytest.mark.asyncio
 	@patch('app.features.models.api.model_manager')
