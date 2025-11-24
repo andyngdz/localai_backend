@@ -175,6 +175,3 @@ class PipelineManager:
 		except Exception as error:
 			logger.error(f'Failed to unload LoRAs: {error}')
 			raise ValueError(f'Failed to unload LoRAs: {error}')
-
-
-pipeline_manager = PipelineManager()

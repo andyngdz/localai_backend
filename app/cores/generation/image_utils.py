@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
-
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL.Image import Image
 
 from app.cores.generation import image_processor, memory_manager
 from app.schemas.generators import ImageGenerationItem
 
 
-def process_generated_images(output: Any) -> tuple[list[ImageGenerationItem], list[bool]]:
+def process_generated_images(output: StableDiffusionPipelineOutput) -> tuple[list[ImageGenerationItem], list[bool]]:
 	"""Process generated images and save them to disk.
 
 	Args:

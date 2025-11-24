@@ -85,7 +85,7 @@ class TestCallbackOnStepEnd:
 	def test_callback_performs_periodic_cache_cleanup(
 		self, mock_image_service, mock_socket_service, mock_cuda, progress_callback
 	):
-		"""Test that callback performs periodic cache cleanup every 5 steps (lines 74-78)."""
+		"""Test that callback performs periodic cache cleanup every 3 steps (lines 75-81)."""
 		# Setup
 		mock_pipe = MagicMock()
 		mock_latents = torch.randn(1, 4, 64, 64)
@@ -95,15 +95,28 @@ class TestCallbackOnStepEnd:
 		progress_callback.image_processor.latents_to_rgb = MagicMock(return_value=MagicMock())
 		mock_image_service.to_base64.return_value = 'base64'
 
-		# Execute steps 1-4 (no cleanup)
-		for step in range(1, 5):
+		# Execute steps 1-2 (no cleanup yet)
+		for step in range(1, 3):
 			progress_callback.callback_on_step_end(mock_pipe, step, 0.5, callback_kwargs)
 
 		# Verify no cache clear yet
 		mock_cuda.empty_cache.assert_not_called()
 
-		# Execute step 5 (should trigger cleanup)
-		progress_callback.callback_on_step_end(mock_pipe, 5, 0.5, callback_kwargs)
+		# Execute step 3 (should trigger cleanup)
+		progress_callback.callback_on_step_end(mock_pipe, 3, 0.5, callback_kwargs)
 
-		# Verify cache was cleared
-		mock_cuda.empty_cache.assert_called()
+		# Verify cache was cleared once
+		assert mock_cuda.empty_cache.call_count == 1
+
+		# Execute steps 4-5 (no cleanup)
+		for step in range(4, 6):
+			progress_callback.callback_on_step_end(mock_pipe, step, 0.5, callback_kwargs)
+
+		# Still only 1 clear
+		assert mock_cuda.empty_cache.call_count == 1
+
+		# Execute step 6 (should trigger second cleanup)
+		progress_callback.callback_on_step_end(mock_pipe, 6, 0.5, callback_kwargs)
+
+		# Verify cache was cleared twice total
+		assert mock_cuda.empty_cache.call_count == 2

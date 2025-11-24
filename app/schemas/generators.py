@@ -1,8 +1,31 @@
+from typing import Any, Callable, TypedDict
+
+import torch
 from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
 from app.cores.typing_utils import make_default_list_factory
 from app.schemas.loras import LoRAConfigItem
+
+
+class PipelineParams(TypedDict):
+	"""Type-safe parameters for Stable Diffusion pipeline execution.
+
+	All fields match the official diffusers StableDiffusionPipeline.__call__ signature.
+	"""
+
+	prompt: str
+	negative_prompt: str
+	num_inference_steps: int
+	guidance_scale: float
+	height: int
+	width: int
+	generator: torch.Generator
+	num_images_per_prompt: int
+	callback_on_step_end: Callable[..., dict[str, Any]]
+	callback_on_step_end_tensor_inputs: list[str]
+	clip_skip: int
+
 
 # Default negative prompt to avoid circular import with app.services.styles
 _DEFAULT_NEGATIVE_PROMPT = (
