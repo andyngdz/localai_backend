@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-import torch
 
 from app.schemas.generators import GeneratorConfig
 
@@ -53,11 +52,18 @@ class TestExecutePipeline:
 			await generator.execute_pipeline(sample_config, 'positive', 'negative')
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
 	@patch('app.features.generators.base_generator.model_manager')
 	async def test_sets_sampler(
-		self, mock_model_manager, mock_progress_callback, mock_seed_manager, sample_config, mock_executor
+		self,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_torch_generator,
+		sample_config,
+		mock_executor,
 	):
 		"""Test that sampler is set before generation."""
 		from app.features.generators.base_generator import BaseGenerator
@@ -67,6 +73,7 @@ class TestExecutePipeline:
 		mock_pipe.device = 'cuda'
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
 		generator = BaseGenerator(mock_executor)
 
 		# Mock executor to return immediately
@@ -82,11 +89,18 @@ class TestExecutePipeline:
 		mock_model_manager.set_sampler.assert_called_once_with(sample_config.sampler)
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
 	@patch('app.features.generators.base_generator.model_manager')
 	async def test_gets_seed_from_config(
-		self, mock_model_manager, mock_progress_callback, mock_seed_manager, sample_config, mock_executor
+		self,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_torch_generator,
+		sample_config,
+		mock_executor,
 	):
 		"""Test that seed is retrieved from seed_manager."""
 		from app.features.generators.base_generator import BaseGenerator
@@ -96,6 +110,7 @@ class TestExecutePipeline:
 		mock_pipe.device = 'cuda'
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
@@ -109,11 +124,18 @@ class TestExecutePipeline:
 		mock_seed_manager.get_seed.assert_called_once_with(sample_config.seed)
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
 	@patch('app.features.generators.base_generator.model_manager')
 	async def test_creates_pipeline_params_correctly(
-		self, mock_model_manager, mock_progress_callback, mock_seed_manager, sample_config, mock_executor
+		self,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_torch_generator,
+		sample_config,
+		mock_executor,
 	):
 		"""Test that pipeline parameters are created correctly."""
 		from app.features.generators.base_generator import BaseGenerator
@@ -123,6 +145,10 @@ class TestExecutePipeline:
 		mock_pipe.device = 'cuda'
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
+
+		mock_generator_instance = Mock()
+		mock_torch_generator.return_value.manual_seed.return_value = mock_generator_instance
+
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
@@ -152,9 +178,10 @@ class TestExecutePipeline:
 		assert captured_params['width'] == 512
 		assert captured_params['num_images_per_prompt'] == 2
 		assert captured_params['clip_skip'] == 1
-		assert isinstance(captured_params['generator'], torch.Generator)
+		assert captured_params['generator'] == mock_generator_instance
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.logger')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
@@ -165,6 +192,7 @@ class TestExecutePipeline:
 		mock_progress_callback,
 		mock_seed_manager,
 		mock_logger,
+		mock_torch_generator,
 		sample_config,
 		mock_executor,
 	):
@@ -176,6 +204,7 @@ class TestExecutePipeline:
 		mock_pipe.device = 'cuda'
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
@@ -193,11 +222,18 @@ class TestExecutePipeline:
 		assert any('completed successfully' in msg for msg in log_messages)
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
 	@patch('app.features.generators.base_generator.model_manager')
 	async def test_returns_pipeline_output(
-		self, mock_model_manager, mock_progress_callback, mock_seed_manager, sample_config, mock_executor
+		self,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_torch_generator,
+		sample_config,
+		mock_executor,
 	):
 		"""Test that method returns pipeline output."""
 		from app.features.generators.base_generator import BaseGenerator
@@ -207,6 +243,7 @@ class TestExecutePipeline:
 		mock_pipe.device = 'cuda'
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
