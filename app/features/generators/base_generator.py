@@ -1,0 +1,89 @@
+"""Core image generation logic."""
+
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
+
+import torch
+
+from app.cores.generation import progress_callback, seed_manager
+from app.cores.model_manager import model_manager
+from app.schemas.generators import GeneratorConfig
+from app.services import logger_service
+
+logger = logger_service.get_logger(__name__, category='Generate')
+
+
+class BaseGenerator:
+	"""Handles core pipeline execution for image generation."""
+
+	def __init__(self, executor: ThreadPoolExecutor):
+		"""Initialize generator with thread executor.
+
+		Args:
+			executor: ThreadPoolExecutor for async operations
+		"""
+		self.executor = executor
+
+	async def execute_pipeline(
+		self,
+		config: GeneratorConfig,
+		positive_prompt: str,
+		negative_prompt: str,
+	) -> Any:
+		"""Execute the diffusion pipeline for image generation.
+
+		Args:
+			config: Generation configuration
+			positive_prompt: Processed positive prompt
+			negative_prompt: Processed negative prompt
+
+		Returns:
+			Pipeline output with generated images
+
+		Raises:
+			ValueError: If generation fails
+		"""
+		pipe = model_manager.pipe
+		if pipe is None:
+			raise ValueError('No model is currently loaded')
+
+		logger.info(
+			f"Generating image(s) for prompt: '{config.prompt}' "
+			f'with steps={config.steps}, CFG={config.cfg_scale}, '
+			f'size={config.width}x{config.height}, batch={config.number_of_images}'
+		)
+
+		# Set sampler
+		model_manager.set_sampler(config.sampler)
+
+		# Get seed for reproducibility
+		random_seed = seed_manager.get_seed(config.seed)
+
+		# Prepare pipeline parameters
+		pipeline_params = {
+			'prompt': positive_prompt,
+			'negative_prompt': negative_prompt,
+			'num_inference_steps': config.steps,
+			'guidance_scale': config.cfg_scale,
+			'height': config.height,
+			'width': config.width,
+			'generator': torch.Generator(device=pipe.device).manual_seed(random_seed),
+			'num_images_per_prompt': config.number_of_images,
+			'callback_on_step_end': progress_callback.callback_on_step_end,
+			'callback_on_step_end_tensor_inputs': ['latents'],
+			'clip_skip': config.clip_skip,
+		}
+
+		# Run image generation in a separate thread to avoid blocking the event loop
+		logger.info('Starting image generation in a separate thread.')
+		loop = asyncio.get_event_loop()
+
+		output = await loop.run_in_executor(
+			self.executor,
+			lambda: pipe(**pipeline_params),
+		)
+
+		logger.info(f'Image generation completed successfully: {output}')
+
+		return output
