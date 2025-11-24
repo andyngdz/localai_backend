@@ -54,7 +54,7 @@ class GeneratorService:
 		resource_manager.prepare_for_generation()
 
 		# Step 3: Load LoRAs if specified
-		loras_loaded = lora_loader.load_loras_for_generation(config, db)
+		lora_loader.load_loras_for_generation(config, db)
 
 		try:
 			# Step 4: Process prompts with styles
@@ -76,7 +76,6 @@ class GeneratorService:
 			raise ValueError(f'Model files not found: {error}')
 
 		except torch.cuda.OutOfMemoryError as error:
-			logger.error(f'Out of memory error during image generation: {error}')
 			resource_manager.handle_oom_error()
 
 			raise ValueError(
@@ -84,7 +83,7 @@ class GeneratorService:
 				f'Current batch: {config.number_of_images} images at {config.width}x{config.height}. '
 				f'Try: (1) Reduce number of images to 1-2, (2) Lower resolution to 512x512, '
 				f'or (3) Restart the model to clear memory.'
-			)
+			) from error
 
 		except Exception as error:
 			logger.exception(f'Failed to generate image for prompt: "{config.prompt}"')
@@ -92,10 +91,8 @@ class GeneratorService:
 
 		finally:
 			# Step 7: Cleanup resources
-			resource_manager.cleanup_after_generation(
-				loras_loaded=loras_loaded,
-				unload_loras_fn=lora_loader.unload_loras,
-			)
+			lora_loader.unload_loras()
+			resource_manager.cleanup_after_generation()
 
 
 generator_service = GeneratorService()

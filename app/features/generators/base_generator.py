@@ -2,13 +2,13 @@
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
 
 import torch
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
 from app.cores.generation import progress_callback, seed_manager
 from app.cores.model_manager import model_manager
-from app.schemas.generators import GeneratorConfig
+from app.schemas.generators import GeneratorConfig, PipelineParams
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
@@ -30,7 +30,7 @@ class BaseGenerator:
 		config: GeneratorConfig,
 		positive_prompt: str,
 		negative_prompt: str,
-	) -> Any:
+	) -> StableDiffusionPipelineOutput:
 		"""Execute the diffusion pipeline for image generation.
 
 		Args:
@@ -43,10 +43,12 @@ class BaseGenerator:
 
 		Raises:
 			ValueError: If generation fails
+
+		Note:
+			Model validation is performed by ConfigValidator before this method is called.
 		"""
 		pipe = model_manager.pipe
-		if pipe is None:
-			raise ValueError('No model is currently loaded')
+		assert pipe is not None, 'Model should be validated before execution'
 
 		logger.info(
 			f"Generating image(s) for prompt: '{config.prompt}' "
@@ -60,8 +62,8 @@ class BaseGenerator:
 		# Get seed for reproducibility
 		random_seed = seed_manager.get_seed(config.seed)
 
-		# Prepare pipeline parameters
-		pipeline_params = {
+		# Prepare pipeline parameters with type safety
+		pipeline_params: PipelineParams = {
 			'prompt': positive_prompt,
 			'negative_prompt': negative_prompt,
 			'num_inference_steps': config.steps,

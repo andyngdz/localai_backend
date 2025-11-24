@@ -263,7 +263,6 @@ class TestGenerateImageCleanup:
 	) -> None:
 		"""Test that cleanup is called after successful generation."""
 		service, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
-		mock_lora_loader.load_loras_for_generation.return_value = True
 
 		service.generator.execute_pipeline = AsyncMock(
 			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
@@ -271,11 +270,9 @@ class TestGenerateImageCleanup:
 
 		await service.generate_image(sample_config, mock_db)
 
-		mock_resource_manager.cleanup_after_generation.assert_called_once()
-		# Verify it was called with correct arguments
-		call_args = mock_resource_manager.cleanup_after_generation.call_args
-		assert call_args.kwargs['loras_loaded'] is True
-		assert call_args.kwargs['unload_loras_fn'] == mock_lora_loader.unload_loras
+		# Verify cleanup methods were called
+		mock_lora_loader.unload_loras.assert_called_once()
+		mock_resource_manager.cleanup_after_generation.assert_called_once_with()
 
 	@pytest.mark.asyncio
 	async def test_cleans_up_resources_after_error(
@@ -293,12 +290,11 @@ class TestGenerateImageCleanup:
 		mock_resource_manager.cleanup_after_generation.assert_called_once()
 
 	@pytest.mark.asyncio
-	async def test_cleanup_called_when_loras_not_loaded(
+	async def test_cleanup_always_called(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
-		"""Test cleanup with loras_loaded=False."""
+		"""Test that cleanup is always called regardless of LoRA state."""
 		service, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
-		mock_lora_loader.load_loras_for_generation.return_value = False
 
 		service.generator.execute_pipeline = AsyncMock(
 			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
@@ -306,5 +302,6 @@ class TestGenerateImageCleanup:
 
 		await service.generate_image(sample_config, mock_db)
 
-		call_args = mock_resource_manager.cleanup_after_generation.call_args
-		assert call_args.kwargs['loras_loaded'] is False
+		# Both cleanup methods should be called
+		mock_lora_loader.unload_loras.assert_called_once()
+		mock_resource_manager.cleanup_after_generation.assert_called_once_with()

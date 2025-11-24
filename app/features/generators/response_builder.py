@@ -1,6 +1,6 @@
 """Response building for image generation results."""
 
-from typing import Any
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
 from app.cores.generation.image_utils import process_generated_images
 from app.schemas.generators import ImageGenerationResponse
@@ -9,7 +9,7 @@ from app.schemas.generators import ImageGenerationResponse
 class ResponseBuilder:
 	"""Builds ImageGenerationResponse from pipeline output."""
 
-	def build_response(self, output: Any) -> ImageGenerationResponse:
+	def build_response(self, output: StableDiffusionPipelineOutput) -> ImageGenerationResponse:
 		"""Build response from pipeline output.
 
 		Args:

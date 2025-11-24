@@ -53,6 +53,7 @@ class LoRALoader:
 	def unload_loras(self) -> None:
 		"""Unload LoRAs from the pipeline.
 
+		Safe to call even if no LoRAs were loaded - handles gracefully with error logging.
 		Logs errors if unloading fails but does not raise exceptions.
 		"""
 		try:

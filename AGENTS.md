@@ -1,0 +1,34 @@
+# Agent Guide for LocalAI Backend
+
+## Quick Commands
+
+```bash
+# Run tests
+uv run pytest                              # All tests
+uv run pytest tests/path/to/test_file.py   # Single test file
+uv run pytest tests/path/to/test_file.py::TestClass::test_method  # Single test
+
+# Code quality (pre-commit runs these automatically)
+uv run ruff format && uv run ruff check --fix && uv run pyright
+
+# Run application
+uv run alembic upgrade head  # Run migrations first
+uv run python main.py        # Start server
+```
+
+## Code Style Essentials
+
+**Formatting**: Tabs (not spaces), single quotes, 120 char lines (see `ruff.toml`)
+**Types**: Never use `# type: ignore` or `Any` - create type stubs in `typings/` for external libs
+**Imports**: All imports at top - **never use `TYPE_CHECKING`**, use `app/schemas/` for shared types instead
+**Architecture**: `app/features/` (business), `app/cores/` (domain), `app/services/` (infra), `app/schemas/` (shared types)
+**Files**: Split files >150 lines into focused modules; service files are thin orchestrators
+**Naming**: Descriptive names in loops (never `i`, `x`, `p`); use `database_service` alias for `app.database.crud`
+**Error Handling**: Pydantic models over dicts; proper exception chaining with `from error`
+**No defensive code**: Call methods directly (e.g., `callback.reset()` not `if hasattr(callback, 'reset')`)
+
+## Documentation to Read
+
+- `docs/ARCHITECTURE.md` - Stack, structure, circular imports, modularity rules
+- `docs/CODING_STYLE.md` - Complete style guide with examples
+- `docs/DEVELOPMENT_COMMANDS.md` - All available commands
