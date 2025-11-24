@@ -23,13 +23,11 @@ class TestValidateConfig:
 	"""Test validate_config() method."""
 
 	@patch('app.features.generators.config_validator.memory_manager')
-	@patch('app.features.generators.config_validator.model_manager')
-	def test_validates_successfully_when_model_loaded(self, mock_model_manager, mock_memory_manager, sample_config):
-		"""Test validation passes when model is loaded."""
+	def test_validates_batch_size_successfully(self, mock_memory_manager, sample_config):
+		"""Test validation passes with valid config."""
 		from app.features.generators.config_validator import ConfigValidator
 
 		# Setup
-		mock_model_manager.pipe = Mock()  # Model is loaded
 		mock_memory_manager.validate_batch_size = Mock()
 		validator = ConfigValidator()
 
@@ -44,30 +42,11 @@ class TestValidateConfig:
 		)
 
 	@patch('app.features.generators.config_validator.memory_manager')
-	@patch('app.features.generators.config_validator.model_manager')
-	def test_raises_when_no_model_loaded(self, mock_model_manager, mock_memory_manager, sample_config):
-		"""Test validation fails when no model is loaded."""
-		from app.features.generators.config_validator import ConfigValidator
-
-		# Setup
-		mock_model_manager.pipe = None  # No model loaded
-		validator = ConfigValidator()
-
-		# Execute & Verify
-		with pytest.raises(ValueError, match='No model is currently loaded'):
-			validator.validate_config(sample_config)
-
-		# Memory validation should not be called
-		mock_memory_manager.validate_batch_size.assert_not_called()
-
-	@patch('app.features.generators.config_validator.memory_manager')
-	@patch('app.features.generators.config_validator.model_manager')
-	def test_calls_memory_manager_with_correct_params(self, mock_model_manager, mock_memory_manager, sample_config):
+	def test_calls_memory_manager_with_correct_params(self, mock_memory_manager, sample_config):
 		"""Test that memory manager is called with correct batch parameters."""
 		from app.features.generators.config_validator import ConfigValidator
 
 		# Setup
-		mock_model_manager.pipe = Mock()
 		mock_memory_manager.validate_batch_size = Mock()
 		validator = ConfigValidator()
 

@@ -405,13 +405,13 @@ class TestGetModelStatusEndpoint:
 
 	@patch('app.features.models.api.model_manager')
 	def test_get_model_status_success(self, mock_model_manager):
-		"""Test successful model status retrieval (lines 200-216)."""
+		"""Test successful model status retrieval."""
 		# Arrange
 		from app.cores.model_manager import ModelState
 
 		mock_model_manager.current_state = ModelState.LOADED
 		mock_model_manager.id = 'test/model'
-		mock_model_manager.pipe = MagicMock()
+		mock_model_manager.has_model = True
 
 		# Act
 		from app.features.models.api import get_model_status
@@ -432,7 +432,7 @@ class TestGetModelStatusEndpoint:
 
 		mock_model_manager.current_state = ModelState.LOADING
 		mock_model_manager.id = None
-		mock_model_manager.pipe = None
+		mock_model_manager.has_model = False
 
 		# Act
 		from app.features.models.api import get_model_status

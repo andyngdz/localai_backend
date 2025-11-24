@@ -203,7 +203,7 @@ def get_model_status():
 		response = {
 			'state': state.value,
 			'loaded_model_id': model_manager.id,
-			'has_model': model_manager.pipe is not None,
+			'has_model': model_manager.has_model,
 			'is_loading': state == ModelState.LOADING,
 		}
 

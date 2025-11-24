@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 import torch
 from sqlalchemy.orm import Session
 
+from app.cores.model_manager import model_manager
 from app.features.generators.base_generator import BaseGenerator
 from app.features.generators.config_validator import config_validator
 from app.features.generators.lora_loader import lora_loader
@@ -46,6 +47,10 @@ class GeneratorService:
 			ValueError: If model not loaded or generation fails
 		"""
 		logger.info(f'Received image generation request: {config}')
+
+		# Validate model is loaded
+		if not model_manager.has_model:
+			raise ValueError('No model is currently loaded')
 
 		# Step 1: Validate configuration
 		config_validator.validate_config(config)

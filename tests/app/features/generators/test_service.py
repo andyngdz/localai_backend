@@ -19,6 +19,7 @@ MockServiceFixture: TypeAlias = tuple[GeneratorService, Mock, Mock, Mock, Mock, 
 def mock_service() -> Generator[MockServiceFixture, None, None]:
 	"""Create GeneratorService with mocked module dependencies."""
 	with (
+		patch('app.features.generators.service.model_manager') as mock_model_manager,
 		patch('app.features.generators.service.config_validator') as mock_config_validator,
 		patch('app.features.generators.service.resource_manager') as mock_resource_manager,
 		patch('app.features.generators.service.lora_loader') as mock_lora_loader,
@@ -26,6 +27,7 @@ def mock_service() -> Generator[MockServiceFixture, None, None]:
 		patch('app.features.generators.service.response_builder') as mock_response_builder,
 	):
 		# Configure mocks
+		mock_model_manager.has_model = True  # Model is loaded by default
 		mock_config_validator.validate_config = Mock()
 		mock_resource_manager.prepare_for_generation = Mock()
 		mock_resource_manager.cleanup_after_generation = Mock()

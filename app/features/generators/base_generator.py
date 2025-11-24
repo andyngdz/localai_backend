@@ -45,11 +45,9 @@ class BaseGenerator:
 			ValueError: If generation fails
 
 		Note:
-			Model validation is performed by ConfigValidator before this method is called.
+			Model validation is performed by GeneratorService before this method is called.
 		"""
 		pipe = model_manager.pipe
-		if pipe is None:
-			raise ValueError('Model validation failed - pipe is None')
 
 		logger.info(
 			f"Generating image(s) for prompt: '{config.prompt}' "
