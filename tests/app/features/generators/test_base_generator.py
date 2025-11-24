@@ -40,7 +40,7 @@ class TestExecutePipeline:
 	async def test_validates_model_is_loaded(
 		self, mock_model_manager, mock_progress_callback, mock_seed_manager, sample_config, mock_executor
 	):
-		"""Test that assertion fails if model is None."""
+		"""Test that ValueError is raised if model is None."""
 		from app.features.generators.base_generator import BaseGenerator
 
 		# Setup
@@ -48,7 +48,7 @@ class TestExecutePipeline:
 		generator = BaseGenerator(mock_executor)
 
 		# Execute & Verify
-		with pytest.raises(AssertionError, match='Model should be validated'):
+		with pytest.raises(ValueError, match='Model validation failed'):
 			await generator.execute_pipeline(sample_config, 'positive', 'negative')
 
 	@pytest.mark.asyncio

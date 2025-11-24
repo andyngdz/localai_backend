@@ -73,7 +73,7 @@ class GeneratorService:
 
 		except FileNotFoundError as error:
 			logger.error(f'Model directory not found: {error}')
-			raise ValueError(f'Model files not found: {error}')
+			raise ValueError(f'Required files not found: {error}') from error
 
 		except torch.cuda.OutOfMemoryError as error:
 			resource_manager.handle_oom_error()
@@ -87,7 +87,7 @@ class GeneratorService:
 
 		except Exception as error:
 			logger.exception(f'Failed to generate image for prompt: "{config.prompt}"')
-			raise ValueError(f'Failed to generate image: {error}')
+			raise ValueError(f'Failed to generate image: {error}') from error
 
 		finally:
 			# Step 7: Cleanup resources

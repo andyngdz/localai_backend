@@ -226,7 +226,7 @@ class TestGenerateImageErrorHandling:
 		service, *_ = mock_service
 		service.generator.execute_pipeline = AsyncMock(side_effect=FileNotFoundError('Model files missing'))
 
-		with pytest.raises(ValueError, match='Model files not found'):
+		with pytest.raises(ValueError, match='Required files not found'):
 			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
