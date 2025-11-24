@@ -20,7 +20,7 @@ uv run python main.py        # Start server
 
 **Formatting**: Tabs (not spaces), single quotes, 120 char lines (see `ruff.toml`)
 **Types**: Never use `# type: ignore` or `Any` - create type stubs in `typings/` for external libs
-**Imports**: All imports at top - **never use `TYPE_CHECKING`**, use `app/schemas/` for shared types instead
+**Imports**: All imports at top - **never import in the middle of code** (inside functions/classes) - **never use `TYPE_CHECKING`**, use `app/schemas/` for shared types instead
 **Architecture**: `app/features/` (business), `app/cores/` (domain), `app/services/` (infra), `app/schemas/` (shared types)
 **Files**: Split files >150 lines into focused modules; service files are thin orchestrators
 **Naming**: Descriptive names in loops (never `i`, `x`, `p`); use `database_service` alias for `app.database.crud`

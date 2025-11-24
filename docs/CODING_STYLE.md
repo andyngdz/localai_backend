@@ -15,6 +15,29 @@
 
 **Use `pydash` for complex list/collection operations** when it improves readability over nested list comprehensions.
 
+## Imports
+
+**All imports must be at the top of the file.**
+
+- ❌ **Never** import in the middle of code (inside functions, inside classes)
+- ✅ **Always** place all imports at the top, after the module docstring
+- ✅ Group imports: standard library → third-party → local imports
+- ✅ Use absolute imports: `from app.services import logger_service`
+
+```python
+# ✅ Good - imports at top
+from typing import Optional
+from app.services import logger_service
+
+def my_function():
+    logger_service.info('hello')
+
+# ❌ Bad - import in the middle
+def my_function():
+    from app.services import logger_service  # NEVER DO THIS
+    logger_service.info('hello')
+```
+
 ## Type Safety → Use type-safety-mastery skill
 
 **Never use `# type: ignore` or `any` type.** Fix errors at source.
