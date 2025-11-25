@@ -4,10 +4,9 @@ from collections.abc import Mapping
 from typing import Any, Optional, Union
 
 import torch
-from transformers import CLIPImageProcessor, CLIPTokenizer, CLIPTextModel
-from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from diffusers.pipelines.auto_pipeline import Scheduler, UNet
-
+from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
 
 class StableDiffusionPipeline:
 	"""Stable Diffusion 1.5 pipeline."""
@@ -26,7 +25,6 @@ class StableDiffusionPipeline:
 
 	@classmethod
 	def from_single_file(cls, pretrained_model_link_or_path: str, **kwargs: Any) -> 'StableDiffusionPipeline': ...
-
 	def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
 	def load_lora_weights(self, pretrained_model_name_or_path_or_dict: str, **kwargs: Any) -> None: ...
 	def set_adapters(self, adapter_names: list[str], adapter_weights: Optional[list[float]] = None) -> None: ...

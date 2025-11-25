@@ -37,24 +37,24 @@ async def download(
 ):
 	"""Initialize a download for the given model ID and save it to the database"""
 
-	id = request.id
+	model_id = request.id
 
-	logger.info(f'API Request: Initiating download for id: {id}')
+	logger.info(f'API Request: Initiating download for id: {model_id}')
 
 	try:
-		await socket_service.download_start(DownloadModelStartResponse(id=id))
+		await socket_service.download_start(DownloadModelStartResponse(id=model_id))
 
 		# Start the download process with database session for proper dependency injection
-		local_dir = await download_service.start(id, db)
+		local_dir = await download_service.start(model_id, db)
 
 		if not local_dir:
 			raise HTTPException(
 				status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-				detail=f'Failed to download model {id}',
+				detail=f'Failed to download model {model_id}',
 			)
 
 		download_model_response = DownloadModelResponse(
-			id=id,
+			id=model_id,
 			message='Download completed and saved to database',
 			path=local_dir,
 		)
@@ -65,13 +65,13 @@ async def download(
 		return download_model_response
 
 	except CancelledError:
-		logger.warning(f'Download task for id {id} was cancelled')
+		logger.warning(f'Download task for id {model_id} was cancelled')
 		raise
 	except Exception:
-		logger.error(f'Error downloading model {id}')
+		logger.error(f'Error downloading model {model_id}')
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail=f'Failed to download model {id}',
+			detail=f'Failed to download model {model_id}',
 		)
 	finally:
-		logger.info(f'Download task for id {id} completed')
+		logger.info(f'Download task for id {model_id} completed')
