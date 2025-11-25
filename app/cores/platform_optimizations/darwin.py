@@ -1,5 +1,6 @@
 """macOS-specific optimizations for MPS (Apple Silicon) pipelines."""
 
+from app.constants.platform import OperatingSystem
 from app.services import device_service, logger_service
 
 from .base import PlatformOptimizer
@@ -46,4 +47,4 @@ class DarwinOptimizer(PlatformOptimizer):
 		Returns:
 			'macOS'
 		"""
-		return 'macOS'
+		return OperatingSystem.DARWIN.display_name

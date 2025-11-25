@@ -1,11 +1,11 @@
 """Main GPU detection orchestrator."""
 
 import functools
-import platform
 import subprocess
 
 import torch
 
+from app.constants.platform import OperatingSystem
 from app.schemas.hardware import GPUDriverInfo, GPUDriverStatusStates
 from app.services import device_service, logger_service
 
@@ -33,16 +33,16 @@ class GPUDetector:
 		info = self._create_default_info()
 
 		try:
-			system_os = platform.system()
+			system_os = OperatingSystem.from_platform_system()
 			backends = torch.backends
 
-			if system_os in ('Windows', 'Linux'):
+			if system_os in (OperatingSystem.WINDOWS, OperatingSystem.LINUX):
 				self.nvidia_detector.detect(system_os, info)
-			elif system_os == 'Darwin':
+			elif system_os == OperatingSystem.DARWIN:
 				self._detect_macos_gpu(backends, info)
 			else:
 				info.overall_status = GPUDriverStatusStates.NO_GPU
-				info.message = GPUInfo.unsupported_os(system_os)
+				info.message = GPUInfo.unsupported_os(system_os.value)
 
 		except ImportError:
 			info.overall_status = GPUDriverStatusStates.UNKNOWN_ERROR

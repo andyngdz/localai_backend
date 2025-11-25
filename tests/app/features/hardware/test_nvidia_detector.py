@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from app.constants.platform import OperatingSystem
 from app.features.hardware.info import GPUInfo
 from app.features.hardware.nvidia_detector import NvidiaDetector
 from app.schemas.hardware import GPUDriverInfo, GPUDriverStatusStates
@@ -27,8 +28,8 @@ class TestNvidiaDetector:
 		mock_device_service.device_count = 0
 
 		with patch.object(self.detector, '_detect_cuda_gpus') as mock_detect_cuda:
-			self.detector.detect('Linux', self.info)
-			mock_detect_cuda.assert_called_once_with('Linux', self.info)
+			self.detector.detect(OperatingSystem.LINUX, self.info)
+			mock_detect_cuda.assert_called_once_with(OperatingSystem.LINUX, self.info)
 
 	@patch('app.features.hardware.nvidia_detector.device_service')
 	def test_detect_without_cuda(self, mock_device_service):
@@ -36,8 +37,8 @@ class TestNvidiaDetector:
 		mock_device_service.is_cuda = False
 
 		with patch.object(self.detector, '_handle_no_cuda') as mock_handle_no_cuda:
-			self.detector.detect('Linux', self.info)
-			mock_handle_no_cuda.assert_called_once_with('Linux', self.info)
+			self.detector.detect(OperatingSystem.LINUX, self.info)
+			mock_handle_no_cuda.assert_called_once_with(OperatingSystem.LINUX, self.info)
 
 	@patch('app.features.hardware.nvidia_detector.torch')
 	@patch('app.features.hardware.nvidia_detector.device_service')
@@ -49,7 +50,7 @@ class TestNvidiaDetector:
 		mock_torch.version = mock_version
 
 		with patch.object(self.detector, '_get_driver_version', return_value='525.60.11'):
-			self.detector._detect_cuda_gpus('Linux', self.info)
+			self.detector._detect_cuda_gpus(OperatingSystem.LINUX, self.info)
 
 		assert self.info.overall_status == GPUDriverStatusStates.READY
 		assert self.info.message == GPUInfo.nvidia_ready()
@@ -65,7 +66,7 @@ class TestNvidiaDetector:
 		mock_torch.version = mock_version
 
 		with patch.object(self.detector, '_get_driver_version', return_value=None):
-			self.detector._detect_cuda_gpus('Linux', self.info)
+			self.detector._detect_cuda_gpus(OperatingSystem.LINUX, self.info)
 
 		assert self.info.cuda_runtime_version == '12.1'
 
@@ -118,7 +119,7 @@ class TestNvidiaDetector:
 		mock_result.stdout = '525.60.11\n'
 		mock_subprocess.run.return_value = mock_result
 
-		version = self.detector._get_driver_version('Linux')
+		version = self.detector._get_driver_version(OperatingSystem.LINUX)
 
 		assert version == '525.60.11'
 
@@ -127,21 +128,21 @@ class TestNvidiaDetector:
 		"""Test _get_driver_version() returns None on failure."""
 		mock_subprocess_run.side_effect = FileNotFoundError()
 
-		version = self.detector._get_driver_version('Linux')
+		version = self.detector._get_driver_version(OperatingSystem.LINUX)
 
 		assert version is None
 
 	def test_handle_no_cuda_on_linux(self):
 		"""Test _handle_no_cuda() on Linux sets up NVIDIA troubleshooting."""
 		with patch.object(self.detector, '_setup_nvidia_troubleshooting') as mock_setup:
-			self.detector._handle_no_cuda('Linux', self.info)
+			self.detector._handle_no_cuda(OperatingSystem.LINUX, self.info)
 
 			assert self.info.overall_status == GPUDriverStatusStates.NO_GPU
-			mock_setup.assert_called_once_with('Linux', self.info)
+			mock_setup.assert_called_once_with(OperatingSystem.LINUX, self.info)
 
 	def test_handle_no_cuda_on_macos(self):
 		"""Test _handle_no_cuda() on macOS sets macOS message."""
-		self.detector._handle_no_cuda('Darwin', self.info)
+		self.detector._handle_no_cuda(OperatingSystem.DARWIN, self.info)
 
 		assert self.info.overall_status == GPUDriverStatusStates.NO_GPU
 		assert self.info.message == GPUInfo.macos_no_acceleration()
@@ -151,7 +152,7 @@ class TestNvidiaDetector:
 		"""Test _setup_nvidia_troubleshooting() sets up troubleshooting info."""
 		mock_subprocess_run.side_effect = FileNotFoundError()
 
-		self.detector._setup_nvidia_troubleshooting('Linux', self.info)
+		self.detector._setup_nvidia_troubleshooting(OperatingSystem.LINUX, self.info)
 
 		assert self.info.message == GPUInfo.nvidia_no_gpu()
 		assert self.info.recommendation_link == GPUInfo.nvidia_recommendation_link()
@@ -162,7 +163,7 @@ class TestNvidiaDetector:
 		"""Test _setup_nvidia_troubleshooting() detects driver issue."""
 		mock_subprocess_run.return_value = MagicMock()
 
-		self.detector._setup_nvidia_troubleshooting('Linux', self.info)
+		self.detector._setup_nvidia_troubleshooting(OperatingSystem.LINUX, self.info)
 
 		assert self.info.overall_status == GPUDriverStatusStates.DRIVER_ISSUE
 		assert self.info.message == GPUInfo.nvidia_driver_issue()
@@ -174,7 +175,7 @@ class TestNvidiaDetector:
 		"""Test _check_nvidia_smi_available() returns True when available."""
 		mock_subprocess_run.return_value = MagicMock()
 
-		result = self.detector._check_nvidia_smi_available('Linux')
+		result = self.detector._check_nvidia_smi_available(OperatingSystem.LINUX)
 
 		assert result is True
 
@@ -183,6 +184,6 @@ class TestNvidiaDetector:
 		"""Test _check_nvidia_smi_available() returns False when unavailable."""
 		mock_subprocess_run.side_effect = FileNotFoundError()
 
-		result = self.detector._check_nvidia_smi_available('Linux')
+		result = self.detector._check_nvidia_smi_available(OperatingSystem.LINUX)
 
 		assert result is False

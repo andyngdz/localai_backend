@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, PropertyMock, patch
 
+from app.constants.platform import OperatingSystem
 from app.features.hardware.gpu_detector import GPUDetector
 from app.features.hardware.info import GPUInfo
 from app.schemas.hardware import GPUDriverInfo, GPUDriverStatusStates
@@ -17,11 +18,11 @@ class TestGPUDetector:
 		self.detector = GPUDetector()
 
 	@patch('app.features.hardware.gpu_detector.device_service')
-	@patch('app.features.hardware.gpu_detector.platform')
+	@patch('app.features.hardware.gpu_detector.OperatingSystem.from_platform_system')
 	@patch('app.features.hardware.gpu_detector.torch')
-	def test_detect_on_windows_uses_nvidia_detector(self, mock_torch, mock_platform, mock_device_service):
+	def test_detect_on_windows_uses_nvidia_detector(self, mock_torch, mock_from_platform, mock_device_service):
 		"""Test detect() on Windows uses NVIDIA detector."""
-		mock_platform.system.return_value = 'Windows'
+		mock_from_platform.return_value = OperatingSystem.WINDOWS
 		mock_device_service.is_cuda = True
 		mock_torch.backends = MagicMock()
 
@@ -32,11 +33,11 @@ class TestGPUDetector:
 			assert isinstance(info, GPUDriverInfo)
 
 	@patch('app.features.hardware.gpu_detector.device_service')
-	@patch('app.features.hardware.gpu_detector.platform')
+	@patch('app.features.hardware.gpu_detector.OperatingSystem.from_platform_system')
 	@patch('app.features.hardware.gpu_detector.torch')
-	def test_detect_on_linux_uses_nvidia_detector(self, mock_torch, mock_platform, mock_device_service):
+	def test_detect_on_linux_uses_nvidia_detector(self, mock_torch, mock_from_platform, mock_device_service):
 		"""Test detect() on Linux uses NVIDIA detector."""
-		mock_platform.system.return_value = 'Linux'
+		mock_from_platform.return_value = OperatingSystem.LINUX
 		mock_device_service.is_cuda = True
 		mock_torch.backends = MagicMock()
 
@@ -47,11 +48,11 @@ class TestGPUDetector:
 			assert isinstance(info, GPUDriverInfo)
 
 	@patch('app.features.hardware.gpu_detector.device_service')
-	@patch('app.features.hardware.gpu_detector.platform')
+	@patch('app.features.hardware.gpu_detector.OperatingSystem.from_platform_system')
 	@patch('app.features.hardware.gpu_detector.torch')
-	def test_detect_on_darwin_with_mps_uses_mps_detector(self, mock_torch, mock_platform, mock_device_service):
+	def test_detect_on_darwin_with_mps_uses_mps_detector(self, mock_torch, mock_from_platform, mock_device_service):
 		"""Test detect() on macOS with MPS uses MPS detector."""
-		mock_platform.system.return_value = 'Darwin'
+		mock_from_platform.return_value = OperatingSystem.DARWIN
 		mock_device_service.is_cuda = False
 
 		mock_backends = MagicMock()
@@ -65,11 +66,11 @@ class TestGPUDetector:
 			assert isinstance(info, GPUDriverInfo)
 
 	@patch('app.features.hardware.gpu_detector.device_service')
-	@patch('app.features.hardware.gpu_detector.platform')
+	@patch('app.features.hardware.gpu_detector.OperatingSystem.from_platform_system')
 	@patch('app.features.hardware.gpu_detector.torch')
-	def test_detect_on_darwin_without_mps_calls_handle_no_mps(self, mock_torch, mock_platform, mock_device_service):
+	def test_detect_on_darwin_without_mps_calls_handle_no_mps(self, mock_torch, mock_from_platform, mock_device_service):
 		"""Test detect() on macOS without MPS calls handle_no_mps."""
-		mock_platform.system.return_value = 'Darwin'
+		mock_from_platform.return_value = OperatingSystem.DARWIN
 		mock_device_service.is_cuda = False
 
 		mock_backends = MagicMock()
@@ -83,11 +84,13 @@ class TestGPUDetector:
 			assert isinstance(info, GPUDriverInfo)
 
 	@patch('app.features.hardware.gpu_detector.device_service')
-	@patch('app.features.hardware.gpu_detector.platform')
+	@patch('app.features.hardware.gpu_detector.OperatingSystem.from_platform_system')
 	@patch('app.features.hardware.gpu_detector.torch')
-	def test_detect_on_unsupported_os(self, mock_torch, mock_platform, mock_device_service):
+	def test_detect_on_unsupported_os(self, mock_torch, mock_from_platform, mock_device_service):
 		"""Test detect() on unsupported OS."""
-		mock_platform.system.return_value = 'FreeBSD'
+		mock_unsupported_os = MagicMock()
+		mock_unsupported_os.value = 'FreeBSD'
+		mock_from_platform.return_value = mock_unsupported_os
 		mock_device_service.is_cuda = False
 		mock_torch.backends = MagicMock()
 
@@ -97,11 +100,11 @@ class TestGPUDetector:
 		assert info.message == GPUInfo.unsupported_os('FreeBSD')
 
 	@patch('app.features.hardware.gpu_detector.device_service')
-	@patch('app.features.hardware.gpu_detector.platform')
+	@patch('app.features.hardware.gpu_detector.OperatingSystem.from_platform_system')
 	@patch('app.features.hardware.gpu_detector.torch')
-	def test_detect_handles_import_error(self, mock_torch, mock_platform, mock_device_service):
+	def test_detect_handles_import_error(self, mock_torch, mock_from_platform, mock_device_service):
 		"""Test detect() handles ImportError."""
-		mock_platform.system.return_value = 'Linux'
+		mock_from_platform.return_value = OperatingSystem.LINUX
 		mock_device_service.is_cuda = False
 		type(mock_torch).backends = PropertyMock(side_effect=ImportError('PyTorch not found'))
 
@@ -112,11 +115,11 @@ class TestGPUDetector:
 		assert info.troubleshooting_steps == GPUInfo.pytorch_troubleshooting()
 
 	@patch('app.features.hardware.gpu_detector.device_service')
-	@patch('app.features.hardware.gpu_detector.platform')
+	@patch('app.features.hardware.gpu_detector.OperatingSystem.from_platform_system')
 	@patch('app.features.hardware.gpu_detector.torch')
-	def test_detect_handles_runtime_error(self, mock_torch, mock_platform, mock_device_service):
+	def test_detect_handles_runtime_error(self, mock_torch, mock_from_platform, mock_device_service):
 		"""Test detect() handles RuntimeError."""
-		mock_platform.system.return_value = 'Linux'
+		mock_from_platform.return_value = OperatingSystem.LINUX
 		mock_device_service.is_cuda = False
 		mock_torch.backends = MagicMock()
 
@@ -129,11 +132,11 @@ class TestGPUDetector:
 		assert info.troubleshooting_steps == GPUInfo.error_troubleshooting_steps()
 
 	@patch('app.features.hardware.gpu_detector.device_service')
-	@patch('app.features.hardware.gpu_detector.platform')
+	@patch('app.features.hardware.gpu_detector.OperatingSystem.from_platform_system')
 	@patch('app.features.hardware.gpu_detector.torch')
-	def test_clear_cache_clears_detect_cache(self, mock_torch, mock_platform, mock_device_service):
+	def test_clear_cache_clears_detect_cache(self, mock_torch, mock_from_platform, mock_device_service):
 		"""Test clear_cache() clears the detect method cache."""
-		mock_platform.system.return_value = 'Linux'
+		mock_from_platform.return_value = OperatingSystem.LINUX
 		mock_device_service.is_cuda = False
 		mock_torch.backends = MagicMock()
 
