@@ -1,8 +1,9 @@
 from enum import Enum
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, TypeAlias, Union
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
+from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import StableDiffusion3Pipeline
 from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipeline
 from pydantic import BaseModel, Field
 
@@ -68,6 +69,15 @@ Strategy = Union[SingleFileStrategy, PretrainedStrategy]
 
 
 # Type alias for diffusers pipelines - includes both auto pipelines and specific implementations
-DiffusersPipeline = (
-	AutoPipelineForText2Image | AutoPipelineForImage2Image | StableDiffusionXLPipeline | StableDiffusionPipeline
+DiffusersPipeline: TypeAlias = (
+	AutoPipelineForText2Image
+	| AutoPipelineForImage2Image
+	| StableDiffusionXLPipeline
+	| StableDiffusionPipeline
+	| StableDiffusion3Pipeline
+)
+
+# Type alias for pipeline classes that support from_single_file
+SingleFilePipelineClass: TypeAlias = (
+	type[StableDiffusionXLPipeline] | type[StableDiffusionPipeline] | type[StableDiffusion3Pipeline]
 )

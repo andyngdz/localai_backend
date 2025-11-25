@@ -1,9 +1,12 @@
 import os
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
+from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import StableDiffusion3Pipeline
+from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipeline
 from transformers import CLIPImageProcessor
 
 from app.constants.model_loader import ModelLoadingStrategy
@@ -11,6 +14,7 @@ from app.schemas.model_loader import (
 	DiffusersPipeline,
 	ModelLoadFailed,
 	PretrainedStrategy,
+	SingleFilePipelineClass,
 	SingleFileStrategy,
 	Strategy,
 )
@@ -71,30 +75,25 @@ def _load_single_file(
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
-	from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import StableDiffusionPipeline
-	from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import StableDiffusionXLPipeline
-
 	errors = []
 
-	for pipeline_class in [StableDiffusionXLPipeline, StableDiffusionPipeline]:
+	# Try pipelines in order: SD 1.5 (most common), SDXL, SD3
+	pipeline_classes: list[SingleFilePipelineClass] = [
+		StableDiffusionPipeline,
+		StableDiffusionXLPipeline,
+		StableDiffusion3Pipeline,
+	]
+
+	for pipeline_class in pipeline_classes:
 		try:
 			logger.debug(f'Trying {pipeline_class.__name__} for single-file checkpoint')
 
-			from_single_file = getattr(pipeline_class, 'from_single_file')
-
-			pipe = cast(
-				DiffusersPipeline,
-				from_single_file(
-					checkpoint,
-					torch_dtype=device_service.torch_dtype,
-				),
+			pipe = pipeline_class.from_single_file(
+				checkpoint,
+				torch_dtype=device_service.torch_dtype,
+				safety_checker=safety_checker,
+				feature_extractor=feature_extractor,
 			)
-
-			if isinstance(pipe, StableDiffusionXLPipeline) and pipe.tokenizer_2 is None:
-				raise ValueError('StableDiffusionXLPipeline loaded without tokenizer_2 (likely SD 1.5 checkpoint)')
-
-			pipe.safety_checker = safety_checker
-			pipe.feature_extractor = feature_extractor
 
 			logger.info(f'Successfully loaded with {pipeline_class.__name__}')
 			return pipe
