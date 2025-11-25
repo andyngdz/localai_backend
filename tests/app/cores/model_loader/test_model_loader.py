@@ -85,7 +85,7 @@ class TestStrategyHelpers:
 		mock_load: Mock,
 	) -> None:
 		pipe = execute_loading_strategies(
-			id='mid',
+			model_id='mid',
 			strategies=[SingleFileStrategy(checkpoint_path='/tmp/foo.safetensors')],
 			safety_checker=MagicMock(),
 			feature_extractor=MagicMock(),
@@ -107,7 +107,7 @@ class TestStrategyHelpers:
 	) -> None:
 		with pytest.raises(RuntimeError):
 			execute_loading_strategies(
-				id='mid',
+				model_id='mid',
 				strategies=[SingleFileStrategy(checkpoint_path='/tmp/foo.safetensors')],
 				safety_checker=MagicMock(),
 				feature_extractor=MagicMock(),

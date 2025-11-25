@@ -67,7 +67,7 @@ def get_model_info(model_id: str = Query(..., description='Model ID')):
 	if not model_id:
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Missing 'id' query parameter",
+			detail="Missing 'model_id' query parameter",
 		)
 
 	model_info = api.model_info(model_id, files_metadata=True)
@@ -101,7 +101,7 @@ def is_model_available(
 	try:
 		is_downloaded = model_service.is_model_downloaded(db, model_id)
 
-		return ModelAvailableResponse(id=model_id, is_downloaded=is_downloaded)
+		return ModelAvailableResponse(model_id=model_id, is_downloaded=is_downloaded)
 	except Exception as error:
 		logger.exception('Failed to check if model is downloaded')
 
@@ -117,12 +117,12 @@ async def load_model(request: LoadModelRequest):
 	model_id = None
 
 	try:
-		model_id = request.id
+		model_id = request.model_id
 
 		config = await model_manager.load_model_async(model_id)
 		sample_size = model_manager.sample_size
 
-		return LoadModelResponse(id=model_id, config=config, sample_size=sample_size)
+		return LoadModelResponse(model_id=model_id, config=config, sample_size=sample_size)
 
 	except CancellationException:
 		# Model loading was cancelled (expected behavior during React double-mount)

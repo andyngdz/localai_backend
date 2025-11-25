@@ -111,7 +111,7 @@ class TestLoadModelEndpoint:
 	def setup_method(self):
 		"""Setup test method."""
 		self.model_id = 'test/model'
-		self.request = LoadModelRequest(id=self.model_id)
+		self.request = LoadModelRequest(model_id=self.model_id)
 		self.model_config = {'model_type': 'diffusion', 'version': '1.0'}
 		self.sample_size = 512
 
@@ -130,7 +130,7 @@ class TestLoadModelEndpoint:
 		# Assert
 		mock_model_manager.load_model_async.assert_called_once_with(self.model_id)
 		assert isinstance(result, LoadModelResponse)
-		assert result.id == self.model_id
+		assert result.model_id == self.model_id
 		assert result.config == self.model_config
 		assert result.sample_size == self.sample_size
 
@@ -272,7 +272,7 @@ class TestModelAvailabilityEndpoint:
 		# Assert
 		mock_model_service.is_model_downloaded.assert_called_once_with(self.db_mock, self.model_id)
 		assert isinstance(result, ModelAvailableResponse)
-		assert result.id == self.model_id
+		assert result.model_id == self.model_id
 		assert result.is_downloaded is True
 
 	@patch('app.features.models.api.model_service')
@@ -363,7 +363,7 @@ class TestGetModelInfoEndpoint:
 			get_model_info(model_id='')
 
 		assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-		assert "Missing 'id' query parameter" in str(exc_info.value.detail)
+		assert "Missing 'model_id' query parameter" in str(exc_info.value.detail)
 
 
 class TestGetDownloadedModelsEndpoint:

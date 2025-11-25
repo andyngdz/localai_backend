@@ -37,12 +37,12 @@ async def download(
 ):
 	"""Initialize a download for the given model ID and save it to the database"""
 
-	model_id = request.id
+	model_id = request.model_id
 
 	logger.info(f'API Request: Initiating download for id: {model_id}')
 
 	try:
-		await socket_service.download_start(DownloadModelStartResponse(id=model_id))
+		await socket_service.download_start(DownloadModelStartResponse(model_id=model_id))
 
 		# Start the download process with database session for proper dependency injection
 		local_dir = await download_service.start(model_id, db)
@@ -54,7 +54,7 @@ async def download(
 			)
 
 		download_model_response = DownloadModelResponse(
-			id=model_id,
+			model_id=model_id,
 			message='Download completed and saved to database',
 			path=local_dir,
 		)

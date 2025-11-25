@@ -22,7 +22,7 @@ class ModelLoadPhase(str, Enum):
 class ModelLoadProgressResponse(BaseModel):
 	"""Response model for model loading progress updates."""
 
-	id: str = Field(..., description='The ID of the model being loaded.')
+	model_id: str = Field(..., description='The ID of the model being loaded.')
 	step: int = Field(..., description='Current checkpoint (1-9).')
 	total: int = Field(default=9, description='Total checkpoints.')
 	phase: ModelLoadPhase = Field(..., description='Current loading phase.')
@@ -32,13 +32,13 @@ class ModelLoadProgressResponse(BaseModel):
 class ModelLoadCompletedResponse(BaseModel):
 	"""Response model for when a model has been successfully loaded."""
 
-	id: str = Field(..., description='The ID of the model that was loaded.')
+	model_id: str = Field(..., description='The ID of the model that was loaded.')
 
 
 class ModelLoadFailed(BaseModel):
 	"""Response model for when a model has failed to load."""
 
-	id: str = Field(..., description='The ID of the model that failed to load.')
+	model_id: str = Field(..., description='The ID of the model that failed to load.')
 	error: str = Field(..., description='The error message.')
 
 

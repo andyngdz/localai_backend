@@ -20,7 +20,7 @@ class DownloadPhase(str, Enum):
 class DownloadModelRequest(BaseModel):
 	"""Request model for downloading"""
 
-	id: str = Field(
+	model_id: str = Field(
 		...,
 		description='The Hugging Face repository ID of the model to download.',
 	)
@@ -36,7 +36,7 @@ class DownloadModelStartResponse(BaseModel):
 	Contains the list of files to be downloaded.
 	"""
 
-	id: str = Field(..., description='The repository ID of the model queued for download.')
+	model_id: str = Field(..., description='The repository ID of the model queued for download.')
 
 
 class DownloadStepProgressResponse(BaseModel):
@@ -44,7 +44,7 @@ class DownloadStepProgressResponse(BaseModel):
 	Response model for a download step progress.
 	"""
 
-	id: str = Field(..., description='The repository ID of the model currently downloading.')
+	model_id: str = Field(..., description='The repository ID of the model currently downloading.')
 	step: int = Field(..., description='The current step of the download.')
 	total: int = Field(..., description='The total number of steps in the download.')
 	downloaded_size: int = Field(default=0, description='Total downloaded bytes so far.')
@@ -61,7 +61,7 @@ class DownloadModelResponse(BaseModel):
 	Response schema for the status of a model download.
 	"""
 
-	id: str = Field(..., description='The repository ID of the completed model download.')
+	model_id: str = Field(..., description='The repository ID of the completed model download.')
 	path: str = Field(..., description='The local directory path where the model is stored.')
 	message: Optional[str] = Field(..., description='A human-readable message about the download status.')
 
@@ -108,7 +108,7 @@ class DownloadProgressCache(BaseModel):
 	payloads: dict[str, DownloadStepProgressResponse] = Field(default_factory=dict)
 
 	def upsert(self, payload: DownloadStepProgressResponse) -> None:
-		self.payloads[payload.id] = payload
+		self.payloads[payload.model_id] = payload
 
 	def pop(self, model_id: str) -> Optional[DownloadStepProgressResponse]:
 		return self.payloads.pop(model_id, None)
