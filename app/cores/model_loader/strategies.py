@@ -105,7 +105,7 @@ def _load_single_file(
 
 
 def _load_pretrained(
-	id: str,
+	model_id: str,
 	strategy: PretrainedStrategy,
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
@@ -115,7 +115,7 @@ def _load_pretrained(
 		load_params['variant'] = strategy.variant
 
 	return AutoPipelineForText2Image.from_pretrained(
-		id,
+		model_id,
 		cache_dir=CACHE_FOLDER,
 		low_cpu_mem_usage=True,
 		torch_dtype=device_service.torch_dtype,
@@ -130,7 +130,7 @@ def _get_strategy_type(strategy: Strategy) -> ModelLoadingStrategy:
 
 
 def _load_strategy_pipeline(
-	id: str,
+	model_id: str,
 	strategy: Strategy,
 	strategy_type: ModelLoadingStrategy,
 	safety_checker: StableDiffusionSafetyChecker,
@@ -145,7 +145,7 @@ def _load_strategy_pipeline(
 
 	if isinstance(strategy, PretrainedStrategy):
 		return _load_pretrained(
-			id,
+			model_id,
 			strategy,
 			safety_checker,
 			feature_extractor,
@@ -155,7 +155,7 @@ def _load_strategy_pipeline(
 
 
 def execute_loading_strategies(
-	id: str,
+	model_id: str,
 	strategies: list[Strategy],
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
@@ -167,14 +167,14 @@ def execute_loading_strategies(
 		if cancel_token:
 			cancel_token.check_cancelled()
 
-		emit_progress(id, 5, 'Loading model weights...')
+		emit_progress(model_id, 5, 'Loading model weights...')
 
 		try:
 			strategy_type = _get_strategy_type(strategy)
 			logger.info(f'Trying loading strategy {idx}/{len(strategies)} ({strategy_type}): {strategy}')
 
 			pipe = _load_strategy_pipeline(
-				id,
+				model_id,
 				strategy,
 				strategy_type,
 				safety_checker,
@@ -189,9 +189,9 @@ def execute_loading_strategies(
 
 			continue
 
-	error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
+	error_msg = f'Failed to load model {model_id} with all strategies. Last error: {last_error}'
 	logger.error(error_msg)
-	socket_service.model_load_failed(ModelLoadFailed(model_id=id, error=str(last_error)))
+	socket_service.model_load_failed(ModelLoadFailed(model_id=model_id, error=str(last_error)))
 
 	if last_error is not None:
 		raise last_error
