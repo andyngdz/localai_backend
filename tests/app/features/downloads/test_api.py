@@ -36,9 +36,11 @@ class DummySocketService:
 
 	async def download_start(self, payload: DownloadModelStartResponse) -> None:
 		self.download_start_calls.append(payload)
+		await asyncio.sleep(0)
 
 	async def download_completed(self, payload: DownloadModelResponse) -> None:
 		self.download_completed_calls.append(payload)
+		await asyncio.sleep(0)
 
 
 class DummyDownloadService:
