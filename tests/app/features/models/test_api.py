@@ -348,7 +348,7 @@ class TestGetModelInfoEndpoint:
 		# Act
 		from app.features.models.api import get_model_info
 
-		result = get_model_info(id='test/model')
+		result = get_model_info(model_id='test/model')
 
 		# Assert
 		mock_api.model_info.assert_called_once_with('test/model', files_metadata=True)
@@ -360,7 +360,7 @@ class TestGetModelInfoEndpoint:
 
 		# Test with empty string
 		with pytest.raises(HTTPException) as exc_info:
-			get_model_info(id='')
+			get_model_info(model_id='')
 
 		assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
 		assert "Missing 'id' query parameter" in str(exc_info.value.detail)
