@@ -101,13 +101,13 @@ async def test_download_success(import_api_with_stubs, monkeypatch, dummy_socket
 	dummy_service = DummyDownloadService(return_value='/path/to/model')
 	monkeypatch.setattr(mod, 'download_service', dummy_service, raising=True)
 
-	request = DownloadModelRequest(id='test-model')
+	request = DownloadModelRequest(model_id='test-model')
 
 	# Act
 	response = await mod.download(request, db=dummy_db)
 
 	# Assert
-	assert response.id == 'test-model'
+	assert response.model_id == 'test-model'
 	assert response.path == '/path/to/model'
 	assert response.message == 'Download completed and saved to database'
 
@@ -118,10 +118,10 @@ async def test_download_success(import_api_with_stubs, monkeypatch, dummy_socket
 
 	# Verify socket calls
 	assert len(dummy_socket.download_start_calls) == 1
-	assert dummy_socket.download_start_calls[0].id == 'test-model'
+	assert dummy_socket.download_start_calls[0].model_id == 'test-model'
 
 	assert len(dummy_socket.download_completed_calls) == 1
-	assert dummy_socket.download_completed_calls[0].id == 'test-model'
+	assert dummy_socket.download_completed_calls[0].model_id == 'test-model'
 	assert dummy_socket.download_completed_calls[0].path == '/path/to/model'
 	assert dummy_socket.download_completed_calls[0].message == 'Download completed and saved to database'
 
@@ -133,7 +133,7 @@ async def test_download_failed_download(import_api_with_stubs, monkeypatch, dumm
 	dummy_service = DummyDownloadService(return_value=None)  # Simulate failed download
 	monkeypatch.setattr(mod, 'download_service', dummy_service, raising=True)
 
-	request = DownloadModelRequest(id='failed-model')
+	request = DownloadModelRequest(model_id='failed-model')
 
 	# Act & Assert
 	with pytest.raises(HTTPException) as exc_info:
@@ -149,7 +149,7 @@ async def test_download_failed_download(import_api_with_stubs, monkeypatch, dumm
 
 	# Verify socket calls - only start should be called, not completed
 	assert len(dummy_socket.download_start_calls) == 1
-	assert dummy_socket.download_start_calls[0].id == 'failed-model'
+	assert dummy_socket.download_start_calls[0].model_id == 'failed-model'
 	assert len(dummy_socket.download_completed_calls) == 0
 
 
@@ -160,7 +160,7 @@ async def test_download_cancelled_error(import_api_with_stubs, monkeypatch, dumm
 	dummy_service = DummyDownloadService(side_effects=[asyncio.CancelledError()])
 	monkeypatch.setattr(mod, 'download_service', dummy_service, raising=True)
 
-	request = DownloadModelRequest(id='cancel-me')
+	request = DownloadModelRequest(model_id='cancel-me')
 
 	# Act & Assert
 	with pytest.raises(asyncio.CancelledError):
@@ -172,7 +172,7 @@ async def test_download_cancelled_error(import_api_with_stubs, monkeypatch, dumm
 
 	# Verify socket calls - only start should be called, not completed
 	assert len(dummy_socket.download_start_calls) == 1
-	assert dummy_socket.download_start_calls[0].id == 'cancel-me'
+	assert dummy_socket.download_start_calls[0].model_id == 'cancel-me'
 	assert len(dummy_socket.download_completed_calls) == 0
 
 
@@ -183,7 +183,7 @@ async def test_download_general_exception(import_api_with_stubs, monkeypatch, du
 	dummy_service = DummyDownloadService(side_effects=[ValueError('Something went wrong')])
 	monkeypatch.setattr(mod, 'download_service', dummy_service, raising=True)
 
-	request = DownloadModelRequest(id='error-model')
+	request = DownloadModelRequest(model_id='error-model')
 
 	# Act & Assert
 	with pytest.raises(HTTPException) as exc_info:
@@ -199,7 +199,7 @@ async def test_download_general_exception(import_api_with_stubs, monkeypatch, du
 
 	# Verify socket calls - only start should be called, not completed
 	assert len(dummy_socket.download_start_calls) == 1
-	assert dummy_socket.download_start_calls[0].id == 'error-model'
+	assert dummy_socket.download_start_calls[0].model_id == 'error-model'
 	assert len(dummy_socket.download_completed_calls) == 0
 
 

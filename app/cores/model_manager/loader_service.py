@@ -201,7 +201,7 @@ class LoaderService:
 		logger.info(f'Model {id} loaded successfully')
 		self.pipeline_manager.set_pipeline(pipe, id)
 
-		socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
+		socket_service.model_load_completed(ModelLoadCompletedResponse(model_id=id))
 
 		return dict(pipe.config)
 

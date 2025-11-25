@@ -101,7 +101,7 @@ class TestDownloadProgressInit:
 		assert mock_socket.download_step_progress.call_count >= 1
 		first_call_args = mock_socket.download_step_progress.call_args_list[0][0][0]
 		assert first_call_args.phase == 'init'
-		assert first_call_args.id == 'test-repo'
+		assert first_call_args.model_id == 'test-repo'
 
 		progress.close()
 
@@ -131,7 +131,7 @@ class TestEmitProgress:
 		wait_for_chunk(mock_socket, fast_chunk_emitter)
 
 		call_args = mock_socket.download_step_progress.call_args[0][0]
-		assert call_args.id == 'test-repo'
+		assert call_args.model_id == 'test-repo'
 		assert call_args.step == 1
 		assert call_args.total == 3
 		assert call_args.downloaded_size == 50
@@ -445,7 +445,7 @@ class TestChunkEmitterBehavior:
 
 		mock_socket.download_step_progress.reset_mock()
 		payload1 = DownloadStepProgressResponse(
-			id='model',
+			model_id='model',
 			step=1,
 			total=2,
 			downloaded_size=5,

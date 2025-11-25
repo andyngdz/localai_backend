@@ -96,7 +96,7 @@ class DownloadProgress(BaseTqdm):
 	def emit_progress(self, phase: DownloadPhase, *, current_file: Optional[str] = None) -> None:
 		"""Push the latest cumulative byte totals to all websocket clients."""
 		payload = DownloadStepProgressResponse(
-			id=self.id,
+			model_id=self.id,
 			step=self.n,
 			total=self.total,
 			downloaded_size=self.downloaded_size,

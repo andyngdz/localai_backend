@@ -191,7 +191,7 @@ def execute_loading_strategies(
 
 	error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
 	logger.error(error_msg)
-	socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(last_error)))
+	socket_service.model_load_failed(ModelLoadFailed(model_id=id, error=str(last_error)))
 
 	if last_error is not None:
 		raise last_error

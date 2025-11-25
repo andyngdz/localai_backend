@@ -24,10 +24,10 @@ from app.schemas.downloads import (
 
 def test_download_model_request_accepts_id_and_defaults_hf_token_to_none() -> None:
 	# Arrange & Act
-	model = DownloadModelRequest(id='org/model')
+	model = DownloadModelRequest(model_id='org/model')
 
 	# Assert
-	assert model.id == 'org/model'
+	assert model.model_id == 'org/model'
 	assert model.hf_token is None
 
 
@@ -39,7 +39,7 @@ def test_download_model_request_requires_id() -> None:
 
 def test_download_model_request_preserves_hf_token_when_provided() -> None:
 	# Arrange & Act
-	model = DownloadModelRequest(id='org/model', hf_token='hf_abc123')
+	model = DownloadModelRequest(model_id='org/model', hf_token='hf_abc123')
 
 	# Assert
 	assert model.hf_token == 'hf_abc123'
@@ -60,7 +60,7 @@ def test_download_model_start_response_requires_id() -> None:
 def test_download_step_progress_response_requires_all_fields() -> None:
 	# Arrange & Act & Assert
 	with pytest.raises(ValidationError):
-		DownloadStepProgressResponse(id='org/model')  # type: ignore[call-arg]
+		DownloadStepProgressResponse(model_id='org/model')  # type: ignore[call-arg]
 
 
 def test_download_step_progress_response_coerces_int_fields_from_str() -> None:
@@ -68,7 +68,7 @@ def test_download_step_progress_response_coerces_int_fields_from_str() -> None:
 	from typing import Any
 
 	test_data: dict[str, Any] = {
-		'id': 'org/model',
+		'model_id': 'org/model',
 		'step': '1',
 		'total': '3',
 		'downloaded_size': '10',
@@ -94,15 +94,15 @@ def test_download_model_response_requires_message_field_even_if_optional_type() 
 	# Arrange & Act & Assert
 	# message is Optional[str] but Field(...) => required key
 	with pytest.raises(ValidationError):
-		DownloadModelResponse(id='org/model')  # type: ignore[call-arg]
+		DownloadModelResponse(model_id='org/model')  # type: ignore[call-arg]
 
 
 def test_download_model_response_allows_message_none() -> None:
 	# Arrange & Act
-	model = DownloadModelResponse(id='org/model', message=None, path='/path/to/model')
+	model = DownloadModelResponse(model_id='org/model', message=None, path='/path/to/model')
 
 	# Assert
-	assert model.id == 'org/model'
+	assert model.model_id == 'org/model'
 	assert model.message is None
 	assert model.path == '/path/to/model'
 
@@ -110,7 +110,7 @@ def test_download_model_response_allows_message_none() -> None:
 def test_download_model_response_accepts_message_string_and_serializes() -> None:
 	# Arrange
 	model = DownloadModelResponse(
-		id='org/model',
+		model_id='org/model',
 		message='Download completed',
 		path='/path/to/model',
 	)
@@ -120,7 +120,7 @@ def test_download_model_response_accepts_message_string_and_serializes() -> None
 
 	# Assert
 	assert payload == {
-		'id': 'org/model',
+		'model_id': 'org/model',
 		'message': 'Download completed',
 		'path': '/path/to/model',
 	}

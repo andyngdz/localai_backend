@@ -89,7 +89,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> D
 		logger.info(f'Loading model {id} to {device_service.device}')
 
 		# Emit start event for frontend lifecycle management
-		socket_service.model_load_started(ModelLoadCompletedResponse(id=id))
+		socket_service.model_load_started(ModelLoadCompletedResponse(model_id=id))
 
 		# Checkpoint 1: Before initialization
 		_emit_progress_step(id, 1, cancel_token)
@@ -129,7 +129,7 @@ def model_loader(id: str, cancel_token: Optional[CancellationToken] = None) -> D
 
 		db.close()
 
-		socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
+		socket_service.model_load_completed(ModelLoadCompletedResponse(model_id=id))
 
 		return pipe
 

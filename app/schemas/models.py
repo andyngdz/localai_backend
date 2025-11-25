@@ -37,7 +37,7 @@ class LoadModelResponse(BaseModel):
 	Response model for loading a Stable Diffusion model.
 	"""
 
-	id: str = Field(
+	model_id: str = Field(
 		...,
 		description='Unique identifier for the model (Hugging Face repo ID).',
 	)
@@ -56,7 +56,7 @@ class NewModelAvailableResponse(BaseModel):
 	Response model for notifying about a new model available.
 	"""
 
-	id: str = Field(
+	model_id: str = Field(
 		...,
 		description='Unique identifier for the new model (Hugging Face repo ID).',
 	)
@@ -67,7 +67,7 @@ class ModelAvailableResponse(BaseModel):
 	Response model for checking if a model is available.
 	"""
 
-	id: str = Field(
+	model_id: str = Field(
 		...,
 		description='Unique identifier for the model (Hugging Face repo ID).',
 	)
@@ -77,4 +77,4 @@ class ModelAvailableResponse(BaseModel):
 class LoadModelRequest(BaseModel):
 	"""Request model for loading a model by ID."""
 
-	id: str = Field(..., description='The ID of the model to load.')
+	model_id: str = Field(..., description='The ID of the model to load.')

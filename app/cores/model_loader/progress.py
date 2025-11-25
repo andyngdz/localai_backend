@@ -24,7 +24,7 @@ def emit_progress(model_id: str, step: int, message: str) -> None:
 		phase = map_step_to_phase(step)
 
 		progress = ModelLoadProgressResponse(
-			id=model_id,
+			model_id=model_id,
 			step=step,
 			total=9,
 			phase=phase,
