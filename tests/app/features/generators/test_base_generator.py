@@ -1,7 +1,7 @@
 """Tests for base_generator module."""
 
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
 import pytest
 
@@ -43,12 +43,12 @@ class TestExecutePipeline:
 		"""Test that ValueError is raised if model is None."""
 		from app.features.generators.base_generator import BaseGenerator
 
-		# Setup
-		mock_model_manager.pipe = None
+		# Setup - Configure pipe property to raise ValueError when accessed
+		type(mock_model_manager).pipe = PropertyMock(side_effect=ValueError('No model is currently loaded'))
 		generator = BaseGenerator(mock_executor)
 
 		# Execute & Verify
-		with pytest.raises(ValueError, match='Model validation failed'):
+		with pytest.raises(ValueError, match='No model is currently loaded'):
 			await generator.execute_pipeline(sample_config, 'positive', 'negative')
 
 	@pytest.mark.asyncio

@@ -12,13 +12,14 @@ from app.cores.samplers import SamplerType
 from app.features.generators.service import GeneratorService
 from app.schemas.generators import GeneratorConfig, ImageGenerationItem, ImageGenerationResponse
 
-MockServiceFixture: TypeAlias = tuple[GeneratorService, Mock, Mock, Mock, Mock, Mock]
+MockServiceFixture: TypeAlias = tuple[GeneratorService, Mock, Mock, Mock, Mock, Mock, Mock]
 
 
 @pytest.fixture
 def mock_service() -> Generator[MockServiceFixture, None, None]:
 	"""Create GeneratorService with mocked module dependencies."""
 	with (
+		patch('app.features.generators.service.model_manager') as mock_model_manager,
 		patch('app.features.generators.service.config_validator') as mock_config_validator,
 		patch('app.features.generators.service.resource_manager') as mock_resource_manager,
 		patch('app.features.generators.service.lora_loader') as mock_lora_loader,
@@ -26,6 +27,7 @@ def mock_service() -> Generator[MockServiceFixture, None, None]:
 		patch('app.features.generators.service.response_builder') as mock_response_builder,
 	):
 		# Configure mocks
+		mock_model_manager.has_model = True  # Model is loaded by default
 		mock_config_validator.validate_config = Mock()
 		mock_resource_manager.prepare_for_generation = Mock()
 		mock_resource_manager.cleanup_after_generation = Mock()
@@ -44,6 +46,7 @@ def mock_service() -> Generator[MockServiceFixture, None, None]:
 
 		yield (
 			service,
+			mock_model_manager,
 			mock_config_validator,
 			mock_resource_manager,
 			mock_lora_loader,
@@ -99,7 +102,7 @@ class TestGenerateImageOrchestration:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that config validation is called first."""
-		service, mock_config_validator, *_ = mock_service
+		service, _, mock_config_validator, *_ = mock_service
 
 		# Mock generator to avoid actual execution
 		service.generator.execute_pipeline = AsyncMock(
@@ -115,7 +118,7 @@ class TestGenerateImageOrchestration:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that resource preparation is called."""
-		service, _, mock_resource_manager, *_ = mock_service
+		service, _, _, mock_resource_manager, *_ = mock_service
 
 		service.generator.execute_pipeline = AsyncMock(
 			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
@@ -130,7 +133,7 @@ class TestGenerateImageOrchestration:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that LoRAs are loaded when configured."""
-		service, _, _, mock_lora_loader, *_ = mock_service
+		service, _, _, _, mock_lora_loader, *_ = mock_service
 		mock_lora_loader.load_loras_for_generation.return_value = True
 
 		service.generator.execute_pipeline = AsyncMock(
@@ -146,7 +149,7 @@ class TestGenerateImageOrchestration:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that prompts are processed through prompt_processor."""
-		service, _, _, _, mock_prompt_processor, _ = mock_service
+		service, _, _, _, _, mock_prompt_processor, _ = mock_service
 
 		service.generator.execute_pipeline = AsyncMock(
 			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
@@ -161,7 +164,7 @@ class TestGenerateImageOrchestration:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that pipeline execution receives processed prompts."""
-		service, *_, mock_prompt_processor, _ = mock_service
+		service, _, *_, mock_prompt_processor, _ = mock_service
 		mock_prompt_processor.prepare_prompts.return_value = ('positive_test', 'negative_test')
 
 		service.generator.execute_pipeline = AsyncMock(
@@ -177,7 +180,7 @@ class TestGenerateImageOrchestration:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that response is built from pipeline output."""
-		service, *_, mock_response_builder = mock_service
+		service, _, *_, mock_response_builder = mock_service
 
 		mock_output = Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
 		service.generator.execute_pipeline = AsyncMock(return_value=mock_output)
@@ -208,14 +211,25 @@ class TestGenerateImageErrorHandling:
 	"""Tests for error handling in generate_image."""
 
 	@pytest.mark.asyncio
+	async def test_raises_error_when_no_model_loaded(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test that error is raised when no model is loaded."""
+		service, mock_model_manager, *_ = mock_service
+		mock_model_manager.has_model = False
+
+		with pytest.raises(ValueError, match='No model is currently loaded'):
+			await service.generate_image(sample_config, mock_db)
+
+	@pytest.mark.asyncio
 	async def test_raises_error_when_validation_fails(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that validation errors are propagated."""
-		service, mock_config_validator, *_ = mock_service
-		mock_config_validator.validate_config.side_effect = ValueError('No model loaded')
+		service, _, mock_config_validator, *_ = mock_service
+		mock_config_validator.validate_config.side_effect = ValueError('Invalid config')
 
-		with pytest.raises(ValueError, match='No model loaded'):
+		with pytest.raises(ValueError, match='Invalid config'):
 			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
@@ -234,7 +248,7 @@ class TestGenerateImageErrorHandling:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test OOM error handling."""
-		service, _, mock_resource_manager, *_ = mock_service
+		service, _, _, mock_resource_manager, *_ = mock_service
 		service.generator.execute_pipeline = AsyncMock(side_effect=torch.cuda.OutOfMemoryError('CUDA OOM'))
 
 		with pytest.raises(ValueError, match='Out of memory error'):
@@ -262,7 +276,7 @@ class TestGenerateImageCleanup:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that cleanup is called after successful generation."""
-		service, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
+		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
 
 		service.generator.execute_pipeline = AsyncMock(
 			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
@@ -279,7 +293,7 @@ class TestGenerateImageCleanup:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that cleanup is called even after errors."""
-		service, _, mock_resource_manager, *_ = mock_service
+		service, _, _, mock_resource_manager, *_ = mock_service
 		service.generator.execute_pipeline = AsyncMock(side_effect=RuntimeError('Test error'))
 
 		try:
@@ -294,7 +308,7 @@ class TestGenerateImageCleanup:
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
 		"""Test that cleanup is always called regardless of LoRA state."""
-		service, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
+		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
 
 		service.generator.execute_pipeline = AsyncMock(
 			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])

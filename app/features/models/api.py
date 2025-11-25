@@ -62,15 +62,15 @@ def list_models(
 
 
 @models.get('/details')
-def get_model_info(id: str = Query(..., description='Model ID')):
+def get_model_info(model_id: str = Query(..., description='Model ID')):
 	"""Get model info by model's id"""
-	if not id:
+	if not model_id:
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
 			detail="Missing 'id' query parameter",
 		)
 
-	model_info = api.model_info(id, files_metadata=True)
+	model_info = api.model_info(model_id, files_metadata=True)
 
 	return model_info
 
@@ -93,15 +93,15 @@ def get_downloaded_models(db: Session = Depends(database_service.get_db)):
 
 @models.get('/available')
 def is_model_available(
-	id: str = Query(..., description='Model ID'),
+	model_id: str = Query(..., description='Model ID'),
 	db: Session = Depends(database_service.get_db),
 ):
 	"""Check if model is already downloaded by id"""
 
 	try:
-		is_downloaded = model_service.is_model_downloaded(db, id)
+		is_downloaded = model_service.is_model_downloaded(db, model_id)
 
-		return ModelAvailableResponse(id=id, is_downloaded=is_downloaded)
+		return ModelAvailableResponse(id=model_id, is_downloaded=is_downloaded)
 	except Exception as error:
 		logger.exception('Failed to check if model is downloaded')
 
@@ -114,34 +114,34 @@ def is_model_available(
 @models.post('/load')
 async def load_model(request: LoadModelRequest):
 	"""Load model by id"""
-	id = None
+	model_id = None
 
 	try:
-		id = request.id
+		model_id = request.id
 
-		config = await model_manager.load_model_async(id)
+		config = await model_manager.load_model_async(model_id)
 		sample_size = model_manager.sample_size
 
-		return LoadModelResponse(id=id, config=config, sample_size=sample_size)
+		return LoadModelResponse(id=model_id, config=config, sample_size=sample_size)
 
 	except CancellationException:
 		# Model loading was cancelled (expected behavior during React double-mount)
-		logger.info(f'Model load cancelled for {id}')
+		logger.info(f'Model load cancelled for {model_id}')
 		return Response(status_code=204)  # No Content
 
 	except FileNotFoundError as error:
-		logger.error(f'Model file not found for {id}: {error}')
+		logger.error(f'Model file not found for {model_id}: {error}')
 
 		raise HTTPException(
 			status_code=status.HTTP_404_NOT_FOUND,
-			detail=f"Model files not found for ID '{id}'. {error}",
+			detail=f"Model files not found for ID '{model_id}'. {error}",
 		)
 	except Exception as error:
-		logger.exception(f'Failed to load model {id}')
+		logger.exception(f'Failed to load model {model_id}')
 
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail=f"Failed to load model '{id}': {error}",
+			detail=f"Failed to load model '{model_id}': {error}",
 		)
 
 
@@ -203,7 +203,7 @@ def get_model_status():
 		response = {
 			'state': state.value,
 			'loaded_model_id': model_manager.id,
-			'has_model': model_manager.pipe is not None,
+			'has_model': model_manager.has_model,
 			'is_loading': state == ModelState.LOADING,
 		}
 

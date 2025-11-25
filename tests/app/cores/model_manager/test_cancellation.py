@@ -94,7 +94,7 @@ class TestModelManagerCancellation:
 	def setup_method(self):
 		"""Reset model_manager state before each test."""
 		# Ensure model_manager is in IDLE state (use new API)
-		if model_manager.pipe is not None:
+		if model_manager.has_model:
 			model_manager.pipeline_manager.pipe = None
 			model_manager.pipeline_manager.model_id = None
 		model_manager.state_manager._state = ModelState.IDLE
@@ -232,7 +232,7 @@ class TestReactDoubleMountScenario:
 
 	def setup_method(self):
 		"""Reset model_manager state before each test."""
-		if model_manager.pipe is not None:
+		if model_manager.has_model:
 			model_manager.pipeline_manager.pipe = None
 			model_manager.pipeline_manager.model_id = None
 		model_manager.state_manager._state = ModelState.IDLE

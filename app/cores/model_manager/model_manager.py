@@ -85,6 +85,15 @@ class ModelManager:
 		self.pipeline_manager.set_sampler(sampler)
 
 	@property
+	def has_model(self) -> bool:
+		"""Check if a model is currently loaded.
+
+		Returns:
+			True if model is loaded, False otherwise
+		"""
+		return self.pipeline_manager.get_pipeline() is not None
+
+	@property
 	def sample_size(self) -> int:
 		"""Get sample size from pipeline.
 
@@ -97,13 +106,19 @@ class ModelManager:
 		return self.pipeline_manager.get_sample_size()
 
 	@property
-	def pipe(self) -> Optional[DiffusersPipeline]:
-		"""Get current pipeline (backward compatibility).
+	def pipe(self) -> DiffusersPipeline:
+		"""Get current pipeline.
 
 		Returns:
-			Current pipeline instance or None if not loaded
+			Current pipeline instance
+
+		Raises:
+			ValueError: If no model is currently loaded
 		"""
-		return self.pipeline_manager.get_pipeline()
+		pipeline = self.pipeline_manager.get_pipeline()
+		if pipeline is None:
+			raise ValueError('No model is currently loaded')
+		return pipeline
 
 	@pipe.setter
 	def pipe(self, value: DiffusersPipeline) -> None:
