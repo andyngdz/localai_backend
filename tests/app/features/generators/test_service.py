@@ -67,7 +67,7 @@ def sample_config() -> GeneratorConfig:
 		number_of_images=1,
 		seed=-1,
 		sampler=SamplerType.EULER_A,
-		hires_fix=False,
+		hires_fix=None,
 		styles=[],
 	)
 

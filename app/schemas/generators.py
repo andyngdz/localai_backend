@@ -1,10 +1,11 @@
-from typing import Any, Callable, TypedDict
+from typing import Any, Callable, Optional, TypedDict
 
 import torch
 from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
 from app.cores.typing_utils import make_default_list_factory
+from app.schemas.hires_fix import HiresFixConfig
 from app.schemas.loras import LoRAConfigItem
 
 
@@ -42,7 +43,7 @@ class GeneratorConfig(BaseModel):
 
 	width: int = Field(default=512, ge=64, description='Width of the generated image.')
 	height: int = Field(default=512, ge=64, description='Height of the generated image.')
-	hires_fix: bool = Field(default=False, description='Enable high-resolution fix.')
+	hires_fix: Optional[HiresFixConfig] = Field(default=None, description='High-resolution fix configuration.')
 	number_of_images: int = Field(default=1, ge=1, description='Number of images to generate.')
 	prompt: str = Field(..., max_length=1000, description='The text prompt for image generation.')
 	negative_prompt: str = Field(
