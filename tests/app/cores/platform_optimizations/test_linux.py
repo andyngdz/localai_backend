@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.constants.platform import OperatingSystem
+
 
 @pytest.fixture
 def mock_pipe():
@@ -27,7 +29,7 @@ class TestLinuxOptimizer:
 
 	def test_get_platform_name_returns_linux(self, linux_optimizer):
 		"""Test get_platform_name returns 'Linux'."""
-		assert linux_optimizer.get_platform_name() == 'Linux'
+		assert linux_optimizer.get_platform_name() == OperatingSystem.LINUX.value
 
 	@patch('app.cores.platform_optimizations.linux.device_service')
 	def test_apply_with_cuda(self, mock_device_service, linux_optimizer, mock_pipe):

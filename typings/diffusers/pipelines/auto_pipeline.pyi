@@ -4,8 +4,8 @@ from collections.abc import Mapping
 from typing import Any, Optional, Union
 
 import torch
-from transformers import CLIPImageProcessor
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from transformers import CLIPImageProcessor
 
 class SchedulerConfig:
 	"""Scheduler configuration."""

@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.constants.platform import OperatingSystem
+
 
 @pytest.fixture
 def mock_pipe():
@@ -28,7 +30,7 @@ class TestWindowsOptimizer:
 
 	def test_get_platform_name_returns_windows(self, windows_optimizer):
 		"""Test get_platform_name returns 'Windows'."""
-		assert windows_optimizer.get_platform_name() == 'Windows'
+		assert windows_optimizer.get_platform_name() == OperatingSystem.WINDOWS.value
 
 	@patch('app.cores.platform_optimizations.windows.device_service')
 	def test_apply_with_cuda_high_memory(self, mock_device_service, windows_optimizer, mock_pipe):
