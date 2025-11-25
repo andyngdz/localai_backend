@@ -111,8 +111,8 @@ class TestHardwareEndpoints:
 		result = set_max_memory(config, db=mock_db)
 
 		assert result['message'] == GPUInfo.memory_config_success()
-		assert result['ram_scale_factor'] == 0.8
-		assert result['gpu_scale_factor'] == 0.9
+		assert abs(result['ram_scale_factor'] - 0.8) < 1e-9
+		assert abs(result['gpu_scale_factor'] - 0.9) < 1e-9
 		mock_set_max_memory.assert_called_once_with(mock_db, config)
 
 	@patch('app.features.hardware.service.hardware_service.get_memory_info')
