@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
 import pytest
 
-from app.schemas.generators import GeneratorConfig
+from app.schemas.generators import GeneratorConfig, OutputType
 
 
 @pytest.fixture
@@ -52,6 +52,7 @@ class TestExecutePipeline:
 			await generator.execute_pipeline(sample_config, 'positive', 'negative')
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
@@ -62,6 +63,7 @@ class TestExecutePipeline:
 		mock_progress_callback,
 		mock_seed_manager,
 		mock_torch_generator,
+		mock_latent_decoder,
 		sample_config,
 		mock_executor,
 	):
@@ -78,6 +80,9 @@ class TestExecutePipeline:
 
 		# Mock executor to return immediately
 		mock_output = Mock()
+		mock_output.images = Mock()
+		mock_latent_decoder.decode_latents.return_value = [Mock()]
+		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
 		mock_executor.submit = Mock(return_value=AsyncMock(return_value=mock_output)())
 
 		# Execute
@@ -89,6 +94,7 @@ class TestExecutePipeline:
 		mock_model_manager.set_sampler.assert_called_once_with(sample_config.sampler)
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
@@ -99,6 +105,7 @@ class TestExecutePipeline:
 		mock_progress_callback,
 		mock_seed_manager,
 		mock_torch_generator,
+		mock_latent_decoder,
 		sample_config,
 		mock_executor,
 	):
@@ -114,6 +121,9 @@ class TestExecutePipeline:
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
+		mock_output.images = Mock()
+		mock_latent_decoder.decode_latents.return_value = [Mock()]
+		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
 
 		# Execute
 		with patch('asyncio.get_event_loop') as mock_loop:
@@ -124,6 +134,7 @@ class TestExecutePipeline:
 		mock_seed_manager.get_seed.assert_called_once_with(sample_config.seed)
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
@@ -134,6 +145,7 @@ class TestExecutePipeline:
 		mock_progress_callback,
 		mock_seed_manager,
 		mock_torch_generator,
+		mock_latent_decoder,
 		sample_config,
 		mock_executor,
 	):
@@ -152,6 +164,9 @@ class TestExecutePipeline:
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
+		mock_output.images = Mock()
+		mock_latent_decoder.decode_latents.return_value = [Mock()]
+		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
 		captured_params = {}
 
 		def capture_params(**kwargs):
@@ -178,9 +193,11 @@ class TestExecutePipeline:
 		assert captured_params['width'] == 512
 		assert captured_params['num_images_per_prompt'] == 2
 		assert captured_params['clip_skip'] == 1
+		assert captured_params['output_type'] == OutputType.LATENT
 		assert captured_params['generator'] == mock_generator_instance
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.logger')
 	@patch('app.features.generators.base_generator.seed_manager')
@@ -193,6 +210,7 @@ class TestExecutePipeline:
 		mock_seed_manager,
 		mock_logger,
 		mock_torch_generator,
+		mock_latent_decoder,
 		sample_config,
 		mock_executor,
 	):
@@ -208,6 +226,9 @@ class TestExecutePipeline:
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
+		mock_output.images = Mock()
+		mock_latent_decoder.decode_latents.return_value = [Mock()]
+		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
 
 		# Execute
 		with patch('asyncio.get_event_loop') as mock_loop:
@@ -222,6 +243,7 @@ class TestExecutePipeline:
 		assert any('completed successfully' in msg for msg in log_messages)
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
@@ -232,10 +254,11 @@ class TestExecutePipeline:
 		mock_progress_callback,
 		mock_seed_manager,
 		mock_torch_generator,
+		mock_latent_decoder,
 		sample_config,
 		mock_executor,
 	):
-		"""Test that method returns pipeline output."""
+		"""Test that method returns pipeline output with images and NSFW flags."""
 		from app.features.generators.base_generator import BaseGenerator
 
 		# Setup
@@ -247,14 +270,19 @@ class TestExecutePipeline:
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
+		mock_output.images = Mock()
+		mock_images = [Mock(), Mock()]
+		mock_latent_decoder.decode_latents.return_value = mock_images
+		mock_latent_decoder.run_safety_checker.return_value = (mock_images, [False, False])
 
 		# Execute
 		with patch('asyncio.get_event_loop') as mock_loop:
 			mock_loop.return_value.run_in_executor = AsyncMock(return_value=mock_output)
 			result = await generator.execute_pipeline(sample_config, 'positive', 'negative')
 
-		# Verify
-		assert result == mock_output
+		# Verify result has images and nsfw flags
+		assert result.images == mock_images
+		assert result.nsfw_content_detected == [False, False]
 
 
 class TestBaseGeneratorInit:

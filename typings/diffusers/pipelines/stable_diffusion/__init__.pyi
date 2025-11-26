@@ -1,10 +1,10 @@
 """Type stubs for diffusers Stable Diffusion pipelines."""
 
 from collections.abc import Mapping
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import torch
-from diffusers.pipelines.auto_pipeline import Scheduler, UNet
+from diffusers.pipelines.auto_pipeline import ImageProcessor, Scheduler, UNet, VAE
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
 
@@ -14,7 +14,10 @@ class StableDiffusionPipeline:
 	# Core components
 	scheduler: Scheduler
 	unet: UNet
+	vae: VAE
+	image_processor: ImageProcessor
 	device: torch.device
+	dtype: torch.dtype
 	config: Mapping[str, object]
 	safety_checker: Optional[StableDiffusionSafetyChecker]
 	feature_extractor: Optional[CLIPImageProcessor]
@@ -24,9 +27,9 @@ class StableDiffusionPipeline:
 	text_encoder: CLIPTextModel
 
 	@classmethod
-	def from_single_file(cls, pretrained_model_link_or_path: str, **kwargs: Any) -> 'StableDiffusionPipeline': ...
-	def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
-	def load_lora_weights(self, pretrained_model_name_or_path_or_dict: str, **kwargs: Any) -> None: ...
+	def from_single_file(cls, pretrained_model_link_or_path: str, **kwargs) -> 'StableDiffusionPipeline': ...
+	def __call__(self, **kwargs): ...
+	def load_lora_weights(self, pretrained_model_name_or_path_or_dict: str, **kwargs) -> None: ...
 	def set_adapters(self, adapter_names: list[str], adapter_weights: Optional[list[float]] = None) -> None: ...
 	def unload_lora_weights(self) -> None: ...
 	def reset_device_map(self) -> None: ...

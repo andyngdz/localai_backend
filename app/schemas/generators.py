@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Any, Callable, Optional, TypedDict
 
 import torch
@@ -7,6 +8,15 @@ from app.cores.samplers import SamplerType
 from app.cores.typing_utils import make_default_list_factory
 from app.schemas.hires_fix import HiresFixConfig
 from app.schemas.loras import LoRAConfigItem
+
+
+class OutputType(str, Enum):
+	"""Output format for diffusion pipeline."""
+
+	PIL = 'pil'
+	LATENT = 'latent'
+	NUMPY = 'np'
+	TENSOR = 'pt'
 
 
 class PipelineParams(TypedDict):
@@ -26,6 +36,7 @@ class PipelineParams(TypedDict):
 	callback_on_step_end: Callable[..., dict[str, Any]]
 	callback_on_step_end_tensor_inputs: list[str]
 	clip_skip: int
+	output_type: OutputType
 
 
 # Default negative prompt to avoid circular import with app.services.styles

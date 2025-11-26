@@ -2,13 +2,15 @@
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from typing import cast
 
 import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
 from app.cores.generation import progress_callback, seed_manager
+from app.cores.generation.latent_decoder import latent_decoder
 from app.cores.model_manager import model_manager
-from app.schemas.generators import GeneratorConfig, PipelineParams
+from app.schemas.generators import GeneratorConfig, OutputType, PipelineParams
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
@@ -74,17 +76,30 @@ class BaseGenerator:
 			'callback_on_step_end': progress_callback.callback_on_step_end,
 			'callback_on_step_end_tensor_inputs': ['latents'],
 			'clip_skip': config.clip_skip,
+			'output_type': OutputType.LATENT,
 		}
 
-		# Run image generation in a separate thread to avoid blocking the event loop
 		logger.info('Starting image generation in a separate thread.')
 		loop = asyncio.get_event_loop()
 
 		output = await loop.run_in_executor(
 			self.executor,
-			lambda: pipe(**pipeline_params),
+			lambda: pipe(**cast(dict, pipeline_params)),
 		)
 
-		logger.info(f'Image generation completed successfully: {output}')
+		# When output_type='latent', the output.images contains latent tensors
+		output_with_latents = cast(StableDiffusionPipelineOutput, output)
+		latents = cast(torch.Tensor, output_with_latents.images)
 
-		return output
+		# Decode latents to PIL images
+		images = latent_decoder.decode_latents(pipe, latents)
+
+		# Run safety checker
+		images, nsfw_detected = latent_decoder.run_safety_checker(pipe, images)
+
+		logger.info('Image generation completed successfully')
+
+		return StableDiffusionPipelineOutput(
+			images=images,
+			nsfw_content_detected=nsfw_detected,
+		)
