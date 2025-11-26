@@ -8,6 +8,7 @@ import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
 from app.cores.generation import progress_callback, seed_manager
+from app.cores.generation.hires_fix import hires_fix_processor
 from app.cores.generation.latent_decoder import latent_decoder
 from app.cores.model_manager import model_manager
 from app.schemas.generators import GeneratorConfig, OutputType, PipelineParams
@@ -63,33 +64,44 @@ class BaseGenerator:
 		# Get seed for reproducibility
 		random_seed = seed_manager.get_seed(config.seed)
 
+		# Create generator for reproducibility
+		generator = torch.Generator(device=pipe.device).manual_seed(random_seed)
+
 		# Prepare pipeline parameters with type safety
-		pipeline_params: PipelineParams = {
-			'prompt': positive_prompt,
-			'negative_prompt': negative_prompt,
-			'num_inference_steps': config.steps,
-			'guidance_scale': config.cfg_scale,
-			'height': config.height,
-			'width': config.width,
-			'generator': torch.Generator(device=pipe.device).manual_seed(random_seed),
-			'num_images_per_prompt': config.number_of_images,
-			'callback_on_step_end': progress_callback.callback_on_step_end,
-			'callback_on_step_end_tensor_inputs': ['latents'],
-			'clip_skip': config.clip_skip,
-			'output_type': OutputType.LATENT,
-		}
+		pipeline_params = PipelineParams(
+			prompt=positive_prompt,
+			negative_prompt=negative_prompt,
+			num_inference_steps=config.steps,
+			guidance_scale=config.cfg_scale,
+			height=config.height,
+			width=config.width,
+			generator=generator,
+			num_images_per_prompt=config.number_of_images,
+			callback_on_step_end=progress_callback.callback_on_step_end,
+			callback_on_step_end_tensor_inputs=['latents'],
+			clip_skip=config.clip_skip,
+			output_type=OutputType.LATENT,
+		)
 
 		logger.info('Starting image generation in a separate thread.')
 		loop = asyncio.get_event_loop()
 
 		output = await loop.run_in_executor(
 			self.executor,
-			lambda: pipe(**cast(dict, pipeline_params)),
+			lambda: pipe(**vars(pipeline_params)),
 		)
 
 		# When output_type='latent', the output.images contains latent tensors
 		output_with_latents = cast(StableDiffusionPipelineOutput, output)
 		latents = cast(torch.Tensor, output_with_latents.images)
+
+		# Apply hires fix if configured
+		if config.hires_fix:
+			logger.info('Applying hires fix to generated latents')
+			latents = await loop.run_in_executor(
+				self.executor,
+				lambda: hires_fix_processor.apply(config, pipe, latents, generator),
+			)
 
 		# Decode latents to PIL images
 		images = latent_decoder.decode_latents(pipe, latents)

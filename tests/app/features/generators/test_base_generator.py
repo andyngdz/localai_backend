@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 import pytest
 
 from app.schemas.generators import GeneratorConfig, OutputType
+from app.schemas.hires_fix import HiresFixConfig, UpscalerType
 
 
 @pytest.fixture
@@ -283,6 +284,182 @@ class TestExecutePipeline:
 		# Verify result has images and nsfw flags
 		assert result.images == mock_images
 		assert result.nsfw_content_detected == [False, False]
+
+
+class TestHiresFixIntegration:
+	"""Test hires fix integration in execute_pipeline()."""
+
+	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.features.generators.base_generator.latent_decoder')
+	@patch('app.features.generators.base_generator.torch.Generator')
+	@patch('app.features.generators.base_generator.seed_manager')
+	@patch('app.features.generators.base_generator.progress_callback')
+	@patch('app.features.generators.base_generator.model_manager')
+	async def test_applies_hires_fix_when_configured(
+		self,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_torch_generator,
+		mock_latent_decoder,
+		mock_hires_fix_processor,
+		mock_executor,
+	):
+		"""Test that hires fix is applied when configured."""
+		from app.features.generators.base_generator import BaseGenerator
+
+		# Setup
+		config = GeneratorConfig(
+			prompt='test prompt',
+			width=512,
+			height=512,
+			steps=20,
+			hires_fix=HiresFixConfig(
+				upscale_factor=2.0,
+				upscaler=UpscalerType.LATENT,
+				denoising_strength=0.7,
+				steps=15,
+			),
+		)
+
+		mock_pipe = Mock()
+		mock_pipe.device = 'cuda'
+		mock_model_manager.pipe = mock_pipe
+		mock_seed_manager.get_seed.return_value = 12345
+
+		mock_generator_instance = Mock()
+		mock_torch_generator.return_value.manual_seed.return_value = mock_generator_instance
+
+		generator = BaseGenerator(mock_executor)
+
+		mock_output = Mock()
+		mock_output.images = Mock()
+		mock_latent_decoder.decode_latents.return_value = [Mock()]
+		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
+		mock_hires_fix_processor.apply.return_value = Mock()
+
+		# Execute
+		with patch('asyncio.get_event_loop') as mock_loop:
+
+			async def mock_executor_func(executor, func):
+				# Execute the function and return result
+				return func()
+
+			mock_loop.return_value.run_in_executor = mock_executor_func
+			await generator.execute_pipeline(config, 'positive', 'negative')
+
+		# Verify hires fix was called (it gets called once in the lambda)
+		mock_hires_fix_processor.apply.assert_called_once()
+		call_args = mock_hires_fix_processor.apply.call_args[0]
+		assert call_args[0] == config
+		assert call_args[1] == mock_pipe
+		assert call_args[3] == mock_generator_instance
+
+	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.features.generators.base_generator.latent_decoder')
+	@patch('app.features.generators.base_generator.torch.Generator')
+	@patch('app.features.generators.base_generator.seed_manager')
+	@patch('app.features.generators.base_generator.progress_callback')
+	@patch('app.features.generators.base_generator.model_manager')
+	async def test_skips_hires_fix_when_not_configured(
+		self,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_torch_generator,
+		mock_latent_decoder,
+		mock_hires_fix_processor,
+		sample_config,
+		mock_executor,
+	):
+		"""Test that hires fix is skipped when not configured."""
+		from app.features.generators.base_generator import BaseGenerator
+
+		# Setup
+		mock_pipe = Mock()
+		mock_pipe.device = 'cuda'
+		mock_model_manager.pipe = mock_pipe
+		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+		generator = BaseGenerator(mock_executor)
+
+		mock_output = Mock()
+		mock_output.images = Mock()
+		mock_latent_decoder.decode_latents.return_value = [Mock()]
+		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
+
+		# Execute
+		with patch('asyncio.get_event_loop') as mock_loop:
+			mock_loop.return_value.run_in_executor = AsyncMock(return_value=mock_output)
+			await generator.execute_pipeline(sample_config, 'positive', 'negative')
+
+		# Verify hires fix was NOT called
+		mock_hires_fix_processor.apply.assert_not_called()
+
+	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.features.generators.base_generator.latent_decoder')
+	@patch('app.features.generators.base_generator.torch.Generator')
+	@patch('app.features.generators.base_generator.logger')
+	@patch('app.features.generators.base_generator.seed_manager')
+	@patch('app.features.generators.base_generator.progress_callback')
+	@patch('app.features.generators.base_generator.model_manager')
+	async def test_logs_hires_fix_application(
+		self,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_logger,
+		mock_torch_generator,
+		mock_latent_decoder,
+		mock_hires_fix_processor,
+		mock_executor,
+	):
+		"""Test that hires fix application is logged."""
+		from app.features.generators.base_generator import BaseGenerator
+
+		# Setup
+		config = GeneratorConfig(
+			prompt='test prompt',
+			width=512,
+			height=512,
+			steps=20,
+			hires_fix=HiresFixConfig(
+				upscale_factor=2.0,
+				upscaler=UpscalerType.LATENT,
+				denoising_strength=0.7,
+				steps=15,
+			),
+		)
+
+		mock_pipe = Mock()
+		mock_pipe.device = 'cuda'
+		mock_model_manager.pipe = mock_pipe
+		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+		generator = BaseGenerator(mock_executor)
+
+		mock_output = Mock()
+		mock_output.images = Mock()
+		mock_latent_decoder.decode_latents.return_value = [Mock()]
+		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
+		mock_hires_fix_processor.apply.return_value = Mock()
+
+		# Execute
+		with patch('asyncio.get_event_loop') as mock_loop:
+
+			async def mock_executor_func(executor, func):
+				# Execute the function and return result
+				return func()
+
+			mock_loop.return_value.run_in_executor = mock_executor_func
+			await generator.execute_pipeline(config, 'positive', 'negative')
+
+		# Verify logging
+		log_messages = [str(call) for call in mock_logger.info.call_args_list]
+		assert any('Applying hires fix' in msg for msg in log_messages)
 
 
 class TestBaseGeneratorInit:

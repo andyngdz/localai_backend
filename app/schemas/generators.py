@@ -1,5 +1,6 @@
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Optional, TypedDict
+from typing import Callable, Optional
 
 import torch
 from pydantic import BaseModel, Field
@@ -19,7 +20,8 @@ class OutputType(str, Enum):
 	TENSOR = 'pt'
 
 
-class PipelineParams(TypedDict):
+@dataclass
+class PipelineParams:
 	"""Type-safe parameters for Stable Diffusion pipeline execution.
 
 	All fields match the official diffusers StableDiffusionPipeline.__call__ signature.
@@ -33,7 +35,7 @@ class PipelineParams(TypedDict):
 	width: int
 	generator: torch.Generator
 	num_images_per_prompt: int
-	callback_on_step_end: Callable[..., dict[str, Any]]
+	callback_on_step_end: Callable[..., dict]
 	callback_on_step_end_tensor_inputs: list[str]
 	clip_skip: int
 	output_type: OutputType
