@@ -113,6 +113,7 @@ class HiresFixProcessor:
 			output_type=OutputType.LATENT,
 			strength=denoising_strength,
 			latents=latents,
+			num_images_per_prompt=config.number_of_images,
 		)
 
 		output = cast(StableDiffusionPipelineOutput, pipe(**vars(params)))

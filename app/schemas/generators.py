@@ -50,6 +50,7 @@ class Img2ImgParams(BasePipelineParams):
 
 	strength: float
 	latents: torch.Tensor
+	num_images_per_prompt: int
 
 
 # Default negative prompt to avoid circular import with app.services.styles
