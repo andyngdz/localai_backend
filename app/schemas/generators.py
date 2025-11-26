@@ -21,24 +21,35 @@ class OutputType(str, Enum):
 
 
 @dataclass
-class PipelineParams:
-	"""Type-safe parameters for Stable Diffusion pipeline execution.
-
-	All fields match the official diffusers StableDiffusionPipeline.__call__ signature.
-	"""
+class BasePipelineParams:
+	"""Common parameters shared by all pipeline types."""
 
 	prompt: str
 	negative_prompt: str
 	num_inference_steps: int
 	guidance_scale: float
+	generator: torch.Generator
+	clip_skip: int
+	output_type: OutputType
+
+
+@dataclass
+class Text2ImgParams(BasePipelineParams):
+	"""Parameters for text-to-image generation."""
+
 	height: int
 	width: int
-	generator: torch.Generator
 	num_images_per_prompt: int
 	callback_on_step_end: Callable[..., dict]
 	callback_on_step_end_tensor_inputs: list[str]
-	clip_skip: int
-	output_type: OutputType
+
+
+@dataclass
+class Img2ImgParams(BasePipelineParams):
+	"""Parameters for image-to-image (hires fix) generation."""
+
+	strength: float
+	latents: torch.Tensor
 
 
 # Default negative prompt to avoid circular import with app.services.styles

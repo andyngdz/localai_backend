@@ -6,7 +6,7 @@ import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
 from app.cores.generation.upscaler import latent_upscaler
-from app.schemas.generators import GeneratorConfig, OutputType
+from app.schemas.generators import GeneratorConfig, Img2ImgParams, OutputType
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
@@ -103,19 +103,19 @@ class HiresFixProcessor:
 		Returns:
 			Refined latents
 		"""
-		params = {
-			'prompt': config.prompt,
-			'negative_prompt': config.negative_prompt,
-			'num_inference_steps': steps,
-			'strength': denoising_strength,
-			'latents': latents,
-			'generator': generator,
-			'guidance_scale': config.cfg_scale,
-			'clip_skip': config.clip_skip,
-			'output_type': OutputType.LATENT,
-		}
+		params = Img2ImgParams(
+			prompt=config.prompt,
+			negative_prompt=config.negative_prompt,
+			num_inference_steps=steps,
+			guidance_scale=config.cfg_scale,
+			generator=generator,
+			clip_skip=config.clip_skip,
+			output_type=OutputType.LATENT,
+			strength=denoising_strength,
+			latents=latents,
+		)
 
-		output = cast(StableDiffusionPipelineOutput, pipe(**params))
+		output = cast(StableDiffusionPipelineOutput, pipe(**vars(params)))
 		return cast(torch.Tensor, output.images)
 
 

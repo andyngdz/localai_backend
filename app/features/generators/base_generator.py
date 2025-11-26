@@ -11,7 +11,7 @@ from app.cores.generation import progress_callback, seed_manager
 from app.cores.generation.hires_fix import hires_fix_processor
 from app.cores.generation.latent_decoder import latent_decoder
 from app.cores.model_manager import model_manager
-from app.schemas.generators import GeneratorConfig, OutputType, PipelineParams
+from app.schemas.generators import GeneratorConfig, OutputType, Text2ImgParams
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
@@ -68,19 +68,19 @@ class BaseGenerator:
 		generator = torch.Generator(device=pipe.device).manual_seed(random_seed)
 
 		# Prepare pipeline parameters with type safety
-		pipeline_params = PipelineParams(
+		pipeline_params = Text2ImgParams(
 			prompt=positive_prompt,
 			negative_prompt=negative_prompt,
 			num_inference_steps=config.steps,
 			guidance_scale=config.cfg_scale,
+			generator=generator,
+			clip_skip=config.clip_skip,
+			output_type=OutputType.LATENT,
 			height=config.height,
 			width=config.width,
-			generator=generator,
 			num_images_per_prompt=config.number_of_images,
 			callback_on_step_end=progress_callback.callback_on_step_end,
 			callback_on_step_end_tensor_inputs=['latents'],
-			clip_skip=config.clip_skip,
-			output_type=OutputType.LATENT,
 		)
 
 		logger.info('Starting image generation in a separate thread.')
