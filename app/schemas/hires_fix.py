@@ -3,6 +3,14 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 
+class InterpolationMode(str, Enum):
+	"""Torch interpolation modes for upscaling."""
+
+	BILINEAR = 'bilinear'
+	NEAREST = 'nearest'
+	NEAREST_EXACT = 'nearest-exact'
+
+
 class UpscalerType(str, Enum):
 	"""Upscaling method for high-resolution fix."""
 
