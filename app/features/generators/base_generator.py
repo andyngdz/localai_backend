@@ -14,7 +14,6 @@ from app.cores.model_manager import model_manager
 from app.schemas.generators import GeneratorConfig, OutputType, Text2ImgParams
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
-from app.services.logger import format_config
 
 logger = logger_service.get_logger(__name__, category='Generate')
 
@@ -54,7 +53,7 @@ class BaseGenerator:
 		"""
 		pipe = model_manager.pipe
 
-		logger.info(f"Generating: '{config.prompt}'\n{format_config(config)}")
+		logger.info(f"Generating: '{config.prompt}'\n{logger_service.format_config(config)}")
 
 		# Set sampler
 		model_manager.set_sampler(config.sampler)

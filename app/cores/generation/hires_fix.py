@@ -10,7 +10,6 @@ from app.cores.generation.upscaler import image_upscaler
 from app.schemas.generators import GeneratorConfig, Img2ImgParams, OutputType
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
-from app.services.logger import format_config
 
 logger = logger_service.get_logger(__name__, category='HiresFix')
 
@@ -44,7 +43,7 @@ class HiresFixProcessor:
 
 		hires_config = config.hires_fix
 
-		logger.info(f'Applying hires fix\n{format_config(hires_config)}')
+		logger.info(f'Applying hires fix\n{logger_service.format_config(hires_config)}')
 
 		upscaled_images = image_upscaler.upscale(
 			images,
@@ -119,7 +118,7 @@ class HiresFixProcessor:
 			image=images,
 		)
 
-		logger.info(f'Img2Img refinement\n{format_config(params)}')
+		logger.info(f'Img2Img refinement\n{logger_service.format_config(params)}')
 
 		output = cast(StableDiffusionPipelineOutput, pipe(**vars(params)))
 		return cast(list[Image.Image], output.images)
