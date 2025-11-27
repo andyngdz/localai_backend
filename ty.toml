@@ -1,0 +1,9 @@
+# ty configuration for localai-backend
+# https://docs.astral.sh/ty/reference/configuration/
+
+[environment]
+# Project root directory
+root = ["."]
+
+# Additional search paths for type stubs
+extra-paths = ["./typings"]

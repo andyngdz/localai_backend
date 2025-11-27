@@ -95,7 +95,6 @@ Requires-Dist: pydantic-core==2.33.2
 Requires-Dist: pydash>=8.0.5
 Requires-Dist: pygments==2.19.2
 Requires-Dist: pyopenssl==25.1.0
-Requires-Dist: pyright>=1.1.407
 Requires-Dist: pytest==8.3.3
 Requires-Dist: pytest-asyncio==0.24.0
 Requires-Dist: pytest-cov==5.0.0
@@ -135,6 +134,7 @@ Requires-Dist: traitlets==5.14.3
 Requires-Dist: trampoline>=0.1.2
 Requires-Dist: transformers==4.57.1
 Requires-Dist: triton==3.2.0; sys_platform == "linux"
+Requires-Dist: ty>=0.0.1a28
 Requires-Dist: typing-extensions==4.15.0
 Requires-Dist: typing-inspection==0.4.1
 Requires-Dist: urllib3==2.5.0
