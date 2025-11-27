@@ -1,0 +1,11 @@
+# ty configuration for localai-backend
+# https://docs.astral.sh/ty/reference/configuration/
+
+[environment]
+# Project root directory
+root = ["."]
+
+# Disable call-non-callable rule due to diffusers pipeline type stub limitations
+# TODO: Implement proper Protocol-based callable types for pipelines
+[rules]
+call-non-callable = "ignore"

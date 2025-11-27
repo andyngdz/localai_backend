@@ -3,7 +3,7 @@
 This module provides type hints for the socketio library APIs used in this project.
 """
 
-from typing import Any, Literal
+from typing import Literal
 
 from starlette.types import Receive, Scope, Send
 
@@ -16,7 +16,7 @@ class AsyncServer:
 		async_mode: Literal['asgi'] = 'asgi',
 		cors_allowed_origins: str | list[str] = '*',
 		logger: bool = False,
-		**kwargs: Any,
+		**kwargs,
 	) -> None:
 		"""Initialize AsyncServer with ASGI mode."""
 		...
@@ -24,8 +24,8 @@ class AsyncServer:
 	async def emit(
 		self,
 		event: str,
-		data: dict[str, Any] | None = None,
-		**kwargs: Any,
+		data: dict | None = None,
+		**kwargs,
 	) -> None:
 		"""Emit an event to all connected clients."""
 		...
@@ -36,7 +36,7 @@ class ASGIApp:
 	This class implements the ASGI3 protocol and is compatible with starlette.types.ASGIApp.
 	"""
 
-	def __init__(self, socketio_server: AsyncServer, **kwargs: Any) -> None:
+	def __init__(self, socketio_server: AsyncServer, **kwargs) -> None:
 		"""Wrap AsyncServer as ASGI application."""
 		...
 

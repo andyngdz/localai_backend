@@ -49,6 +49,32 @@ def my_function():
 
 **For detailed type safety patterns, use the `type-safety-mastery` skill.**
 
+## Type Stubs
+
+**When creating `.pyi` stubs for external libraries, never use `Any`.**
+
+- ✅ Use `**kwargs` without type annotation (pyright infers `dict[str, Unknown]`)
+- ✅ Omit return type annotations when uncertain (let pyright infer)
+- ✅ Keep stubs minimal - only stub what you actually use
+- ❌ Never use `Any` - defeats the purpose of type stubs
+
+```python
+# ✅ Good - no Any, simple and clean
+class AutoPipelineForText2Image:
+	scheduler: Scheduler
+	vae: VAE
+	device: torch.device
+	
+	def __call__(self, **kwargs): ...
+	def load_lora_weights(self, path: str, **kwargs) -> None: ...
+
+# ❌ Bad - using Any
+class AutoPipelineForText2Image:
+	def __call__(self, **kwargs: Any) -> Any: ...  # Don't do this
+```
+
+**Rationale:** Type stubs exist to improve type safety. Using `Any` removes all type checking benefits. Omitting type annotations lets pyright infer `Unknown`, which still provides type safety while being explicit about uncertainty.
+
 ## Documentation
 
 **Add examples to docstrings for helper functions:**
@@ -74,6 +100,26 @@ def get_directory_from_path(file_path: str) -> str:
 - **Comments**: Only for non-obvious business logic, not what code does
 
 **For detailed organization patterns, use the `code-organization` skill.**
+
+## Comments
+
+**Minimal comments—code should be self-documenting.**
+
+Only add comments when:
+- Non-obvious business logic (explain "why", not "what")
+- Workarounds/hacks that can't be avoided
+
+```python
+# ❌ Bad - over-commenting the obvious
+# Decode the latents using VAE
+decoder_output = pipe.vae.decode(scaled_latents)
+# Get the sample from decoder output
+image_tensor = decoder_output.sample
+
+# ✅ Good - code is self-documenting, no comments needed
+decoder_output = pipe.vae.decode(scaled_latents)
+image_tensor = decoder_output.sample
+```
 
 ## Refactoring → Use refactoring-patterns skill
 

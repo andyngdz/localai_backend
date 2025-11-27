@@ -19,11 +19,12 @@ uv run python main.py        # Start server
 ## Code Style Essentials
 
 **Formatting**: Tabs (not spaces), single quotes, 120 char lines (see `ruff.toml`)
-**Types**: Never use `# type: ignore` or `Any` - create type stubs in `typings/` for external libs
+**Types**: Never use `# type: ignore` or `Any` (even in `typings/` stubs - use unannotated `**kwargs` instead)
 **Imports**: All imports at top - **never import in the middle of code** (inside functions/classes) - **never use `TYPE_CHECKING`**, use `app/schemas/` for shared types instead
 **Architecture**: `app/features/` (business), `app/cores/` (domain), `app/services/` (infra), `app/schemas/` (shared types)
 **Files**: Split files >150 lines into focused modules; service files are thin orchestrators
 **Naming**: Descriptive names in loops (never `i`, `x`, `p`); use `database_service` alias for `app.database.crud`
+**Comments**: Minimal—code should be self-documenting; only comment "why" not "what"
 **Error Handling**: Pydantic models over dicts; proper exception chaining with `from error`
 **No defensive code**: Call methods directly (e.g., `callback.reset()` not `if hasattr(callback, 'reset')`)
 

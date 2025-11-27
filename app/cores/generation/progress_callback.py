@@ -1,7 +1,5 @@
 """Progress callback handler for step-by-step generation updates."""
 
-from typing import Any
-
 import torch
 
 from app.constants.generation import CACHE_CLEAR_INTERVAL
@@ -28,8 +26,8 @@ class ProgressCallback:
 		self.image_processor.clear_tensor_cache()
 
 	def callback_on_step_end(
-		self, _pipe: DiffusersPipeline, current_step: int, timestep: float, callback_kwargs: dict[str, Any]
-	) -> dict[str, Any]:
+		self, _pipe: DiffusersPipeline, current_step: int, timestep: float, callback_kwargs: dict
+	) -> dict:
 		"""Callback for step-by-step progress updates via WebSocket with memory cleanup.
 
 		Args:

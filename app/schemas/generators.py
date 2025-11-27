@@ -1,30 +1,65 @@
-from typing import Any, Callable, TypedDict
+from dataclasses import dataclass
+from enum import Enum
+from typing import Callable, Optional
 
 import torch
+from PIL import Image
 from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
 from app.cores.typing_utils import make_default_list_factory
+from app.schemas.hires_fix import HiresFixConfig
 from app.schemas.loras import LoRAConfigItem
 
 
-class PipelineParams(TypedDict):
-	"""Type-safe parameters for Stable Diffusion pipeline execution.
+class OutputType(str, Enum):
+	"""Output format for diffusion pipeline."""
 
-	All fields match the official diffusers StableDiffusionPipeline.__call__ signature.
-	"""
+	PIL = 'pil'
+	LATENT = 'latent'
+	NUMPY = 'np'
+	TENSOR = 'pt'
+
+
+@dataclass
+class BasePipelineParams:
+	"""Common parameters shared by all pipeline types."""
 
 	prompt: str
 	negative_prompt: str
 	num_inference_steps: int
 	guidance_scale: float
+	generator: torch.Generator
+	clip_skip: int
+	output_type: OutputType
+
+
+@dataclass
+class Text2ImgParams(BasePipelineParams):
+	"""Parameters for text-to-image generation."""
+
 	height: int
 	width: int
-	generator: torch.Generator
 	num_images_per_prompt: int
-	callback_on_step_end: Callable[..., dict[str, Any]]
+	callback_on_step_end: Callable[..., dict]
 	callback_on_step_end_tensor_inputs: list[str]
-	clip_skip: int
+
+
+@dataclass
+class Img2ImgParams(BasePipelineParams):
+	"""Parameters for image-to-image (hires fix) generation.
+
+	Supports both latent-space (legacy) and pixel-space img2img:
+	- For pixel-space: pass `image` (PIL images)
+	- For latent-space: pass `latents` (torch.Tensor)
+	"""
+
+	strength: float
+	num_images_per_prompt: int
+	height: int
+	width: int
+	image: Optional[list[Image.Image]] = None
+	latents: Optional[torch.Tensor] = None
 
 
 # Default negative prompt to avoid circular import with app.services.styles
@@ -42,7 +77,7 @@ class GeneratorConfig(BaseModel):
 
 	width: int = Field(default=512, ge=64, description='Width of the generated image.')
 	height: int = Field(default=512, ge=64, description='Height of the generated image.')
-	hires_fix: bool = Field(default=False, description='Enable high-resolution fix.')
+	hires_fix: Optional[HiresFixConfig] = Field(default=None, description='High-resolution fix configuration.')
 	number_of_images: int = Field(default=1, ge=1, description='Number of images to generate.')
 	prompt: str = Field(..., max_length=1000, description='The text prompt for image generation.')
 	negative_prompt: str = Field(

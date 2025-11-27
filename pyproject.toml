@@ -95,7 +95,6 @@ dependencies = [
     "pydash>=8.0.5",
     "pygments==2.19.2",
     "pyopenssl==25.1.0",
-    "pyright>=1.1.407",
     "pytest==8.3.3",
     "pytest-asyncio==0.24.0",
     "pytest-cov==5.0.0",
@@ -135,6 +134,7 @@ dependencies = [
     "trampoline>=0.1.2",
     "transformers==4.57.1",
     "triton==3.2.0; sys_platform == 'linux'",
+    "ty>=0.0.1a28",
     "typing-extensions==4.15.0",
     "typing-inspection==0.4.1",
     "urllib3==2.5.0",
@@ -159,29 +159,6 @@ packages = ["app"]
 
 [tool.setuptools.package-data]
 app = ["py.typed"]
-
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
-stubPath = "typings"
-pythonVersion = "3.11"
-exclude = [
-    "**/__pycache__",
-    "**/node_modules",
-    ".git",
-    ".pyright_cache",
-    ".ruff_cache",
-    ".pytest_cache",
-    ".venv",
-    "venv",
-    "env",
-    "logs",
-    "output",
-    "data",
-    "build",
-    "dist",
-    "*.egg-info",
-]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -222,6 +199,7 @@ dev = [
     "pytest==8.3.3",
     "pytest-asyncio==0.24.0",
     "pytest-cov==5.0.0",
+    "ty>=0.0.1a28",
     "types-pillow>=10.2.0.20240822",
     "types-psutil>=7.0.0.20251116",
     "types-pyyaml>=6.0.12.20250915",

@@ -100,32 +100,30 @@ class TestLoadSingleFile:
 
 		# Define dummy classes to satisfy isinstance checks
 		class DummySDPipeline:
-			safety_checker: Any = None
-			feature_extractor: Any = None
-
 			@classmethod
-			def from_single_file(cls, *args: Any, **kwargs: Any) -> Any:
+			def from_single_file(cls, checkpoint: str, **kwargs: Any) -> Any:
+				# Verify safety_checker and feature_extractor are passed
+				assert 'safety_checker' in kwargs
+				assert 'feature_extractor' in kwargs
 				return Mock(spec=DummySDPipeline)
 
 		class DummySDXLPipeline:
 			@classmethod
-			def from_single_file(cls, *args: Any, **kwargs: Any) -> Any:
-				raise Exception('Not XL')
+			def from_single_file(cls, checkpoint: str, **kwargs: Any) -> Any:
+				raise RuntimeError('Not XL')
 
-		# Mock the pipeline classes imported inside the function
+		# Mock the pipeline classes at module level since they're imported at the top
 		with patch(
-			'diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline',
+			'app.cores.model_loader.strategies.StableDiffusionPipeline',
 			new=DummySDPipeline,
 		):
 			with patch(
-				'diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline',
+				'app.cores.model_loader.strategies.StableDiffusionXLPipeline',
 				new=DummySDXLPipeline,
 			):
 				result = _load_single_file(checkpoint, safety_checker, feature_extractor)
 
 				assert isinstance(result, Mock)  # It returns the mock from DummySDPipeline
-				assert result.safety_checker == safety_checker
-				assert result.feature_extractor == feature_extractor
 
 	def test_raises_value_error_when_all_classes_fail(self) -> None:
 		checkpoint = '/path/to/checkpoint.safetensors'
@@ -135,12 +133,12 @@ class TestLoadSingleFile:
 		class DummySDPipeline:
 			@classmethod
 			def from_single_file(cls, *args: Any, **kwargs: Any) -> Any:
-				raise Exception('Fail SD')
+				raise RuntimeError('Fail SD')
 
 		class DummySDXLPipeline:
 			@classmethod
 			def from_single_file(cls, *args: Any, **kwargs: Any) -> Any:
-				raise Exception('Fail XL')
+				raise RuntimeError('Fail XL')
 
 		with patch(
 			'diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline',
@@ -219,9 +217,9 @@ class TestExecuteLoadingStrategies:
 	@patch('app.cores.model_loader.strategies.socket_service')
 	def test_raises_runtime_error_when_all_fail(self, mock_socket: Mock, mock_emit: Mock, mock_load: Mock) -> None:
 		strategies: list[Strategy] = [PretrainedStrategy(use_safetensors=True)]
-		mock_load.side_effect = Exception('Load failed')
+		mock_load.side_effect = RuntimeError('Load failed')
 
-		with pytest.raises(Exception, match='Load failed'):
+		with pytest.raises(RuntimeError, match='Load failed'):
 			execute_loading_strategies('id', strategies, Mock(), Mock(), None)
 
 		mock_socket.model_load_failed.assert_called_once()
