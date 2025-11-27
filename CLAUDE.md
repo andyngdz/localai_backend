@@ -30,6 +30,6 @@ uv run python main.py        # Start server
 
 ## Documentation to Read
 
-- `docs/ARCHITECTURE.md` - Stack, structure, circular imports, modularity rules
-- `docs/CODING_STYLE.md` - Complete style guide with examples
-- `docs/DEVELOPMENT_COMMANDS.md` - All available commands
+- @docs/ARCHITECTURE.md - Stack, structure, circular imports, modularity rules
+- @docs/CODING_STYLE.md - Complete style guide with examples
+- @docs/DEVELOPMENT_COMMANDS.md - All available commands
