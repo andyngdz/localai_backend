@@ -19,6 +19,6 @@ echo "2/3 🔎 Running linter..."
 uv run ruff check --fix $STAGED_FILES
 # 3. Type checking
 echo "3/3 🔬 Running type checker..."
-uv run pyright $STAGED_FILES
+uv run ty check $STAGED_FILES
 
 echo "✅ All pre-commit checks passed!"

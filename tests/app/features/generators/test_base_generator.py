@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
 import pytest
 import torch
+from PIL import Image
 
 from app.schemas.generators import GeneratorConfig
 from app.schemas.hires_fix import HiresFixConfig, UpscalerType
@@ -187,9 +188,10 @@ class TestExecutePipeline:
 		mock_torch_generator.return_value.manual_seed.return_value = Mock()
 		generator = BaseGenerator(mock_executor)
 
-		mock_latent_decoder.decode_latents.return_value = [Mock()]
-		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
-		mock_hires_fix_processor.apply.return_value = torch.randn(1, 4, 128, 128)
+		mock_base_images = [Image.new('RGB', (512, 512))]
+		mock_latent_decoder.decode_latents.return_value = mock_base_images
+		mock_latent_decoder.run_safety_checker.return_value = (mock_base_images, [False])
+		mock_hires_fix_processor.apply.return_value = [Image.new('RGB', (1024, 1024))]
 
 		# Execute
 		with patch('asyncio.get_event_loop') as mock_loop:

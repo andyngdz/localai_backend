@@ -30,9 +30,9 @@ class TestHiresFixProcessor:
 		return pipe
 
 	@pytest.fixture
-	def sample_latents(self):
-		"""Create sample latent tensor."""
-		return torch.randn(1, 4, 64, 64)
+	def sample_images(self):
+		"""Create sample PIL images."""
+		return [Image.new('RGB', (512, 512), color='blue')]
 
 	@pytest.fixture
 	def generator_config(self):
@@ -69,7 +69,7 @@ class TestHiresFixProcessor:
 		result = processor._get_steps(hires_steps=0, base_steps=20)
 		assert result == 20
 
-	def test_apply_requires_hires_fix_config(self, processor, mock_pipe, sample_latents, torch_generator):
+	def test_apply_requires_hires_fix_config(self, processor, mock_pipe, sample_images, torch_generator):
 		"""Test that apply asserts if hires_fix is None."""
 		config = GeneratorConfig(
 			prompt='test',
@@ -80,46 +80,31 @@ class TestHiresFixProcessor:
 		)
 
 		with pytest.raises(AssertionError):
-			processor.apply(config, mock_pipe, sample_latents, torch_generator)
+			processor.apply(config, mock_pipe, torch_generator, sample_images)
 
-	def test_apply_decodes_latents_and_upscales(
-		self, processor, mock_pipe, sample_latents, generator_config, torch_generator
-	):
-		"""Test that apply decodes latents and upscales in pixel space."""
-		with (
-			patch('app.cores.generation.hires_fix.latent_decoder') as mock_decoder,
-			patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler,
-		):
-			base_images = [Image.new('RGB', (512, 512), color='blue')]
+	def test_apply_upscales_images(self, processor, mock_pipe, sample_images, generator_config, torch_generator):
+		"""Test that apply upscales images in pixel space."""
+		with patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler:
 			upscaled_images = [Image.new('RGB', (1024, 1024), color='green')]
-
-			mock_decoder.decode_latents.return_value = base_images
 			mock_upscaler.upscale.return_value = upscaled_images
 
-			processor.apply(generator_config, mock_pipe, sample_latents, torch_generator)
+			processor.apply(generator_config, mock_pipe, torch_generator, sample_images)
 
-			mock_decoder.decode_latents.assert_called_once()
 			mock_upscaler.upscale.assert_called_once_with(
-				base_images,
+				sample_images,
 				scale_factor=2.0,
 				upscaler_type=UpscalerType.LANCZOS,
 			)
 
 	def test_apply_calls_pipeline_with_correct_params(
-		self, processor, mock_pipe, sample_latents, generator_config, torch_generator
+		self, processor, mock_pipe, sample_images, generator_config, torch_generator
 	):
 		"""Test that apply calls pipeline with correct parameters."""
-		with (
-			patch('app.cores.generation.hires_fix.latent_decoder') as mock_decoder,
-			patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler,
-		):
-			base_images = [Image.new('RGB', (512, 512), color='blue')]
+		with patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler:
 			upscaled_images = [Image.new('RGB', (1024, 1024), color='green')]
-
-			mock_decoder.decode_latents.return_value = base_images
 			mock_upscaler.upscale.return_value = upscaled_images
 
-			processor.apply(generator_config, mock_pipe, sample_latents, torch_generator)
+			processor.apply(generator_config, mock_pipe, torch_generator, sample_images)
 
 			mock_pipe.assert_called_once()
 			call_kwargs = mock_pipe.call_args[1]
@@ -133,13 +118,9 @@ class TestHiresFixProcessor:
 			assert call_kwargs['output_type'] == OutputType.PIL.value
 			assert call_kwargs['image'] == upscaled_images
 
-	def test_apply_uses_base_steps_when_hires_steps_zero(self, processor, mock_pipe, sample_latents, torch_generator):
+	def test_apply_uses_base_steps_when_hires_steps_zero(self, processor, mock_pipe, sample_images, torch_generator):
 		"""Test that apply uses base steps when hires_steps is 0."""
-		with (
-			patch('app.cores.generation.hires_fix.latent_decoder') as mock_decoder,
-			patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler,
-		):
-			mock_decoder.decode_latents.return_value = [Image.new('RGB', (512, 512))]
+		with patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler:
 			mock_upscaler.upscale.return_value = [Image.new('RGB', (1024, 1024))]
 
 			config = GeneratorConfig(
@@ -155,18 +136,14 @@ class TestHiresFixProcessor:
 				),
 			)
 
-			processor.apply(config, mock_pipe, sample_latents, torch_generator)
+			processor.apply(config, mock_pipe, torch_generator, sample_images)
 
 			call_kwargs = mock_pipe.call_args[1]
 			assert call_kwargs['num_inference_steps'] == 20
 
-	def test_apply_returns_refined_images(self, processor, mock_pipe, sample_latents, generator_config, torch_generator):
+	def test_apply_returns_refined_images(self, processor, mock_pipe, sample_images, generator_config, torch_generator):
 		"""Test that apply returns refined PIL images from pipeline."""
-		with (
-			patch('app.cores.generation.hires_fix.latent_decoder') as mock_decoder,
-			patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler,
-		):
-			mock_decoder.decode_latents.return_value = [Image.new('RGB', (512, 512))]
+		with patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler:
 			mock_upscaler.upscale.return_value = [Image.new('RGB', (1024, 1024))]
 
 			expected_images = [Image.new('RGB', (1024, 1024), color='red')]
@@ -174,7 +151,7 @@ class TestHiresFixProcessor:
 			mock_output.images = expected_images
 			mock_pipe.return_value = mock_output
 
-			result = processor.apply(generator_config, mock_pipe, sample_latents, torch_generator)
+			result = processor.apply(generator_config, mock_pipe, torch_generator, sample_images)
 
 			assert result == expected_images
 			assert all(isinstance(img, Image.Image) for img in result)

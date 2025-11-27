@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import torch
-from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
+from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import StableDiffusionPipelineOutput
 from PIL import Image
 
 from app.cores.samplers import SamplerType

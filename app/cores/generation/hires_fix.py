@@ -6,7 +6,6 @@ import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
-from app.cores.generation.latent_decoder import latent_decoder
 from app.cores.generation.upscaler import image_upscaler
 from app.schemas.generators import GeneratorConfig, Img2ImgParams, OutputType
 from app.schemas.model_loader import DiffusersPipeline
@@ -18,8 +17,8 @@ logger = logger_service.get_logger(__name__, category='HiresFix')
 class HiresFixProcessor:
 	"""Handles high-resolution fix for image generation.
 
-	Decodes base latents to PIL images, upscales in pixel space, then runs
-	img2img refinement pass to add details and reduce upscaling blur.
+	Upscales decoded PIL images in pixel space, then runs img2img refinement
+	pass to add details and reduce upscaling blur.
 	"""
 
 	def apply(
@@ -27,14 +26,14 @@ class HiresFixProcessor:
 		config: GeneratorConfig,
 		pipe: DiffusersPipeline,
 		generator: torch.Generator,
-		latents: torch.Tensor,
+		images: list[Image.Image],
 	) -> list[Image.Image]:
-		"""Apply hires fix to latents.
+		"""Apply hires fix to decoded base images.
 
 		Args:
 			config: Generator config (contains hires_fix, prompt, steps, etc.)
 			pipe: Diffusion pipeline
-			latents: Base generation latents
+			images: Decoded base PIL images
 			generator: Torch generator for reproducibility
 
 		Returns:
@@ -51,11 +50,8 @@ class HiresFixProcessor:
 			f'steps={hires_config.steps}'
 		)
 
-		base_images = latent_decoder.decode_latents(pipe, latents)
-		logger.info(f'Decoded {len(base_images)} base image(s) to PIL format')
-
 		upscaled_images = image_upscaler.upscale(
-			base_images,
+			images,
 			scale_factor=hires_config.upscale_factor,
 			upscaler_type=hires_config.upscaler,
 		)

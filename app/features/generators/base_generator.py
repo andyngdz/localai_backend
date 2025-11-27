@@ -104,7 +104,7 @@ class BaseGenerator:
 
 		# Apply hires fix to safe images if configured
 		if config.hires_fix:
-			images = await self._apply_hires_fix(config, pipe, generator, base_latents, images, nsfw_detected, loop)
+			images = await self._apply_hires_fix(config, pipe, generator, images, nsfw_detected, loop)
 
 		logger.info('Image generation completed successfully')
 
@@ -118,7 +118,6 @@ class BaseGenerator:
 		config: GeneratorConfig,
 		pipe: DiffusersPipeline,
 		generator: torch.Generator,
-		base_latents: torch.Tensor,
 		images: list,
 		nsfw_detected: list[bool],
 		loop: asyncio.AbstractEventLoop,
@@ -128,7 +127,6 @@ class BaseGenerator:
 		Args:
 			config: Generator configuration
 			pipe: Diffusion pipeline
-			base_latents: Original latents before decoding
 			images: Decoded base images
 			nsfw_detected: NSFW detection results for each image
 			generator: Torch generator for reproducibility
@@ -145,11 +143,11 @@ class BaseGenerator:
 
 		logger.info(f'Applying hires fix to {len(safe_indices)} safe image(s)')
 
-		safe_latents = base_latents[safe_indices]
+		safe_images = [images[idx] for idx in safe_indices]
 
 		hires_images = await loop.run_in_executor(
 			self.executor,
-			lambda: hires_fix_processor.apply(config, pipe, generator, safe_latents),
+			lambda: hires_fix_processor.apply(config, pipe, generator, safe_images),
 		)
 
 		for safe_idx, hires_img in zip(safe_indices, hires_images):
