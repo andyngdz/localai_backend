@@ -4,8 +4,10 @@ from typing import cast
 
 import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
+from PIL import Image
 
-from app.cores.generation.upscaler import latent_upscaler
+from app.cores.generation.latent_decoder import latent_decoder
+from app.cores.generation.upscaler import image_upscaler
 from app.schemas.generators import GeneratorConfig, Img2ImgParams, OutputType
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
@@ -16,16 +18,17 @@ logger = logger_service.get_logger(__name__, category='HiresFix')
 class HiresFixProcessor:
 	"""Handles high-resolution fix for image generation.
 
-	Upscales base latents and runs img2img refinement pass to add details.
+	Decodes base latents to PIL images, upscales in pixel space, then runs
+	img2img refinement pass to add details and reduce upscaling blur.
 	"""
 
 	def apply(
 		self,
 		config: GeneratorConfig,
 		pipe: DiffusersPipeline,
-		latents: torch.Tensor,
 		generator: torch.Generator,
-	) -> torch.Tensor:
+		latents: torch.Tensor,
+	) -> list[Image.Image]:
 		"""Apply hires fix to latents.
 
 		Args:
@@ -35,7 +38,7 @@ class HiresFixProcessor:
 			generator: Torch generator for reproducibility
 
 		Returns:
-			Refined latents at higher resolution
+			Refined PIL images at higher resolution
 		"""
 		assert config.hires_fix is not None
 
@@ -48,8 +51,11 @@ class HiresFixProcessor:
 			f'steps={hires_config.steps}'
 		)
 
-		upscaled_latents = latent_upscaler.upscale(
-			latents,
+		base_images = latent_decoder.decode_latents(pipe, latents)
+		logger.info(f'Decoded {len(base_images)} base image(s) to PIL format')
+
+		upscaled_images = image_upscaler.upscale(
+			base_images,
 			scale_factor=hires_config.upscale_factor,
 			upscaler_type=hires_config.upscaler,
 		)
@@ -57,17 +63,17 @@ class HiresFixProcessor:
 		actual_steps = self._get_steps(hires_config.steps, config.steps)
 		logger.info(f'Running refinement pass with {actual_steps} steps')
 
-		refined_latents = self._run_refinement(
+		refined_images = self._run_refinement(
 			config,
 			pipe,
-			upscaled_latents,
+			upscaled_images,
 			generator,
 			actual_steps,
 			hires_config.denoising_strength,
 		)
 
 		logger.info('Hires fix completed')
-		return refined_latents
+		return refined_images
 
 	def _get_steps(self, hires_steps: int, base_steps: int) -> int:
 		"""Get actual steps for hires pass.
@@ -85,24 +91,27 @@ class HiresFixProcessor:
 		self,
 		config: GeneratorConfig,
 		pipe: DiffusersPipeline,
-		latents: torch.Tensor,
+		images: list[Image.Image],
 		generator: torch.Generator,
 		steps: int,
 		denoising_strength: float,
-	) -> torch.Tensor:
+	) -> list[Image.Image]:
 		"""Run img2img refinement pass.
 
 		Args:
 			config: Generator config
 			pipe: Diffusion pipeline
-			latents: Upscaled latents
+			images: Upscaled PIL images
 			generator: Torch generator
 			steps: Inference steps
 			denoising_strength: How much to repaint (0-1)
 
 		Returns:
-			Refined latents
+			Refined PIL images
 		"""
+		batch_size = len(images)
+		width, height = images[0].size
+
 		params = Img2ImgParams(
 			prompt=config.prompt,
 			negative_prompt=config.negative_prompt,
@@ -110,14 +119,16 @@ class HiresFixProcessor:
 			guidance_scale=config.cfg_scale,
 			generator=generator,
 			clip_skip=config.clip_skip,
-			output_type=OutputType.LATENT,
+			output_type=OutputType.PIL,
 			strength=denoising_strength,
-			latents=latents,
-			num_images_per_prompt=config.number_of_images,
+			num_images_per_prompt=batch_size,
+			height=height,
+			width=width,
+			image=images,
 		)
 
 		output = cast(StableDiffusionPipelineOutput, pipe(**vars(params)))
-		return cast(torch.Tensor, output.images)
+		return cast(list[Image.Image], output.images)
 
 
 hires_fix_processor = HiresFixProcessor()

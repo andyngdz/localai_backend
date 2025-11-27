@@ -1,29 +1,37 @@
 from enum import Enum
 
+from PIL import Image
 from pydantic import BaseModel, Field
 
 
-class InterpolationMode(str, Enum):
-	"""Torch interpolation modes for upscaling."""
-
-	BILINEAR = 'bilinear'
-	NEAREST = 'nearest'
-	NEAREST_EXACT = 'nearest-exact'
-
-
 class UpscalerType(str, Enum):
-	"""Upscaling method for high-resolution fix."""
+	"""Image upscaling methods for high-resolution fix (pixel-space).
 
-	LATENT = 'Latent'
-	LATENT_NEAREST = 'Latent (nearest)'
-	LATENT_NEAREST_EXACT = 'Latent (nearest-exact)'
+	These methods upscale decoded PIL images, not latent tensors.
+	This preserves image quality by avoiding interpolation of latent space.
+	"""
+
+	LANCZOS = 'Lanczos'
+	BICUBIC = 'Bicubic'
+	BILINEAR = 'Bilinear'
+	NEAREST = 'Nearest'
+
+	def to_pil_resample(self) -> Image.Resampling:
+		"""Convert to PIL resampling mode."""
+		mapping = {
+			UpscalerType.LANCZOS: Image.Resampling.LANCZOS,
+			UpscalerType.BICUBIC: Image.Resampling.BICUBIC,
+			UpscalerType.BILINEAR: Image.Resampling.BILINEAR,
+			UpscalerType.NEAREST: Image.Resampling.NEAREST,
+		}
+		return mapping[self]
 
 
 class HiresFixConfig(BaseModel):
 	"""Configuration for high-resolution fix (two-pass generation).
 
-	Hires fix generates at base resolution first, then upscales and refines
-	with img2img to avoid artifacts at high resolutions.
+	Hires fix generates at base resolution first, then upscales in pixel space,
+	and refines with img2img to add details and reduce upscaling blur.
 	"""
 
 	upscale_factor: float = Field(

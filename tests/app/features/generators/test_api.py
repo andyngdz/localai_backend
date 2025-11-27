@@ -307,7 +307,7 @@ class TestGeneratorAPIEdgeCases:
 					'number_of_images': 1,
 					'hires_fix': {
 						'upscale_factor': 2.0,
-						'upscaler': 'Latent',
+						'upscaler': 'Lanczos',
 						'denoising_strength': 0.7,
 						'steps': 0,
 					},

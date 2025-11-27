@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Callable, Optional
 
 import torch
+from PIL import Image
 from pydantic import BaseModel, Field
 
 from app.cores.samplers import SamplerType
@@ -46,11 +47,19 @@ class Text2ImgParams(BasePipelineParams):
 
 @dataclass
 class Img2ImgParams(BasePipelineParams):
-	"""Parameters for image-to-image (hires fix) generation."""
+	"""Parameters for image-to-image (hires fix) generation.
+
+	Supports both latent-space (legacy) and pixel-space img2img:
+	- For pixel-space: pass `image` (PIL images)
+	- For latent-space: pass `latents` (torch.Tensor)
+	"""
 
 	strength: float
-	latents: torch.Tensor
 	num_images_per_prompt: int
+	height: int
+	width: int
+	image: Optional[list[Image.Image]] = None
+	latents: Optional[torch.Tensor] = None
 
 
 # Default negative prompt to avoid circular import with app.services.styles

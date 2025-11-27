@@ -12,6 +12,7 @@ from app.cores.generation.hires_fix import hires_fix_processor
 from app.cores.generation.latent_decoder import latent_decoder
 from app.cores.model_manager import model_manager
 from app.schemas.generators import GeneratorConfig, OutputType, Text2ImgParams
+from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
@@ -93,21 +94,17 @@ class BaseGenerator:
 
 		# When output_type='latent', the output.images contains latent tensors
 		output_with_latents = cast(StableDiffusionPipelineOutput, output)
-		latents = cast(torch.Tensor, output_with_latents.images)
+		base_latents = cast(torch.Tensor, output_with_latents.images)
 
-		# Apply hires fix if configured
-		if config.hires_fix:
-			logger.info('Applying hires fix to generated latents')
-			latents = await loop.run_in_executor(
-				self.executor,
-				lambda: hires_fix_processor.apply(config, pipe, latents, generator),
-			)
+		# Decode base latents to PIL images
+		images = latent_decoder.decode_latents(pipe, base_latents)
 
-		# Decode latents to PIL images
-		images = latent_decoder.decode_latents(pipe, latents)
-
-		# Run safety checker
+		# Run safety checker on base resolution images
 		images, nsfw_detected = latent_decoder.run_safety_checker(pipe, images)
+
+		# Apply hires fix to safe images if configured
+		if config.hires_fix:
+			images = await self._apply_hires_fix(config, pipe, generator, base_latents, images, nsfw_detected, loop)
 
 		logger.info('Image generation completed successfully')
 
@@ -115,3 +112,48 @@ class BaseGenerator:
 			images=images,
 			nsfw_content_detected=nsfw_detected,
 		)
+
+	async def _apply_hires_fix(
+		self,
+		config: GeneratorConfig,
+		pipe: DiffusersPipeline,
+		generator: torch.Generator,
+		base_latents: torch.Tensor,
+		images: list,
+		nsfw_detected: list[bool],
+		loop: asyncio.AbstractEventLoop,
+	) -> list:
+		"""Apply hires fix to safe images only.
+
+		Args:
+			config: Generator configuration
+			pipe: Diffusion pipeline
+			base_latents: Original latents before decoding
+			images: Decoded base images
+			nsfw_detected: NSFW detection results for each image
+			generator: Torch generator for reproducibility
+			loop: Event loop for async execution
+
+		Returns:
+			Images with hires fix applied to safe ones
+		"""
+		safe_indices = [idx for idx, nsfw in enumerate(nsfw_detected) if not nsfw]
+
+		if not safe_indices:
+			logger.warning('All images flagged as NSFW, skipping hires fix')
+			return images
+
+		logger.info(f'Applying hires fix to {len(safe_indices)} safe image(s)')
+
+		safe_latents = base_latents[safe_indices]
+
+		hires_images = await loop.run_in_executor(
+			self.executor,
+			lambda: hires_fix_processor.apply(config, pipe, generator, safe_latents),
+		)
+
+		for safe_idx, hires_img in zip(safe_indices, hires_images):
+			images[safe_idx] = hires_img
+
+		logger.info('Hires fix applied successfully')
+		return images
