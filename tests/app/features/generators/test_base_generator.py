@@ -208,6 +208,78 @@ class TestExecutePipeline:
 		assert any('Applying hires fix' in msg for msg in log_messages)
 
 
+class TestApplyHiresFixToSafeImages:
+	"""Test _apply_hires_fix_to_safe_images() method."""
+
+	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.features.generators.base_generator.latent_decoder')
+	@patch('app.features.generators.base_generator.torch.Generator')
+	@patch('app.features.generators.base_generator.logger')
+	@patch('app.features.generators.base_generator.seed_manager')
+	@patch('app.features.generators.base_generator.progress_callback')
+	@patch('app.features.generators.base_generator.model_manager')
+	async def test_skips_hires_fix_when_all_images_nsfw(
+		self,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_logger,
+		mock_torch_generator,
+		mock_latent_decoder,
+		mock_hires_fix_processor,
+		mock_executor,
+	):
+		"""Test that hires fix is skipped when all images are flagged as NSFW."""
+		from app.features.generators.base_generator import BaseGenerator
+
+		# Setup
+		config = GeneratorConfig(
+			prompt='test prompt',
+			width=512,
+			height=512,
+			steps=20,
+			hires_fix=HiresFixConfig(
+				upscale_factor=2.0,
+				upscaler=UpscalerType.LANCZOS,
+				denoising_strength=0.7,
+				steps=15,
+			),
+		)
+
+		# Create mock output with real tensor for latents
+		mock_output = Mock()
+		mock_latents = torch.randn(1, 4, 64, 64)
+		mock_output.images = mock_latents
+
+		mock_pipe = Mock()
+		mock_pipe.device = 'cuda'
+		mock_pipe.return_value = mock_output
+		mock_model_manager.pipe = mock_pipe
+		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+		generator = BaseGenerator(mock_executor)
+
+		mock_base_images = [Image.new('RGB', (512, 512))]
+		mock_latent_decoder.decode_latents.return_value = mock_base_images
+		# All images flagged as NSFW
+		mock_latent_decoder.run_safety_checker.return_value = (mock_base_images, [True])
+
+		# Execute
+		with patch('asyncio.get_event_loop') as mock_loop:
+
+			async def mock_executor_func(executor, func):
+				return func()
+
+			mock_loop.return_value.run_in_executor = mock_executor_func
+			await generator.execute_pipeline(config, 'positive', 'negative')
+
+		# Verify hires fix was NOT called and warning was logged
+		mock_hires_fix_processor.apply.assert_not_called()
+		log_messages = [str(call) for call in mock_logger.warning.call_args_list]
+		assert any('All images flagged as NSFW' in msg for msg in log_messages)
+
+
 class TestBaseGeneratorInit:
 	"""Test BaseGenerator initialization."""
 

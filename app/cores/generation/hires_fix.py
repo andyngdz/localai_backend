@@ -43,12 +43,7 @@ class HiresFixProcessor:
 
 		hires_config = config.hires_fix
 
-		logger.info(
-			f'Applying hires fix: scale={hires_config.upscale_factor}x, '
-			f'upscaler={hires_config.upscaler.value}, '
-			f'denoising={hires_config.denoising_strength}, '
-			f'steps={hires_config.steps}'
-		)
+		logger.info(f'Applying hires fix\n{logger_service.format_config(hires_config)}')
 
 		upscaled_images = image_upscaler.upscale(
 			images,
@@ -122,6 +117,8 @@ class HiresFixProcessor:
 			width=width,
 			image=images,
 		)
+
+		logger.info(f'Img2Img refinement\n{logger_service.format_config(params)}')
 
 		output = cast(StableDiffusionPipelineOutput, pipe(**vars(params)))
 		return cast(list[Image.Image], output.images)

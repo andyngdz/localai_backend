@@ -53,11 +53,7 @@ class BaseGenerator:
 		"""
 		pipe = model_manager.pipe
 
-		logger.info(
-			f"Generating image(s) for prompt: '{config.prompt}' "
-			f'with steps={config.steps}, CFG={config.cfg_scale}, '
-			f'size={config.width}x{config.height}, batch={config.number_of_images}'
-		)
+		logger.info(f"Generating: '{config.prompt}'\n{logger_service.format_config(config)}")
 
 		# Set sampler
 		model_manager.set_sampler(config.sampler)
