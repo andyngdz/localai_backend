@@ -33,7 +33,7 @@ jobs:
         shell: bash
 
       - name: Run tests with coverage (XML)
-        run: uv run pytest -q --cov=app --cov=main --cov-report=xml:coverage.xml --cov-report=term
+        run: uv run pytest -q --cov=app --cov-report=xml:coverage.xml --cov-report=term
         shell: bash
 
       - name: Upload coverage artifact
