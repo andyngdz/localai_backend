@@ -9,6 +9,7 @@
 ## Problem
 
 The original `ModelManager` class was a 485-line monolith handling multiple responsibilities:
+
 - State management, GPU/MPS memory cleanup, pipeline storage, async loading orchestration
 
 This caused: hard to test, difficult to debug, race conditions, resource leaks.
@@ -32,6 +33,7 @@ ModelManager (Facade - 162 lines)
 ## Architecture
 
 ### Before: Monolithic
+
 ```python
 class ModelManager:
     # 485 lines mixing all concerns
@@ -40,6 +42,7 @@ class ModelManager:
 ```
 
 ### After: Modular Facade
+
 ```python
 class ModelManager:
     def __init__(self):
@@ -92,5 +95,5 @@ size = model_manager.sample_size
 
 ```bash
 uv run pytest tests/app/cores/model_manager/ -v
-uv run pyright app/cores/model_manager/
+uv run ty check app/cores/model_manager/
 ```

@@ -10,7 +10,7 @@ LocalAI Backend is the Python FastAPI backend service for LocalAI desktop applic
 - **Database**: SQLAlchemy 2.0 + SQLite
 - **Real-time**: Socket.IO for progress updates and events
 - **Testing**: Pytest + pytest-asyncio
-- **Type Checking**: Pyright (strict mode)
+- **Type Checking**: ty (strict mode)
 - **Formatting**: Ruff (tabs, single quotes, 120 char lines)
 
 ## Project Conventions
@@ -37,7 +37,7 @@ LocalAI Backend is the Python FastAPI backend service for LocalAI desktop applic
 - Pytest with pytest-asyncio for async tests
 - Test files mirror source structure in `tests/`
 - Aim for 80%+ coverage
-- Pre-commit runs: ruff format, ruff check, pyright
+- Pre-commit runs: ruff format, ruff check, ty check
 
 ### Git Workflow
 

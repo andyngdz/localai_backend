@@ -1,13 +1,13 @@
 """Tests for hires fix processor."""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
 from PIL import Image
 
 from app.cores.generation.hires_fix import HiresFixProcessor
-from app.schemas.generators import GeneratorConfig, OutputType
+from app.schemas.generators import GeneratorConfig
 from app.schemas.hires_fix import HiresFixConfig, UpscalerType
 
 
@@ -59,16 +59,6 @@ class TestHiresFixProcessor:
 		"""Create torch generator."""
 		return torch.Generator().manual_seed(42)
 
-	def test_get_steps_uses_hires_steps_when_nonzero(self, processor):
-		"""Test that _get_steps uses hires_steps when > 0."""
-		result = processor._get_steps(hires_steps=15, base_steps=20)
-		assert result == 15
-
-	def test_get_steps_uses_base_steps_when_zero(self, processor):
-		"""Test that _get_steps uses base_steps when hires_steps is 0."""
-		result = processor._get_steps(hires_steps=0, base_steps=20)
-		assert result == 20
-
 	def test_apply_requires_hires_fix_config(self, processor, mock_pipe, sample_images, torch_generator):
 		"""Test that apply asserts if hires_fix is None."""
 		config = GeneratorConfig(
@@ -82,45 +72,31 @@ class TestHiresFixProcessor:
 		with pytest.raises(AssertionError):
 			processor.apply(config, mock_pipe, torch_generator, sample_images)
 
-	def test_apply_upscales_images(self, processor, mock_pipe, sample_images, generator_config, torch_generator):
-		"""Test that apply upscales images in pixel space."""
-		with patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler:
-			upscaled_images = [Image.new('RGB', (1024, 1024), color='green')]
-			mock_upscaler.upscale.return_value = upscaled_images
-
-			processor.apply(generator_config, mock_pipe, torch_generator, sample_images)
-
-			mock_upscaler.upscale.assert_called_once_with(
-				sample_images,
-				scale_factor=2.0,
-				upscaler_type=UpscalerType.LANCZOS,
-			)
-
-	def test_apply_calls_pipeline_with_correct_params(
+	def test_traditional_upscaler_delegates_to_upscale(
 		self, processor, mock_pipe, sample_images, generator_config, torch_generator
 	):
-		"""Test that apply calls pipeline with correct parameters."""
-		with patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler:
-			upscaled_images = [Image.new('RGB', (1024, 1024), color='green')]
-			mock_upscaler.upscale.return_value = upscaled_images
+		"""Test that traditional upscalers delegate to upscale."""
+		with patch('app.cores.generation.hires_fix.traditional_upscaler') as mock_upscaler:
+			refined_images = [Image.new('RGB', (1024, 1024), color='green')]
+			mock_upscaler.upscale.return_value = refined_images
 
-			processor.apply(generator_config, mock_pipe, torch_generator, sample_images)
+			result = processor.apply(generator_config, mock_pipe, torch_generator, sample_images)
 
-			mock_pipe.assert_called_once()
-			call_kwargs = mock_pipe.call_args[1]
+			mock_upscaler.upscale.assert_called_once_with(
+				generator_config,
+				mock_pipe,
+				sample_images,
+				torch_generator,
+				scale_factor=2.0,
+				upscaler_type=UpscalerType.LANCZOS,
+				hires_steps=15,
+				denoising_strength=0.7,
+			)
+			assert result == refined_images
 
-			assert call_kwargs['prompt'] == 'test prompt'
-			assert call_kwargs['negative_prompt'] == 'test negative'
-			assert call_kwargs['num_inference_steps'] == 15
-			assert call_kwargs['strength'] == 0.7
-			assert call_kwargs['guidance_scale'] == 7.5
-			assert call_kwargs['clip_skip'] == 1
-			assert call_kwargs['output_type'] == OutputType.PIL.value
-			assert call_kwargs['image'] == upscaled_images
-
-	def test_apply_uses_base_steps_when_hires_steps_zero(self, processor, mock_pipe, sample_images, torch_generator):
-		"""Test that apply uses base steps when hires_steps is 0."""
-		with patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler:
+	def test_apply_passes_hires_steps_zero_to_upscaler(self, processor, mock_pipe, sample_images, torch_generator):
+		"""Test that apply passes hires_steps=0 to upscaler (upscaler resolves to base steps)."""
+		with patch('app.cores.generation.hires_fix.traditional_upscaler') as mock_upscaler:
 			mock_upscaler.upscale.return_value = [Image.new('RGB', (1024, 1024))]
 
 			config = GeneratorConfig(
@@ -138,20 +114,67 @@ class TestHiresFixProcessor:
 
 			processor.apply(config, mock_pipe, torch_generator, sample_images)
 
-			call_kwargs = mock_pipe.call_args[1]
-			assert call_kwargs['num_inference_steps'] == 20
+			call_kwargs = mock_upscaler.upscale.call_args[1]
+			assert call_kwargs['hires_steps'] == 0
 
-	def test_apply_returns_refined_images(self, processor, mock_pipe, sample_images, generator_config, torch_generator):
-		"""Test that apply returns refined PIL images from pipeline."""
-		with patch('app.cores.generation.hires_fix.image_upscaler') as mock_upscaler:
-			mock_upscaler.upscale.return_value = [Image.new('RGB', (1024, 1024))]
+	def test_ai_upscaler_delegates_to_realesrgan(self, processor, mock_pipe, sample_images, torch_generator):
+		"""Test that AI upscalers delegate to realesrgan_upscaler."""
+		with patch('app.cores.generation.hires_fix.realesrgan_upscaler') as mock_realesrgan:
+			upscaled_images = [Image.new('RGB', (1024, 1024), color='green')]
+			mock_realesrgan.upscale.return_value = upscaled_images
 
-			expected_images = [Image.new('RGB', (1024, 1024), color='red')]
-			mock_output = Mock()
-			mock_output.images = expected_images
-			mock_pipe.return_value = mock_output
+			config = GeneratorConfig(
+				prompt='test',
+				width=512,
+				height=512,
+				steps=20,
+				hires_fix=HiresFixConfig(
+					upscale_factor=2.0,
+					upscaler=UpscalerType.REALESRGAN_X4PLUS,
+					denoising_strength=0.7,
+					steps=15,
+				),
+			)
 
-			result = processor.apply(generator_config, mock_pipe, torch_generator, sample_images)
+			result = processor.apply(config, mock_pipe, torch_generator, sample_images)
 
-			assert result == expected_images
-			assert all(isinstance(img, Image.Image) for img in result)
+			mock_realesrgan.upscale.assert_called_once_with(
+				sample_images,
+				UpscalerType.REALESRGAN_X4PLUS,
+				2.0,
+			)
+			mock_pipe.assert_not_called()
+			assert result == upscaled_images
+
+	def test_all_realesrgan_variants_skip_refinement(self, processor, mock_pipe, sample_images, torch_generator):
+		"""Test that all Real-ESRGAN variants skip img2img refinement."""
+		realesrgan_upscalers = [
+			UpscalerType.REALESRGAN_X2PLUS,
+			UpscalerType.REALESRGAN_X4PLUS,
+			UpscalerType.REALESRGAN_X4PLUS_ANIME,
+		]
+
+		for upscaler_type in realesrgan_upscalers:
+			mock_pipe.reset_mock()
+
+			with patch('app.cores.generation.hires_fix.realesrgan_upscaler') as mock_realesrgan:
+				upscaled_images = [Image.new('RGB', (1024, 1024), color='green')]
+				mock_realesrgan.upscale.return_value = upscaled_images
+
+				config = GeneratorConfig(
+					prompt='test',
+					width=512,
+					height=512,
+					steps=20,
+					hires_fix=HiresFixConfig(
+						upscale_factor=2.0,
+						upscaler=upscaler_type,
+						denoising_strength=0.7,
+						steps=15,
+					),
+				)
+
+				result = processor.apply(config, mock_pipe, torch_generator, sample_images)
+
+				mock_pipe.assert_not_called(), f'{upscaler_type} should skip refinement'
+				assert result == upscaled_images

@@ -88,12 +88,14 @@ pydantic-core==2.33.2
 pydash>=8.0.5
 pygments==2.19.2
 pyopenssl==25.1.0
+pypdl>=1.5.7
 pytest==8.3.3
 pytest-asyncio==0.24.0
 pytest-cov==5.0.0
 python-engineio==4.12.2
 python-socketio==5.14.0
 pyyaml==6.0.2
+realesrgan>=0.3.0
 redis==6.2.0
 regex==2025.7.34
 requests==2.32.5
@@ -122,6 +124,7 @@ thread==2.0.5
 tokenizers==0.22.1
 torch==2.6.0+cu124
 torchsde>=0.2.6
+torchvision==0.21.0
 tqdm==4.67.1
 traitlets==5.14.3
 trampoline>=0.1.2

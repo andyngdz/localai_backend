@@ -37,12 +37,15 @@ class TestConfigAPI:
 	@patch('app.features.config.api.config_service')
 	def test_get_config_calls_service(self, mock_config_service):
 		"""Test that get_config calls config_service.get_upscalers."""
+		from app.schemas.config import UpscalingMethod
+
 		mock_upscalers = [
 			UpscalerItem(
 				value='Test',
 				name='Test Upscaler',
 				description='Test description',
 				suggested_denoise_strength=0.5,
+				method=UpscalingMethod.TRADITIONAL,
 			)
 		]
 		mock_config_service.get_upscalers.return_value = mock_upscalers

@@ -64,7 +64,7 @@ async def test_generate_image_empty_prompt():
 
 ### Pre-Commit Checks
 Before marking work complete, run all checks:
-- [ ] Type check modified files: `uv run pyright app/path/to/modified.py tests/path/to/test.py`
+- [ ] Type check modified files: `uv run ty check app/path/to/modified.py tests/path/to/test.py`
 - [ ] Lint and fix: `uv run ruff check --fix app/ tests/`
 - [ ] Format code: `uv run ruff format app/ tests/`
 - [ ] Run tests: `uv run pytest -q`
@@ -72,7 +72,7 @@ Before marking work complete, run all checks:
 
 ### Quality Gates
 - [ ] All tests pass
-- [ ] No type errors (pyright clean)
+- [ ] No type errors (ty clean)
 - [ ] No lint errors (ruff clean)
 - [ ] Code is formatted (ruff format applied)
 - [ ] Test coverage includes happy path, error cases, and edge cases
@@ -80,5 +80,5 @@ Before marking work complete, run all checks:
 ## Reference
 
 - **Testing framework:** pytest + pytest-asyncio
-- **Pre-commit hook:** Runs ruff format, ruff check, pyright on staged files
+- **Pre-commit hook:** Runs ruff format, ruff check, ty check on staged files
 - **Coverage goal:** 80%+ (SonarQube quality gate)

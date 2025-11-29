@@ -36,8 +36,8 @@ As a developer, I want the model_loader.py split into focused modules so I can u
 ### Key Entities
 
 - **progress.py**: map_step_to_phase, emit_progress
-- **strategies.py**: Strategy TypedDict, _build_loading_strategies, _execute_loading_strategies
-- **setup.py**: device optimization, _finalize_model_setup
+- **strategies.py**: Strategy TypedDict, \_build_loading_strategies, \_execute_loading_strategies
+- **setup.py**: device optimization, \_finalize_model_setup
 
 ## Success Criteria
 
@@ -45,5 +45,5 @@ As a developer, I want the model_loader.py split into focused modules so I can u
 
 - **SC-001**: model_loader.py reduced to <250 LOC
 - **SC-002**: Each module has single responsibility
-- **SC-003**: ruff and pyright pass
+- **SC-003**: ruff and ty pass
 - **SC-004**: No behavior changes

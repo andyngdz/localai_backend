@@ -1,4 +1,3 @@
-# pyright: reportPrivateUsage=false
 """Tests for the model loader strategies module."""
 
 from __future__ import annotations
