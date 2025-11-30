@@ -1,18 +1,17 @@
 """Real-ESRGAN AI upscaler for high-quality image upscaling."""
 
-from pathlib import Path
+from typing import Optional
 
-from basicsr.archs.rrdbnet_arch import RRDBNet
 from PIL import Image
-from pypdl import Pypdl
 from realesrgan import RealESRGANer
 
 from app.constants.upscalers import REALESRGAN_MODELS
 from app.cores.generation.image_processor import image_processor
-from app.cores.model_manager.resource_manager import resource_manager
+from app.cores.upscalers.realesrgan.model_manager import realesrgan_model_manager
+from app.cores.upscalers.realesrgan.resource_manager import realesrgan_resource_manager
 from app.schemas.hires_fix import UpscalerType
 from app.schemas.upscaler import UpscaleConfig
-from app.services import device_service, logger_service, storage_service
+from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Upscaler')
 
@@ -21,7 +20,7 @@ class RealESRGANUpscaler:
 	"""AI upscaler using Real-ESRGAN models. Loads per-request and unloads after."""
 
 	def __init__(self) -> None:
-		self._model = None
+		self._model: Optional[RealESRGANer] = None
 
 	def upscale(
 		self,
@@ -45,7 +44,7 @@ class RealESRGANUpscaler:
 		logger.info(f'AI upscaling\n{logger_service.format_config(config)}')
 
 		try:
-			self._load_model(upscaler_type)
+			self._model = realesrgan_model_manager.load(upscaler_type)
 			upscaled = self._upscale_images(images)
 			upscaled = self._resize_to_target_scale(
 				upscaled,
@@ -56,55 +55,8 @@ class RealESRGANUpscaler:
 			)
 			return upscaled
 		finally:
-			self._cleanup()
-
-	def _get_model_path(self, upscaler_type: UpscalerType) -> str:
-		"""Download model if not cached, return local path."""
-		remote_model = REALESRGAN_MODELS[upscaler_type]
-		local_path = Path(storage_service.get_realesrgan_model_path(remote_model.filename))
-
-		if local_path.exists():
-			logger.info(f'Using cached model: {local_path}')
-			return str(local_path)
-
-		local_path.parent.mkdir(parents=True, exist_ok=True)
-
-		logger.info(f'Downloading model from {remote_model.url}')
-
-		downloader = Pypdl()
-		downloader.start(remote_model.url, file_path=str(local_path), retries=3, etag_validation=True)
-
-		logger.info(f'Model downloaded to: {local_path}')
-
-		return str(local_path)
-
-	def _load_model(self, upscaler_type: UpscalerType) -> None:
-		"""Load Real-ESRGAN model for the specified type."""
-		remote_model = REALESRGAN_MODELS[upscaler_type]
-		model_path = self._get_model_path(upscaler_type)
-		device = device_service.torch_device
-		half_precision = device_service.is_cuda
-
-		logger.info(f'Loading Real-ESRGAN model on {device} (half={half_precision})')
-
-		network_model = self._create_network_model(upscaler_type, remote_model.scale)
-		self._model = RealESRGANer(
-			scale=remote_model.scale,
-			model_path=model_path,
-			model=network_model,
-			tile=0,
-			tile_pad=10,
-			pre_pad=10,
-			half=half_precision,
-			device=device,
-		)
-
-	def _create_network_model(self, upscaler_type: UpscalerType, scale: int):
-		"""Create the appropriate network architecture for the model type."""
-		if upscaler_type == UpscalerType.REALESRGAN_X4PLUS_ANIME:
-			return RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=6, num_grow_ch=32, scale=scale)
-
-		return RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=scale)
+			realesrgan_resource_manager.cleanup(self._model)
+			self._model = None
 
 	def _upscale_images(self, images: list[Image.Image]) -> list[Image.Image]:
 		"""Upscale images using the loaded model."""
@@ -140,11 +92,6 @@ class RealESRGANUpscaler:
 		resized = [img.resize((target_width, target_height), Image.Resampling.LANCZOS) for img in images]
 
 		return resized
-
-	def _cleanup(self) -> None:
-		"""Clean up model and free GPU memory."""
-		resource_manager.cleanup_pipeline(self._model, 'Real-ESRGAN')
-		self._model = None
 
 
 realesrgan_upscaler = RealESRGANUpscaler()
