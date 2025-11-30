@@ -56,8 +56,8 @@ class HiresFixProcessor:
 			result = traditional_upscaler.upscale(
 				config,
 				pipe,
-				images,
 				generator,
+				images,
 				scale_factor=hires_config.upscale_factor,
 				upscaler_type=hires_config.upscaler,
 				hires_steps=hires_config.steps,

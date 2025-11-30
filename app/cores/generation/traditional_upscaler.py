@@ -25,8 +25,8 @@ class TraditionalUpscaler:
 		self,
 		config: GeneratorConfig,
 		pipe: DiffusersPipeline,
-		images: list[Image.Image],
 		generator: torch.Generator,
+		images: list[Image.Image],
 		scale_factor: float,
 		upscaler_type: UpscalerType,
 		hires_steps: int,
@@ -37,8 +37,8 @@ class TraditionalUpscaler:
 		Args:
 			config: Generator config (also provides base steps if hires_steps=0)
 			pipe: Diffusion pipeline
-			images: Base PIL images to upscale
 			generator: Torch generator for reproducibility
+			images: Base PIL images to upscale
 			scale_factor: Upscaling factor
 			upscaler_type: PIL upscaling method
 			hires_steps: Inference steps for refinement (0 = use config.steps)
@@ -54,42 +54,16 @@ class TraditionalUpscaler:
 
 		actual_steps = hires_steps if hires_steps > 0 else config.steps
 		logger.info(f'Running refinement pass with {actual_steps} steps')
-		refined = self.refine(config, pipe, upscaled, generator, actual_steps, denoising_strength)
+		refined = self.refine(config, pipe, generator, upscaled, actual_steps, denoising_strength)
 
 		return refined
-
-	def _upscale_pil(
-		self,
-		images: list[Image.Image],
-		scale_factor: float,
-		upscaler_type: UpscalerType,
-	) -> list[Image.Image]:
-		"""Upscale images using PIL interpolation."""
-		original_width, original_height = images[0].size
-		logger.info(
-			f'Upscaling {len(images)} image(s) from {original_width}x{original_height} '
-			f'by {scale_factor}x using {upscaler_type.value}'
-		)
-
-		resample_mode = upscaler_type.to_pil_resample()
-		upscaled_images = []
-		for img in images:
-			new_width = int(img.width * scale_factor)
-			new_height = int(img.height * scale_factor)
-			upscaled_img = img.resize((new_width, new_height), resample=resample_mode)
-			upscaled_images.append(upscaled_img)
-
-		new_width, new_height = upscaled_images[0].size
-		logger.info(f'Upscaled to {new_width}x{new_height}')
-
-		return upscaled_images
 
 	def refine(
 		self,
 		config: GeneratorConfig,
 		pipe: DiffusersPipeline,
-		images: list[Image.Image],
 		generator: torch.Generator,
+		images: list[Image.Image],
 		steps: int,
 		denoising_strength: float,
 	) -> list[Image.Image]:
@@ -98,8 +72,8 @@ class TraditionalUpscaler:
 		Args:
 			config: Generator config (prompt, negative_prompt, cfg_scale, etc.)
 			pipe: Diffusion pipeline
-			images: Upscaled PIL images
 			generator: Torch generator for reproducibility
+			images: Upscaled PIL images
 			steps: Number of inference steps
 			denoising_strength: How much to repaint (0=keep original, 1=fully repaint)
 
@@ -128,6 +102,36 @@ class TraditionalUpscaler:
 
 		output = cast(StableDiffusionPipelineOutput, pipe(**vars(params)))
 		return cast(list[Image.Image], output.images)
+
+	def _upscale_pil(
+		self,
+		images: list[Image.Image],
+		scale_factor: float,
+		upscaler_type: UpscalerType,
+	) -> list[Image.Image]:
+		"""Upscale images using PIL interpolation."""
+		original_width, original_height = images[0].size
+		config = {
+			'batch_size': len(images),
+			'original_size': f'{original_width}x{original_height}',
+			'scale_factor': scale_factor,
+			'upscaler': upscaler_type.value,
+		}
+		logger.info(f'PIL upscaling\n{logger_service.format_config(config)}')
+
+		resample_mode = upscaler_type.to_pil_resample()
+		upscaled_images: list[Image.Image] = []
+
+		for img in images:
+			new_width = int(img.width * scale_factor)
+			new_height = int(img.height * scale_factor)
+			upscaled_img = img.resize((new_width, new_height), resample=resample_mode)
+			upscaled_images.append(upscaled_img)
+
+		new_width, new_height = upscaled_images[0].size
+		logger.info(f'Upscaled to {new_width}x{new_height}')
+
+		return upscaled_images
 
 
 traditional_upscaler = TraditionalUpscaler()

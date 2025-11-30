@@ -28,7 +28,7 @@ from app.features.models import models
 from app.features.resizes import resizes
 from app.features.styles import styles
 from app.features.users import users
-from app.services import logger_service, platform_service, storage_service
+from app.services import logger_service, patch_service, platform_service, storage_service
 from app.socket import socket_service
 from config import STATIC_FOLDER
 
@@ -37,6 +37,7 @@ from config import STATIC_FOLDER
 async def lifespan(app: FastAPI):
 	"""Startup event"""
 
+	patch_service.init()
 	logger_service.init()
 	storage_service.init()
 	platform_service.init()

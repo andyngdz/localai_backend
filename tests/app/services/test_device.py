@@ -1,7 +1,9 @@
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
+
+from app.services.device import DeviceType
 
 
 class TestDeviceServiceInit:
@@ -16,7 +18,7 @@ class TestDeviceServiceInit:
 
 			service = DeviceService()
 
-			assert service.device == 'cuda'
+			assert service.device == DeviceType.CUDA
 			assert service.torch_dtype == 'float16'
 
 	def test_initializes_with_mps_when_cuda_unavailable(self):
@@ -33,7 +35,7 @@ class TestDeviceServiceInit:
 
 			service = DeviceService()
 
-			assert service.device == 'mps'
+			assert service.device == DeviceType.MPS
 			assert service.torch_dtype == 'float32'
 
 	def test_initializes_with_cpu_when_no_gpu(self):
@@ -46,7 +48,7 @@ class TestDeviceServiceInit:
 
 			service = DeviceService()
 
-			assert service.device == 'cpu'
+			assert service.device == DeviceType.CPU
 			assert service.torch_dtype == 'float32'
 
 	def test_falls_back_to_cpu_on_exception(self):
@@ -58,7 +60,7 @@ class TestDeviceServiceInit:
 
 			service = DeviceService()
 
-			assert service.device == 'cpu'
+			assert service.device == DeviceType.CPU
 			assert service.torch_dtype == 'float32'
 
 
@@ -159,6 +161,7 @@ class TestGetDeviceProperties:
 			result = service.get_device_properties(0)
 
 			assert result == props
+			assert result is not None
 			assert result.total_memory == 12345678
 
 	def test_returns_none_on_cuda_error(self):
@@ -425,9 +428,8 @@ class TestGetRecommendedBatchSize:
 			from app.services.device import DeviceService
 
 			service = DeviceService()
-			service.get_device_properties = Mock(return_value=None)
-
-			result = service.get_recommended_batch_size()
+			with patch.object(service, 'get_device_properties', return_value=None):
+				result = service.get_recommended_batch_size()
 
 			assert result == 1
 
@@ -464,9 +466,8 @@ class TestGetRecommendedBatchSize:
 			from app.services.device import DeviceService
 
 			service = DeviceService()
-			service.get_device_properties = Mock(return_value=props)
-
-			result = service.get_recommended_batch_size()
+			with patch.object(service, 'get_device_properties', return_value=props):
+				result = service.get_recommended_batch_size()
 
 			assert result == expected_batch_size
 
@@ -485,9 +486,8 @@ class TestGetRecommendedBatchSize:
 			from app.services.device import DeviceService
 
 			service = DeviceService()
-			service.get_device_properties = Mock(return_value=props)
-
-			result = service.get_recommended_batch_size()
+			with patch.object(service, 'get_device_properties', return_value=props):
+				result = service.get_recommended_batch_size()
 
 			# Manually verify against thresholds
 			total_memory_gb = props.total_memory / (1024**3)
@@ -511,9 +511,8 @@ class TestGetRecommendedBatchSize:
 			from app.services.device import DeviceService
 
 			service = DeviceService()
-			service.get_device_properties = Mock(return_value=props)
-
-			result = service.get_recommended_batch_size()
+			with patch.object(service, 'get_device_properties', return_value=props):
+				result = service.get_recommended_batch_size()
 
 			# Should return the largest batch size (6)
 			assert result == 6

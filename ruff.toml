@@ -34,6 +34,7 @@ skip-magic-trailing-comma = false
 indent-style = "tab"
 line-ending = "auto"
 docstring-code-format = true
+
 [lint]
 select = ["E", "F", "I"]
 

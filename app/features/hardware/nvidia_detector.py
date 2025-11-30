@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from typing import Optional
 
 import torch
 
@@ -88,7 +89,7 @@ class NvidiaDetector:
 
 		return gpus
 
-	def _get_driver_version(self, system_os: OperatingSystem) -> str | None:
+	def _get_driver_version(self, system_os: OperatingSystem) -> Optional[str]:
 		"""Query nvidia-smi for driver version.
 
 		Args:

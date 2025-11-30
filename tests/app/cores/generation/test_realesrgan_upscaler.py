@@ -1,6 +1,5 @@
 """Tests for Real-ESRGAN AI upscaler."""
 
-import sys
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -49,30 +48,21 @@ class TestRealESRGANUpscaler:
 
 	def test_upscale_x2plus_model(self, upscaler, sample_images, tmp_path):
 		"""Test upscaling with x2plus model."""
-		model_path = tmp_path / 'realesrgan' / 'RealESRGAN_x2plus.pth'
-		model_path.parent.mkdir(parents=True, exist_ok=True)
+		model_path = tmp_path / 'RealESRGAN_x2plus.pth'
 		model_path.touch()
-
-		mock_rrdbnet = MagicMock()
-		mock_realesrganer_class = MagicMock()
 
 		upscaled_array = np.zeros((1024, 1024, 3), dtype=np.uint8)
 		mock_model = MagicMock()
 		mock_model.enhance.return_value = (upscaled_array, None)
 		mock_model.scale = 2
-		mock_realesrganer_class.return_value = mock_model
+
+		mock_storage = MagicMock()
+		mock_storage.get_realesrgan_model_path.return_value = str(model_path)
 
 		with (
-			patch.dict(
-				sys.modules,
-				{
-					'basicsr': MagicMock(),
-					'basicsr.archs': MagicMock(),
-					'basicsr.archs.rrdbnet_arch': MagicMock(RRDBNet=mock_rrdbnet),
-				},
-			),
-			patch.dict(sys.modules, {'realesrgan': MagicMock(RealESRGANer=mock_realesrganer_class)}),
-			patch('config.CACHE_FOLDER', str(tmp_path)),
+			patch('app.cores.generation.realesrgan_upscaler.RRDBNet', MagicMock()),
+			patch('app.cores.generation.realesrgan_upscaler.RealESRGANer', return_value=mock_model),
+			patch('app.cores.generation.realesrgan_upscaler.storage_service', mock_storage),
 		):
 			result = upscaler.upscale(sample_images, UpscalerType.REALESRGAN_X2PLUS, 2.0)
 
@@ -81,30 +71,21 @@ class TestRealESRGANUpscaler:
 
 	def test_upscale_x4plus_model(self, upscaler, sample_images, tmp_path):
 		"""Test upscaling with x4plus model."""
-		model_path = tmp_path / 'realesrgan' / 'RealESRGAN_x4plus.pth'
-		model_path.parent.mkdir(parents=True, exist_ok=True)
+		model_path = tmp_path / 'RealESRGAN_x4plus.pth'
 		model_path.touch()
-
-		mock_rrdbnet = MagicMock()
-		mock_realesrganer_class = MagicMock()
 
 		upscaled_array = np.zeros((2048, 2048, 3), dtype=np.uint8)
 		mock_model = MagicMock()
 		mock_model.enhance.return_value = (upscaled_array, None)
 		mock_model.scale = 4
-		mock_realesrganer_class.return_value = mock_model
+
+		mock_storage = MagicMock()
+		mock_storage.get_realesrgan_model_path.return_value = str(model_path)
 
 		with (
-			patch.dict(
-				sys.modules,
-				{
-					'basicsr': MagicMock(),
-					'basicsr.archs': MagicMock(),
-					'basicsr.archs.rrdbnet_arch': MagicMock(RRDBNet=mock_rrdbnet),
-				},
-			),
-			patch.dict(sys.modules, {'realesrgan': MagicMock(RealESRGANer=mock_realesrganer_class)}),
-			patch('config.CACHE_FOLDER', str(tmp_path)),
+			patch('app.cores.generation.realesrgan_upscaler.RRDBNet', MagicMock()),
+			patch('app.cores.generation.realesrgan_upscaler.RealESRGANer', return_value=mock_model),
+			patch('app.cores.generation.realesrgan_upscaler.storage_service', mock_storage),
 		):
 			result = upscaler.upscale(sample_images, UpscalerType.REALESRGAN_X4PLUS, 4.0)
 
@@ -112,31 +93,23 @@ class TestRealESRGANUpscaler:
 			assert isinstance(result[0], Image.Image)
 
 	def test_upscale_anime_model(self, upscaler, sample_images, tmp_path):
-		"""Test upscaling with anime model."""
-		model_path = tmp_path / 'realesrgan' / 'RealESRGAN_x4plus_anime_6B.pth'
-		model_path.parent.mkdir(parents=True, exist_ok=True)
+		"""Test upscaling with anime model uses correct network architecture."""
+		model_path = tmp_path / 'RealESRGAN_x4plus_anime_6B.pth'
 		model_path.touch()
 
 		mock_rrdbnet = MagicMock()
-		mock_realesrganer_class = MagicMock()
-
 		upscaled_array = np.zeros((2048, 2048, 3), dtype=np.uint8)
 		mock_model = MagicMock()
 		mock_model.enhance.return_value = (upscaled_array, None)
 		mock_model.scale = 4
-		mock_realesrganer_class.return_value = mock_model
+
+		mock_storage = MagicMock()
+		mock_storage.get_realesrgan_model_path.return_value = str(model_path)
 
 		with (
-			patch.dict(
-				sys.modules,
-				{
-					'basicsr': MagicMock(),
-					'basicsr.archs': MagicMock(),
-					'basicsr.archs.rrdbnet_arch': MagicMock(RRDBNet=mock_rrdbnet),
-				},
-			),
-			patch.dict(sys.modules, {'realesrgan': MagicMock(RealESRGANer=mock_realesrganer_class)}),
-			patch('config.CACHE_FOLDER', str(tmp_path)),
+			patch('app.cores.generation.realesrgan_upscaler.RRDBNet', mock_rrdbnet),
+			patch('app.cores.generation.realesrgan_upscaler.RealESRGANer', return_value=mock_model),
+			patch('app.cores.generation.realesrgan_upscaler.storage_service', mock_storage),
 		):
 			result = upscaler.upscale(sample_images, UpscalerType.REALESRGAN_X4PLUS_ANIME, 4.0)
 
@@ -146,30 +119,21 @@ class TestRealESRGANUpscaler:
 
 	def test_cleanup_called_after_upscale(self, upscaler, sample_images, tmp_path):
 		"""Test that cleanup is called after upscaling."""
-		model_path = tmp_path / 'realesrgan' / 'RealESRGAN_x2plus.pth'
-		model_path.parent.mkdir(parents=True, exist_ok=True)
+		model_path = tmp_path / 'RealESRGAN_x2plus.pth'
 		model_path.touch()
-
-		mock_rrdbnet = MagicMock()
-		mock_realesrganer_class = MagicMock()
 
 		upscaled_array = np.zeros((1024, 1024, 3), dtype=np.uint8)
 		mock_model = MagicMock()
 		mock_model.enhance.return_value = (upscaled_array, None)
 		mock_model.scale = 2
-		mock_realesrganer_class.return_value = mock_model
+
+		mock_storage = MagicMock()
+		mock_storage.get_realesrgan_model_path.return_value = str(model_path)
 
 		with (
-			patch.dict(
-				sys.modules,
-				{
-					'basicsr': MagicMock(),
-					'basicsr.archs': MagicMock(),
-					'basicsr.archs.rrdbnet_arch': MagicMock(RRDBNet=mock_rrdbnet),
-				},
-			),
-			patch.dict(sys.modules, {'realesrgan': MagicMock(RealESRGANer=mock_realesrganer_class)}),
-			patch('config.CACHE_FOLDER', str(tmp_path)),
+			patch('app.cores.generation.realesrgan_upscaler.RRDBNet', MagicMock()),
+			patch('app.cores.generation.realesrgan_upscaler.RealESRGANer', return_value=mock_model),
+			patch('app.cores.generation.realesrgan_upscaler.storage_service', mock_storage),
 		):
 			upscaler.upscale(sample_images, UpscalerType.REALESRGAN_X2PLUS, 2.0)
 
@@ -177,29 +141,20 @@ class TestRealESRGANUpscaler:
 
 	def test_cleanup_called_on_error(self, upscaler, sample_images, tmp_path):
 		"""Test that cleanup is called even when upscaling fails."""
-		model_path = tmp_path / 'realesrgan' / 'RealESRGAN_x2plus.pth'
-		model_path.parent.mkdir(parents=True, exist_ok=True)
+		model_path = tmp_path / 'RealESRGAN_x2plus.pth'
 		model_path.touch()
-
-		mock_rrdbnet = MagicMock()
-		mock_realesrganer_class = MagicMock()
 
 		mock_model = MagicMock()
 		mock_model.enhance.side_effect = RuntimeError('Upscaling failed')
 		mock_model.scale = 2
-		mock_realesrganer_class.return_value = mock_model
+
+		mock_storage = MagicMock()
+		mock_storage.get_realesrgan_model_path.return_value = str(model_path)
 
 		with (
-			patch.dict(
-				sys.modules,
-				{
-					'basicsr': MagicMock(),
-					'basicsr.archs': MagicMock(),
-					'basicsr.archs.rrdbnet_arch': MagicMock(RRDBNet=mock_rrdbnet),
-				},
-			),
-			patch.dict(sys.modules, {'realesrgan': MagicMock(RealESRGANer=mock_realesrganer_class)}),
-			patch('config.CACHE_FOLDER', str(tmp_path)),
+			patch('app.cores.generation.realesrgan_upscaler.RRDBNet', MagicMock()),
+			patch('app.cores.generation.realesrgan_upscaler.RealESRGANer', return_value=mock_model),
+			patch('app.cores.generation.realesrgan_upscaler.storage_service', mock_storage),
 		):
 			with pytest.raises(RuntimeError):
 				upscaler.upscale(sample_images, UpscalerType.REALESRGAN_X2PLUS, 2.0)
@@ -208,30 +163,21 @@ class TestRealESRGANUpscaler:
 
 	def test_target_scale_resize(self, upscaler, sample_images, tmp_path):
 		"""Test that images are resized when target scale differs from native."""
-		model_path = tmp_path / 'realesrgan' / 'RealESRGAN_x4plus.pth'
-		model_path.parent.mkdir(parents=True, exist_ok=True)
+		model_path = tmp_path / 'RealESRGAN_x4plus.pth'
 		model_path.touch()
-
-		mock_rrdbnet = MagicMock()
-		mock_realesrganer_class = MagicMock()
 
 		upscaled_array = np.zeros((2048, 2048, 3), dtype=np.uint8)
 		mock_model = MagicMock()
 		mock_model.enhance.return_value = (upscaled_array, None)
 		mock_model.scale = 4
-		mock_realesrganer_class.return_value = mock_model
+
+		mock_storage = MagicMock()
+		mock_storage.get_realesrgan_model_path.return_value = str(model_path)
 
 		with (
-			patch.dict(
-				sys.modules,
-				{
-					'basicsr': MagicMock(),
-					'basicsr.archs': MagicMock(),
-					'basicsr.archs.rrdbnet_arch': MagicMock(RRDBNet=mock_rrdbnet),
-				},
-			),
-			patch.dict(sys.modules, {'realesrgan': MagicMock(RealESRGANer=mock_realesrganer_class)}),
-			patch('config.CACHE_FOLDER', str(tmp_path)),
+			patch('app.cores.generation.realesrgan_upscaler.RRDBNet', MagicMock()),
+			patch('app.cores.generation.realesrgan_upscaler.RealESRGANer', return_value=mock_model),
+			patch('app.cores.generation.realesrgan_upscaler.storage_service', mock_storage),
 		):
 			result = upscaler.upscale(sample_images, UpscalerType.REALESRGAN_X4PLUS, 3.0)
 
@@ -242,60 +188,22 @@ class TestRealESRGANUpscaler:
 		"""Test that model is downloaded when not cached."""
 		mock_downloader = MagicMock()
 		mock_pypdl_class = MagicMock(return_value=mock_downloader)
-		mock_rrdbnet = MagicMock()
-		mock_realesrganer_class = MagicMock()
 
 		upscaled_array = np.zeros((1024, 1024, 3), dtype=np.uint8)
 		mock_model = MagicMock()
 		mock_model.enhance.return_value = (upscaled_array, None)
 		mock_model.scale = 2
-		mock_realesrganer_class.return_value = mock_model
 
-		# Create mock pypdl module
-		mock_pypdl_module = MagicMock()
-		mock_pypdl_module.Pypdl = mock_pypdl_class
+		# Return path that doesn't exist to trigger download
+		mock_storage = MagicMock()
+		mock_storage.get_realesrgan_model_path.return_value = str(tmp_path / 'RealESRGAN_x2plus.pth')
 
 		with (
-			patch.dict(sys.modules, {'pypdl': mock_pypdl_module}),
-			patch.dict(
-				sys.modules,
-				{
-					'basicsr': MagicMock(),
-					'basicsr.archs': MagicMock(),
-					'basicsr.archs.rrdbnet_arch': MagicMock(RRDBNet=mock_rrdbnet),
-				},
-			),
-			patch.dict(sys.modules, {'realesrgan': MagicMock(RealESRGANer=mock_realesrganer_class)}),
-			patch('config.CACHE_FOLDER', str(tmp_path)),
+			patch('app.cores.generation.realesrgan_upscaler.Pypdl', mock_pypdl_class),
+			patch('app.cores.generation.realesrgan_upscaler.RRDBNet', MagicMock()),
+			patch('app.cores.generation.realesrgan_upscaler.RealESRGANer', return_value=mock_model),
+			patch('app.cores.generation.realesrgan_upscaler.storage_service', mock_storage),
 		):
-			# Force re-import to pick up mocked module
-			import importlib
-
-			import app.cores.generation.realesrgan_upscaler
-
-			importlib.reload(app.cores.generation.realesrgan_upscaler)
-			fresh_upscaler = app.cores.generation.realesrgan_upscaler.RealESRGANUpscaler()
-
-			fresh_upscaler.upscale(sample_images, UpscalerType.REALESRGAN_X2PLUS, 2.0)
+			upscaler.upscale(sample_images, UpscalerType.REALESRGAN_X2PLUS, 2.0)
 
 			mock_downloader.start.assert_called_once()
-
-	def test_pil_to_numpy_conversion(self, upscaler):
-		"""Test PIL to numpy conversion produces BGR array."""
-		pil_image = Image.new('RGB', (100, 100), color=(255, 0, 0))
-		numpy_array = upscaler._pil_to_numpy(pil_image)
-
-		assert numpy_array.shape == (100, 100, 3)
-		assert numpy_array[0, 0, 0] == 0
-		assert numpy_array[0, 0, 2] == 255
-
-	def test_numpy_to_pil_conversion(self, upscaler):
-		"""Test numpy to PIL conversion produces RGB image."""
-		bgr_array = np.zeros((100, 100, 3), dtype=np.uint8)
-		bgr_array[:, :, 0] = 255  # Blue channel in BGR
-		pil_image = upscaler._numpy_to_pil(bgr_array)
-
-		assert pil_image.size == (100, 100)
-		assert pil_image.mode == 'RGB'
-		# BGR [255, 0, 0] -> RGB [0, 0, 255] (blue)
-		assert pil_image.getpixel((0, 0)) == (0, 0, 255)

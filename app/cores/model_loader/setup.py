@@ -1,8 +1,8 @@
-from typing import Optional
+from typing import Optional, cast
 
 from app.cores.gpu_utils import cleanup_gpu_model
 from app.cores.platform_optimizations import get_optimizer
-from app.schemas.model_loader import DiffusersPipeline
+from app.schemas.model_loader import DiffusersPipeline, DiffusersPipelineProtocol
 from app.services import device_service, logger_service
 
 from .cancellation import CancellationToken
@@ -18,13 +18,15 @@ def apply_device_optimizations(pipe: DiffusersPipeline) -> None:
 
 
 def move_to_device(pipe: DiffusersPipeline, device: str, log_prefix: str) -> DiffusersPipeline:
+	protocol_pipe = cast(DiffusersPipelineProtocol, pipe)
 	try:
-		pipe = pipe.to_empty(device)
+		result = protocol_pipe.to_empty(device)
 		logger.info(f'{log_prefix}, moved to {device} device using to_empty()')
 	except (AttributeError, TypeError):
-		pipe = pipe.to(device)
+		result = protocol_pipe.to(device)
 		logger.info(f'{log_prefix}, moved to {device} device using to()')
-	return pipe
+
+	return cast(DiffusersPipeline, result)
 
 
 def cleanup_partial_load(pipe: Optional[DiffusersPipeline]) -> None:
@@ -59,7 +61,7 @@ def finalize_model_setup(
 
 	emit_progress(model_id, 7, 'Moving model to device...')
 
-	pipe = move_to_device(pipe, device_service.device, f'Pipeline {model_id}')
+	pipe = move_to_device(pipe, device_service.device.value, f'Pipeline {model_id}')
 
 	if cancel_token:
 		cancel_token.check_cancelled()

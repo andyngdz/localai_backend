@@ -12,6 +12,7 @@ from app.cores.model_loader.setup import (
 	finalize_model_setup,
 	move_to_device,
 )
+from app.services.device import DeviceType
 
 
 def return_first_arg(arg: Any, *args: Any, **kwargs: Any) -> Any:
@@ -109,7 +110,7 @@ class TestFinalizeModelSetup:
 		mock_move: Mock,
 		mock_optimize: Mock,
 	) -> None:
-		mock_device_service.device = 'cuda'
+		mock_device_service.device = DeviceType.CUDA
 		mock_pipe = Mock()
 		mock_pipe.reset_device_map = Mock()
 
@@ -132,7 +133,7 @@ class TestFinalizeModelSetup:
 		mock_move: Mock,
 		mock_optimize: Mock,
 	) -> None:
-		mock_device_service.device = 'cuda'
+		mock_device_service.device = DeviceType.CUDA
 		mock_pipe = Mock()
 		cancel_token = Mock(spec=CancellationToken)
 
@@ -151,7 +152,7 @@ class TestFinalizeModelSetup:
 		mock_move: Mock,
 		mock_optimize: Mock,
 	) -> None:
-		mock_device_service.device = 'cuda'
+		mock_device_service.device = DeviceType.CUDA
 		mock_pipe = Mock(spec=['to', 'to_empty'])
 		# Ensure no reset_device_map attribute
 		del mock_pipe.reset_device_map

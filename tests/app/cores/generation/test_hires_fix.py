@@ -85,8 +85,8 @@ class TestHiresFixProcessor:
 			mock_upscaler.upscale.assert_called_once_with(
 				generator_config,
 				mock_pipe,
-				sample_images,
 				torch_generator,
+				sample_images,
 				scale_factor=2.0,
 				upscaler_type=UpscalerType.LANCZOS,
 				hires_steps=15,

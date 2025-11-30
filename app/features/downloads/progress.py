@@ -78,7 +78,7 @@ class DownloadProgress(BaseTqdm):
 		self.downloaded_size: int = 0
 		self.total_downloaded_size: int = sum(self.file_sizes)
 		self.completed_files_size: int = 0
-		self.current_file: str | None = None
+		self.current_file: Optional[str] = None
 
 		# Throttling to prevent websocket spam (huge performance boost)
 		self.last_emit_time: float = time.time()

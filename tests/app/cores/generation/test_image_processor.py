@@ -4,10 +4,13 @@ import os
 from datetime import datetime
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
+
+from app.cores.generation.image_processor import image_processor as img_processor
 
 
 @pytest.fixture
@@ -20,14 +23,16 @@ def image_processor():
 
 class TestIsNsfwContentDetected:
 	def test_returns_nsfw_flags_when_detected(self, image_processor):
-		output = StableDiffusionPipelineOutput(nsfw_content_detected=[True, False, True], images=[None, None, None])
+		placeholder_images = [Image.new('RGB', (1, 1))] * 3
+		output = StableDiffusionPipelineOutput(nsfw_content_detected=[True, False, True], images=placeholder_images)
 
 		result = image_processor.is_nsfw_content_detected(output)
 
 		assert result == [True, False, True]
 
 	def test_returns_false_list_when_no_nsfw(self, image_processor):
-		output = StableDiffusionPipelineOutput(nsfw_content_detected=None, images=[None, None])
+		placeholder_images = [Image.new('RGB', (1, 1))] * 2
+		output = StableDiffusionPipelineOutput(nsfw_content_detected=None, images=placeholder_images)
 
 		result = image_processor.is_nsfw_content_detected(output)
 
@@ -148,3 +153,29 @@ class TestClearTensorCache:
 
 		# Verify CUDA cache was NOT cleared
 		mock_torch.cuda.empty_cache.assert_not_called()
+
+
+class TestPilToBgrNumpy:
+	def test_converts_rgb_to_bgr(self):
+		"""Test PIL to numpy conversion produces BGR array."""
+		pil_image = Image.new('RGB', (100, 100), color=(255, 0, 0))  # Red in RGB
+
+		numpy_array = img_processor.pil_to_bgr_numpy(pil_image)
+
+		assert numpy_array.shape == (100, 100, 3)
+		assert numpy_array[0, 0, 0] == 0  # Blue channel should be 0
+		assert numpy_array[0, 0, 2] == 255  # Red channel should be 255
+
+
+class TestBgrNumpyToPil:
+	def test_converts_bgr_to_rgb(self):
+		"""Test numpy to PIL conversion produces RGB image."""
+		bgr_array = np.zeros((100, 100, 3), dtype=np.uint8)
+		bgr_array[:, :, 0] = 255  # Blue channel in BGR
+
+		pil_image = img_processor.bgr_numpy_to_pil(bgr_array)
+
+		assert pil_image.size == (100, 100)
+		assert pil_image.mode == 'RGB'
+		# BGR [255, 0, 0] -> RGB [0, 0, 255] (blue)
+		assert pil_image.getpixel((0, 0)) == (0, 0, 255)

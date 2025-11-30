@@ -7,6 +7,10 @@ This file is automatically loaded by pytest before any tests are run.
 import pathlib
 import sys
 
+from app.services import patch_service
+
+patch_service.init()
+
 
 # Add project root to Python path for all tests
 # This is a cleaner approach than modifying sys.path in individual test files

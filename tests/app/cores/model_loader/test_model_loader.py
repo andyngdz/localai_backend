@@ -25,6 +25,7 @@ from app.cores.model_loader.strategies import (
 	find_single_file_checkpoint,
 )
 from app.schemas.model_loader import ModelLoadPhase, PretrainedStrategy, SingleFileStrategy
+from app.services.device import DeviceType
 
 
 def return_first_arg(arg: Any, *args: Any, **kwargs: Any) -> Any:
@@ -155,7 +156,7 @@ class TestSetupHelpers:
 	def test_finalize_model_setup(
 		self, mock_device_service: Mock, mock_emit: Mock, mock_move: Mock, mock_optimize: Mock
 	) -> None:
-		mock_device_service.device = 'cuda'
+		mock_device_service.device = DeviceType.CUDA
 		pipe = Mock()
 		pipe.reset_device_map = Mock()
 		result = finalize_model_setup(pipe, 'mid', cancel_token=None)

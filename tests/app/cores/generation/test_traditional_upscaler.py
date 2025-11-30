@@ -113,8 +113,8 @@ class TestUpscaleStepResolution:
 			upscaler.upscale(
 				config,
 				mock_pipe,
-				sample_images,
 				generator,
+				sample_images,
 				scale_factor=2.0,
 				upscaler_type=UpscalerType.LANCZOS,
 				hires_steps=15,
@@ -157,8 +157,8 @@ class TestUpscaleStepResolution:
 			upscaler.upscale(
 				config,
 				mock_pipe,
-				sample_images,
 				generator,
+				sample_images,
 				scale_factor=2.0,
 				upscaler_type=UpscalerType.LANCZOS,
 				hires_steps=0,
