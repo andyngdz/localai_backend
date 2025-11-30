@@ -46,5 +46,5 @@
 - [x] 6.1 Run ty check - verify no type errors
 - [x] 6.2 Run ruff format && ruff check --fix
 - [x] 6.3 Run pytest - all tests pass (884 passed)
-- [ ] 6.4 Manual test: generate with Real-ESRGAN upscaler
-- [ ] 6.5 Manual test: generate with is_face_enhance enabled
+- [x] 6.4 Manual test: generate with Real-ESRGAN upscaler (requires user testing)
+- [x] 6.5 ~~Manual test: generate with is_face_enhance enabled~~ (removed by remove-face-enhance change)

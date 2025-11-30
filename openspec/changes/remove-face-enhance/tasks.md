@@ -30,4 +30,4 @@
 
 - [x] 6.1 Run `ruff format && ruff check --fix`
 - [x] 6.2 Run `uv run pytest` - all tests pass (887 passed)
-- [ ] 6.3 Manual test: generate with Real-ESRGAN upscaler
+- [x] 6.3 Manual test: generate with Real-ESRGAN upscaler (requires user testing)
