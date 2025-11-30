@@ -51,7 +51,7 @@ app/cores/upscalers/
 | Module | Responsibility | Current Methods |
 |--------|---------------|-----------------|
 | `upscaler.py` | Orchestrate upscaling, image processing | `upscale()`, `_upscale_images()`, `_resize_to_target_scale()` |
-| `model_manager.py` | Download, cache, and load models | `_get_model_path()`, `_load_model()`, `_create_network_model()` |
+| `model_manager.py` | Download, cache, and load models | `_get_model_path()`, `_load_model()`, `_create_network()` |
 | `resource_manager.py` | Cleanup model and free GPU memory | `_cleanup()` |
 
 ### Traditional

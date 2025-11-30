@@ -17,7 +17,7 @@
   - Create `RealESRGANResourceManager` class
 
 - [x] 2.2 Create `app/cores/upscalers/realesrgan/model_manager.py`
-  - Extract `_get_model_path()`, `_load_model()`, `_create_network_model()`
+  - Extract `_get_model_path()`, `_load_model()`, `_create_network()`
   - Create `RealESRGANModelManager` class
 
 - [x] 2.3 Create `app/cores/upscalers/realesrgan/upscaler.py`
