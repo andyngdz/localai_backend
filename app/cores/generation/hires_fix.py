@@ -4,8 +4,8 @@ import torch
 from PIL import Image
 
 from app.constants.upscalers import REALESRGAN_UPSCALERS
-from app.cores.generation.realesrgan_upscaler import realesrgan_upscaler
-from app.cores.generation.traditional_upscaler import traditional_upscaler
+from app.cores.upscalers.realesrgan import realesrgan_upscaler
+from app.cores.upscalers.traditional import traditional_upscaler
 from app.schemas.generators import GeneratorConfig
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service

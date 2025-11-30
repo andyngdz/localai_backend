@@ -1,12 +1,10 @@
-"""Traditional image upscaling with optional img2img refinement."""
-
-from typing import cast
+"""Traditional image upscaling with PIL interpolation."""
 
 import torch
-from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
-from app.schemas.generators import GeneratorConfig, Img2ImgParams, OutputType
+from app.cores.upscalers.traditional.refiner import img2img_refiner
+from app.schemas.generators import GeneratorConfig
 from app.schemas.hires_fix import UpscalerType
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
@@ -54,54 +52,9 @@ class TraditionalUpscaler:
 
 		actual_steps = hires_steps if hires_steps > 0 else config.steps
 		logger.info(f'Running refinement pass with {actual_steps} steps')
-		refined = self.refine(config, pipe, generator, upscaled, actual_steps, denoising_strength)
+		refined = img2img_refiner.refine(config, pipe, generator, upscaled, actual_steps, denoising_strength)
 
 		return refined
-
-	def refine(
-		self,
-		config: GeneratorConfig,
-		pipe: DiffusersPipeline,
-		generator: torch.Generator,
-		images: list[Image.Image],
-		steps: int,
-		denoising_strength: float,
-	) -> list[Image.Image]:
-		"""Run img2img refinement pass to add detail and reduce upscaling blur.
-
-		Args:
-			config: Generator config (prompt, negative_prompt, cfg_scale, etc.)
-			pipe: Diffusion pipeline
-			generator: Torch generator for reproducibility
-			images: Upscaled PIL images
-			steps: Number of inference steps
-			denoising_strength: How much to repaint (0=keep original, 1=fully repaint)
-
-		Returns:
-			Refined PIL images
-		"""
-		batch_size = len(images)
-		width, height = images[0].size
-
-		params = Img2ImgParams(
-			prompt=config.prompt,
-			negative_prompt=config.negative_prompt,
-			num_inference_steps=steps,
-			guidance_scale=config.cfg_scale,
-			generator=generator,
-			clip_skip=config.clip_skip,
-			output_type=OutputType.PIL,
-			strength=denoising_strength,
-			num_images_per_prompt=batch_size,
-			height=height,
-			width=width,
-			image=images,
-		)
-
-		logger.info(f'Img2Img refinement\n{logger_service.format_config(params)}')
-
-		output = cast(StableDiffusionPipelineOutput, pipe(**vars(params)))
-		return cast(list[Image.Image], output.images)
 
 	def _upscale_pil(
 		self,
