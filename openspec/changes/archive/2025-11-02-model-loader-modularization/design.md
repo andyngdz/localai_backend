@@ -47,6 +47,6 @@ app/cores/model_loader/
 
 ```bash
 uv run ruff check app/cores/model_loader
-uv run pyright app/cores/model_loader
+uv run ty check app/cores/model_loader
 uv run pytest tests/app/cores/model_loader/ -v
 ```

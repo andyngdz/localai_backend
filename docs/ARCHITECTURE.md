@@ -15,9 +15,9 @@
 - Tab indentation, single quotes (ruff.toml)
 - Async/await throughout
 - Pydantic schemas for all API responses (never raw dicts)
-- Type hints required (pyright enforced)
+- Type hints required (ty enforced)
 
-**Pre-commit:** Husky runs `ruff format`, `ruff check`, and `pyright` on staged files. Commits blocked if checks fail.
+**Pre-commit:** Husky runs `ruff format`, `ruff check`, and `ty check` on staged files. Commits blocked if checks fail.
 
 ## Avoiding Circular Imports
 

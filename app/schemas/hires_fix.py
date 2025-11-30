@@ -9,15 +9,23 @@ class UpscalerType(str, Enum):
 
 	These methods upscale decoded PIL images, not latent tensors.
 	This preserves image quality by avoiding interpolation of latent space.
+
+	Includes both traditional PIL interpolation and AI-based upscalers.
 	"""
 
 	LANCZOS = 'Lanczos'
 	BICUBIC = 'Bicubic'
 	BILINEAR = 'Bilinear'
 	NEAREST = 'Nearest'
+	REALESRGAN_X2PLUS = 'RealESRGAN_x2plus'
+	REALESRGAN_X4PLUS = 'RealESRGAN_x4plus'
+	REALESRGAN_X4PLUS_ANIME = 'RealESRGAN_x4plus_anime'
 
 	def to_pil_resample(self) -> Image.Resampling:
-		"""Convert to PIL resampling mode."""
+		"""Convert to PIL resampling mode.
+
+		Only valid for PIL-based upscalers (LANCZOS, BICUBIC, BILINEAR, NEAREST).
+		"""
 		mapping = {
 			UpscalerType.LANCZOS: Image.Resampling.LANCZOS,
 			UpscalerType.BICUBIC: Image.Resampling.BICUBIC,
@@ -25,6 +33,14 @@ class UpscalerType(str, Enum):
 			UpscalerType.NEAREST: Image.Resampling.NEAREST,
 		}
 		return mapping[self]
+
+
+class RemoteModel(BaseModel):
+	"""Schema for downloadable model from internet."""
+
+	url: str = Field(..., description='Download URL')
+	filename: str = Field(..., description='Local filename to save as')
+	scale: int = Field(..., description='Upscaling factor (2 or 4)')
 
 
 class HiresFixConfig(BaseModel):

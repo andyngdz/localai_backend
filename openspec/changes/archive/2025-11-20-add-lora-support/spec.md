@@ -66,4 +66,4 @@ As a user, I want to list and delete LoRAs so I can manage my collection.
 - **SC-001**: LoRA upload/list/delete operations work correctly
 - **SC-002**: Generation with multiple LoRAs produces expected output
 - **SC-003**: Memory is cleaned up after generation
-- **SC-004**: All tests pass (ruff, pyright, pytest)
+- **SC-004**: All tests pass (ruff, ty, pytest)

@@ -2,7 +2,7 @@ Metadata-Version: 2.4
 Name: localai-backend
 Version: 0.1.0
 Summary: LocalAI backend server
-Requires-Python: >=3.11.3
+Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: accelerate==1.9.0
@@ -95,12 +95,14 @@ Requires-Dist: pydantic-core==2.33.2
 Requires-Dist: pydash>=8.0.5
 Requires-Dist: pygments==2.19.2
 Requires-Dist: pyopenssl==25.1.0
+Requires-Dist: pypdl>=1.5.7
 Requires-Dist: pytest==8.3.3
 Requires-Dist: pytest-asyncio==0.24.0
 Requires-Dist: pytest-cov==5.0.0
 Requires-Dist: python-engineio==4.12.2
 Requires-Dist: python-socketio==5.14.0
 Requires-Dist: pyyaml==6.0.2
+Requires-Dist: realesrgan>=0.3.0
 Requires-Dist: redis==6.2.0
 Requires-Dist: regex==2025.7.34
 Requires-Dist: requests==2.32.5
@@ -129,6 +131,7 @@ Requires-Dist: thread==2.0.5
 Requires-Dist: tokenizers==0.22.1
 Requires-Dist: torch==2.6.0+cu124
 Requires-Dist: torchsde>=0.2.6
+Requires-Dist: torchvision==0.21.0
 Requires-Dist: tqdm==4.67.1
 Requires-Dist: traitlets==5.14.3
 Requires-Dist: trampoline>=0.1.2

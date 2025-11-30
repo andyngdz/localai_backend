@@ -49,5 +49,9 @@ class StorageService:
 		"""Get the full path for a LoRA file."""
 		return os.path.join(self.get_loras_dir(), filename)
 
+	def get_realesrgan_model_path(self, filename: str) -> str:
+		"""Get the full path for a Real-ESRGAN model file."""
+		return os.path.join(CACHE_FOLDER, 'realesrgan', filename)
+
 
 storage_service = StorageService()

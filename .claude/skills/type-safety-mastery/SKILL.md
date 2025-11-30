@@ -5,7 +5,7 @@ description: Master type safety patterns - fix type errors at source, never use 
 
 # Type Safety Mastery
 
-Fix type errors at their source—never use `# type: ignore` to bypass warnings. When pyright reports an error:
+Fix type errors at their source—never use `# type: ignore` to bypass warnings. When ty reports an error:
 
 - Define proper types (Pydantic models, Protocol)
 - Add type annotations to function signatures when library stubs are incomplete
@@ -109,7 +109,7 @@ def list_files(self, id: str, repo_info: Optional[RepoInfo] = None) -> List[str]
 - **Update existing stubs** when you encounter missing attributes or methods
 - Stubs provide type hints without runtime overhead
 - Follow PEP 561 conventions (`.pyi` extension)
-- Configure `stubPath = "typings"` in `pyproject.toml` under `[tool.pyright]`
+- Configure stub path in `pyproject.toml` under `[tool.ty.src]`
 - Never use runtime assertions (`assert isinstance(...)`) to force types
 - **Never use `TYPE_CHECKING`.** If you have to use it, then you did it wrong. Go back and find the root cause, then fix it
 

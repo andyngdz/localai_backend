@@ -86,7 +86,7 @@ def model_loader(model_id: str, cancel_token: Optional[CancellationToken] = None
 	pipe: Optional[DiffusersPipeline] = None
 
 	try:
-		logger.info(f'Loading model {model_id} to {device_service.device}')
+		logger.info(f'Loading model {model_id} to {device_service.device.value}')
 
 		# Emit start event for frontend lifecycle management
 		socket_service.model_load_started(ModelLoadCompletedResponse(model_id=model_id))

@@ -10,7 +10,7 @@ class OperatingSystem(StrEnum):
 
 	WINDOWS = 'Windows'
 	LINUX = 'Linux'
-	DARWIN = 'Darwin'  # macOS
+	DARWIN = 'Darwin'
 
 	@classmethod
 	def from_platform_system(cls) -> 'OperatingSystem':

@@ -53,8 +53,8 @@ def my_function():
 
 **When creating `.pyi` stubs for external libraries, never use `Any`.**
 
-- ✅ Use `**kwargs` without type annotation (pyright infers `dict[str, Unknown]`)
-- ✅ Omit return type annotations when uncertain (let pyright infer)
+- ✅ Use `**kwargs` without type annotation (ty infers `dict[str, Unknown]`)
+- ✅ Omit return type annotations when uncertain (let ty infer)
 - ✅ Keep stubs minimal - only stub what you actually use
 - ❌ Never use `Any` - defeats the purpose of type stubs
 
@@ -73,7 +73,7 @@ class AutoPipelineForText2Image:
 	def __call__(self, **kwargs: Any) -> Any: ...  # Don't do this
 ```
 
-**Rationale:** Type stubs exist to improve type safety. Using `Any` removes all type checking benefits. Omitting type annotations lets pyright infer `Unknown`, which still provides type safety while being explicit about uncertainty.
+**Rationale:** Type stubs exist to improve type safety. Using `Any` removes all type checking benefits. Omitting type annotations lets ty infer `Unknown`, which still provides type safety while being explicit about uncertainty.
 
 ## Documentation
 

@@ -1,6 +1,7 @@
 from enum import Enum
-from typing import Literal, Optional, TypeAlias, Union
+from typing import Literal, Optional, Protocol, TypeAlias, Union
 
+import torch
 from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
 from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import StableDiffusion3Pipeline
@@ -66,6 +67,17 @@ class PretrainedStrategy(BaseModel):
 
 
 Strategy = Union[SingleFileStrategy, PretrainedStrategy]
+
+
+class DiffusersPipelineProtocol(Protocol):
+	"""Protocol defining common interface for all diffusers pipelines."""
+
+	device: torch.device
+	dtype: torch.dtype
+
+	def to(self, device: Optional[Union[str, torch.device]] = None) -> 'DiffusersPipelineProtocol': ...
+	def to_empty(self, device: Optional[Union[str, torch.device]] = None) -> 'DiffusersPipelineProtocol': ...
+	def __call__(self, **kwargs): ...
 
 
 # Type alias for diffusers pipelines - includes both auto pipelines and specific implementations

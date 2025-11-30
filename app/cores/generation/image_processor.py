@@ -4,8 +4,10 @@ import os
 from datetime import datetime
 from typing import Optional
 
+import numpy as np
 import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
+from numpy.typing import NDArray
 from PIL import Image
 
 from app.services import logger_service
@@ -157,6 +159,31 @@ class ImageProcessor:
 			del rgb_tensor
 
 		return Image.fromarray(image_array)
+
+	def pil_to_bgr_numpy(self, image: Image.Image) -> NDArray[np.uint8]:
+		"""Convert PIL image to numpy array in BGR format.
+
+		Args:
+			image: PIL Image in RGB format
+
+		Returns:
+			Numpy array in BGR format (for OpenCV/Real-ESRGAN compatibility)
+		"""
+		rgb_array = np.array(image)
+		bgr_array: NDArray[np.uint8] = rgb_array[:, :, ::-1]
+		return bgr_array
+
+	def bgr_numpy_to_pil(self, array: NDArray[np.uint8]) -> Image.Image:
+		"""Convert numpy array in BGR format to PIL image.
+
+		Args:
+			array: Numpy array in BGR format
+
+		Returns:
+			PIL Image in RGB format
+		"""
+		rgb_array = array[:, :, ::-1]
+		return Image.fromarray(rgb_array)
 
 
 image_processor = ImageProcessor()
