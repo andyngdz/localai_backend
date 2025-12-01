@@ -1,13 +1,12 @@
 """Main entry point for the LocalAI Backend application."""
 
+import asyncio
 import os
+from contextlib import asynccontextmanager
 
 # Configure PyTorch memory allocator BEFORE importing torch (critical for memory management)
 # This reduces GPU memory fragmentation which causes OOM errors
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
-
-import asyncio
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -28,7 +27,7 @@ from app.features.models import models
 from app.features.resizes import resizes
 from app.features.styles import styles
 from app.features.users import users
-from app.services import logger_service, patch_service, platform_service, storage_service
+from app.services import logger_service, platform_service, storage_service
 from app.socket import socket_service
 from config import STATIC_FOLDER
 
@@ -37,7 +36,6 @@ from config import STATIC_FOLDER
 async def lifespan(app: FastAPI):
 	"""Startup event"""
 
-	patch_service.init()
 	logger_service.init()
 	storage_service.init()
 	platform_service.init()

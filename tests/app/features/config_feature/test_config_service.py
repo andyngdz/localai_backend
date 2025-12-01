@@ -70,3 +70,28 @@ class TestConfigService:
 
 		for item in result:
 			assert 0.0 <= item.suggested_denoise_strength <= 1.0
+
+	def test_upscalers_have_is_recommended_field(self):
+		"""Test that all upscalers have is_recommended field."""
+		result = self.service.get_upscalers()
+
+		for item in result:
+			assert isinstance(item.is_recommended, bool)
+
+	def test_realesrgan_upscalers_are_recommended(self):
+		"""Test that RealESRGAN upscalers are marked as recommended."""
+		result = self.service.get_upscalers()
+		realesrgan_values = ['RealESRGAN_x2plus', 'RealESRGAN_x4plus', 'RealESRGAN_x4plus_anime']
+
+		for item in result:
+			if item.value in realesrgan_values:
+				assert item.is_recommended is True
+
+	def test_traditional_upscalers_are_not_recommended(self):
+		"""Test that traditional upscalers are not marked as recommended."""
+		result = self.service.get_upscalers()
+		traditional_values = ['Lanczos', 'Bicubic', 'Bilinear', 'Nearest']
+
+		for item in result:
+			if item.value in traditional_values:
+				assert item.is_recommended is False
