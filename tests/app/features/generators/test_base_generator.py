@@ -1,7 +1,8 @@
 """Tests for base_generator module."""
 
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import AsyncMock, Mock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 import torch
@@ -9,6 +10,17 @@ from PIL import Image
 
 from app.schemas.generators import GeneratorConfig
 from app.schemas.hires_fix import HiresFixConfig, UpscalerType
+
+
+def create_mock_run_in_executor(mock_output: Mock):
+	"""Create a mock for run_in_executor that properly returns a future."""
+
+	def mock_run_in_executor(executor, func):
+		future: asyncio.Future[Mock] = asyncio.Future()
+		future.set_result(func())
+		return future
+
+	return mock_run_in_executor
 
 
 @pytest.fixture
@@ -87,11 +99,10 @@ class TestExecutePipeline:
 		mock_pipe.return_value = mock_output
 		mock_latent_decoder.decode_latents.return_value = [Mock()]
 		mock_latent_decoder.run_safety_checker.return_value = ([Mock()], [False])
-		mock_executor.submit = Mock(return_value=AsyncMock(return_value=mock_output)())
 
 		# Execute
 		with patch('asyncio.get_event_loop') as mock_loop:
-			mock_loop.return_value.run_in_executor = AsyncMock(return_value=mock_output)
+			mock_loop.return_value.run_in_executor = create_mock_run_in_executor(mock_output)
 			await generator.execute_pipeline(sample_config, 'positive', 'negative')
 
 		# Verify sampler was set
@@ -133,7 +144,7 @@ class TestExecutePipeline:
 
 		# Execute
 		with patch('asyncio.get_event_loop') as mock_loop:
-			mock_loop.return_value.run_in_executor = AsyncMock(return_value=mock_output)
+			mock_loop.return_value.run_in_executor = create_mock_run_in_executor(mock_output)
 			await generator.execute_pipeline(sample_config, 'positive', 'negative')
 
 		# Verify hires fix was NOT called
@@ -195,12 +206,7 @@ class TestExecutePipeline:
 
 		# Execute
 		with patch('asyncio.get_event_loop') as mock_loop:
-
-			async def mock_executor_func(executor, func):
-				# Execute the function and return result
-				return func()
-
-			mock_loop.return_value.run_in_executor = mock_executor_func
+			mock_loop.return_value.run_in_executor = create_mock_run_in_executor(mock_output)
 			await generator.execute_pipeline(config, 'positive', 'negative')
 
 		# Verify logging
@@ -267,11 +273,7 @@ class TestApplyHiresFixToSafeImages:
 
 		# Execute
 		with patch('asyncio.get_event_loop') as mock_loop:
-
-			async def mock_executor_func(executor, func):
-				return func()
-
-			mock_loop.return_value.run_in_executor = mock_executor_func
+			mock_loop.return_value.run_in_executor = create_mock_run_in_executor(mock_output)
 			await generator.execute_pipeline(config, 'positive', 'negative')
 
 		# Verify hires fix was NOT called and warning was logged
