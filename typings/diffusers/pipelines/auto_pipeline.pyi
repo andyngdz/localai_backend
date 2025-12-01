@@ -4,74 +4,9 @@ from collections.abc import Mapping
 from typing import Optional, Union
 
 import torch
-from PIL import Image
 from transformers import CLIPImageProcessor
 
-class SchedulerConfig:
-	"""Scheduler configuration."""
-
-	def __getattr__(self, name: str): ...
-
-class UNetConfig:
-	"""UNet configuration."""
-
-	sample_size: int
-	def __getattr__(self, name: str): ...
-
-class Scheduler:
-	"""Base scheduler class."""
-
-	config: SchedulerConfig
-	@classmethod
-	def from_config(cls, config: SchedulerConfig, **kwargs) -> 'Scheduler': ...
-
-class UNet:
-	"""UNet model."""
-
-	config: UNetConfig
-
-class VAEConfig:
-	"""VAE configuration."""
-
-	scaling_factor: float
-	def __getattr__(self, name: str): ...
-
-class DecoderOutput:
-	"""Output of VAE decoding."""
-
-	sample: torch.Tensor
-
-class VAE:
-	"""VAE model for encoding/decoding images."""
-
-	config: VAEConfig
-	def decode(self, latents: torch.Tensor, return_dict: bool = True, **kwargs) -> DecoderOutput: ...
-	def encode(self, images: torch.Tensor, return_dict: bool = True, **kwargs): ...
-
-class ImageProcessor:
-	"""Image processor for post-processing."""
-
-	def postprocess(
-		self,
-		images: torch.Tensor,
-		output_type: str = 'pil',
-		do_denormalize: Optional[list[bool]] = None,
-		**kwargs,
-	) -> list[Image.Image]:
-		"""Post-process tensor images to PIL Images.
-
-		When output_type='pil' (default), returns list of PIL Images.
-		"""
-		...
-
-class StableDiffusionSafetyChecker:
-	"""Safety checker for detecting NSFW content."""
-
-	def __call__(
-		self,
-		images: list[Image.Image],
-		clip_input: torch.Tensor,
-	) -> tuple[list[Image.Image], list[bool]]: ...
+from .. import VAE, ImageProcessor, Scheduler, StableDiffusionSafetyChecker, UNet
 
 class AutoPipelineForText2Image:
 	"""Auto pipeline for text-to-image generation."""

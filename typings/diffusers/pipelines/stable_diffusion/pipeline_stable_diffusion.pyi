@@ -1,17 +1,5 @@
 """Type stubs for diffusers pipeline_stable_diffusion module."""
 
-from typing import Optional
+from .pipeline_output import StableDiffusionPipelineOutput
 
-from PIL import Image
-
-class StableDiffusionPipelineOutput:
-	"""Output from Stable Diffusion pipeline."""
-
-	images: list[Image.Image]
-	nsfw_content_detected: Optional[list[bool]]
-
-	def __init__(
-		self,
-		images: list[Image.Image],
-		nsfw_content_detected: Optional[list[bool]] = None,
-	) -> None: ...
+__all__ = ['StableDiffusionPipelineOutput']

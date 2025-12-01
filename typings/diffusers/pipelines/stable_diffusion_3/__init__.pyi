@@ -4,8 +4,9 @@ from collections.abc import Mapping
 from typing import Optional, Union
 
 import torch
-from diffusers import VAE, ImageProcessor, Scheduler, StableDiffusionSafetyChecker, UNet
 from transformers import CLIPImageProcessor
+
+from ... import VAE, ImageProcessor, Scheduler, StableDiffusionSafetyChecker, UNet
 
 class StableDiffusion3Pipeline:
 	"""Stable Diffusion 3 pipeline."""
