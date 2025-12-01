@@ -278,13 +278,14 @@ class TestCancelCurrentLoad:
 
 		cancel_token = CancellationToken()
 		self.loader_service.cancel_token = cancel_token
-		self.loader_service.loading_task = asyncio.create_task(fake_load_task())
+		task = asyncio.create_task(fake_load_task())
+		self.loader_service.loading_task = task
 
 		# Execute
 		await self.loader_service.cancel_current_load()
 
 		# Verify task completed
-		assert self.loader_service.loading_task.done() is True
+		assert task.done() is True
 
 	@pytest.mark.asyncio
 	async def test_cancel_current_load_handles_no_cancel_token(self):
@@ -307,8 +308,9 @@ class TestCancelCurrentLoad:
 
 		cancel_token = CancellationToken()
 		self.loader_service.cancel_token = cancel_token
-		self.loader_service.loading_task = asyncio.create_task(completed_task())
-		await self.loader_service.loading_task  # Wait for completion
+		task = asyncio.create_task(completed_task())
+		self.loader_service.loading_task = task
+		await task  # Wait for completion
 
 		# Execute - should not hang
 		await self.loader_service.cancel_current_load()

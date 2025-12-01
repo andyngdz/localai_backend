@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from typing import Optional, Union
 
 import torch
-from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from PIL import Image
 from transformers import CLIPImageProcessor
 
@@ -24,7 +23,7 @@ class Scheduler:
 
 	config: SchedulerConfig
 	@classmethod
-	def from_config(cls, config: SchedulerConfig, **kwargs): ...
+	def from_config(cls, config: SchedulerConfig, **kwargs) -> 'Scheduler': ...
 
 class UNet:
 	"""UNet model."""
@@ -64,6 +63,15 @@ class ImageProcessor:
 		When output_type='pil' (default), returns list of PIL Images.
 		"""
 		...
+
+class StableDiffusionSafetyChecker:
+	"""Safety checker for detecting NSFW content."""
+
+	def __call__(
+		self,
+		images: list[Image.Image],
+		clip_input: torch.Tensor,
+	) -> tuple[list[Image.Image], list[bool]]: ...
 
 class AutoPipelineForText2Image:
 	"""Auto pipeline for text-to-image generation."""

@@ -6,6 +6,8 @@ from numpy.typing import NDArray
 class RealESRGANer:
 	"""Real-ESRGAN upscaler class."""
 
+	scale: int
+
 	def __init__(
 		self,
 		scale: int,

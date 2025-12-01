@@ -54,13 +54,13 @@ class TestDownloadServiceStart:
 	@pytest.mark.asyncio
 	async def test_invokes_download_model_in_executor(self, mock_service: tuple[DownloadService, Mock, Mock]) -> None:
 		service, _, _ = mock_service
-		service.download_model = Mock(return_value='/fake/path')
 		mock_db = Mock()
 
-		result = await service.start('test/repo', mock_db)
+		with patch.object(service, 'download_model', return_value='/fake/path') as mock_download:
+			result = await service.start('test/repo', mock_db)
 
-		assert result == '/fake/path'
-		service.download_model.assert_called_once_with('test/repo', mock_db)
+			assert result == '/fake/path'
+			mock_download.assert_called_once_with('test/repo', mock_db)
 
 
 class TestDownloadModelValidation:
@@ -312,13 +312,14 @@ class TestListFiles:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
-		repository.api = Mock()
-		repository.api.repo_info.return_value = SimpleNamespace(
+		mock_api = Mock()
+		mock_api.repo_info.return_value = SimpleNamespace(
 			siblings=[
 				SimpleNamespace(rfilename='a.txt'),
 				SimpleNamespace(rfilename='b/c.bin'),
 			]
 		)
+		repository.api = mock_api
 
 		result = repository.list_files('test/repo')
 
@@ -328,8 +329,9 @@ class TestListFiles:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
-		repository.api = Mock()
-		repository.api.repo_info.return_value = SimpleNamespace(siblings=[])
+		mock_api = Mock()
+		mock_api.repo_info.return_value = SimpleNamespace(siblings=[])
+		repository.api = mock_api
 
 		result = repository.list_files('test/repo')
 
@@ -341,13 +343,14 @@ class TestGetFileSizesMap:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
-		repository.api = Mock()
-		repository.api.repo_info.return_value = SimpleNamespace(
+		mock_api = Mock()
+		mock_api.repo_info.return_value = SimpleNamespace(
 			siblings=[
 				SimpleNamespace(rfilename='file1.bin', size=100),
 				SimpleNamespace(rfilename='file2.bin', size=200),
 			]
 		)
+		repository.api = mock_api
 
 		result = repository.get_file_sizes_map('test/repo')
 
@@ -358,14 +361,15 @@ class TestGetFileSizesMap:
 		from app.features.downloads.repository import HuggingFaceRepository
 
 		repository = HuggingFaceRepository()
-		repository.api = Mock()
-		repository.api.repo_info.return_value = SimpleNamespace(
+		mock_api = Mock()
+		mock_api.repo_info.return_value = SimpleNamespace(
 			siblings=[
 				SimpleNamespace(rfilename='file1.bin', size=100),
 				SimpleNamespace(rfilename='file2.bin'),
 				SimpleNamespace(rfilename='file3.bin', size=None),
 			]
 		)
+		repository.api = mock_api
 
 		result = repository.get_file_sizes_map('test/repo')
 
