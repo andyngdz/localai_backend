@@ -4,14 +4,13 @@ from collections.abc import Mapping
 from typing import Optional, Union
 
 import torch
-from diffusers.pipelines.auto_pipeline import VAE, ImageProcessor, Scheduler, UNet
-from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import CLIPImageProcessor
+
+from ... import VAE, ImageProcessor, Scheduler, StableDiffusionSafetyChecker, UNet
 
 class StableDiffusion3Pipeline:
 	"""Stable Diffusion 3 pipeline."""
 
-	# Core components
 	scheduler: Scheduler
 	unet: UNet
 	vae: VAE

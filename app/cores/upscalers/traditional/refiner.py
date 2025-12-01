@@ -59,7 +59,7 @@ class Img2ImgRefiner:
 		logger.info(f'Img2Img refinement\n{logger_service.format_config(params)}')
 
 		output = cast(StableDiffusionPipelineOutput, pipe(**vars(params)))
-		return cast(list[Image.Image], output.images)
+		return output.images
 
 
 img2img_refiner = Img2ImgRefiner()

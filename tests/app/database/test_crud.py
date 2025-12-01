@@ -116,6 +116,7 @@ class TestGetLoRAById:
 		result = database_service.get_lora_by_id(mock_db, 123)
 
 		# Assert
+		assert result is not None
 		assert result == mock_lora
 		assert result.id == 123
 		mock_db.query.assert_called_once_with(LoRA)
@@ -163,6 +164,7 @@ class TestGetLoRAByFilePath:
 		result = database_service.get_lora_by_file_path(mock_db, '/cache/loras/test.safetensors')
 
 		# Assert
+		assert result is not None
 		assert result == mock_lora
 		assert result.file_path == '/cache/loras/test.safetensors'
 		mock_db.query.assert_called_once_with(LoRA)

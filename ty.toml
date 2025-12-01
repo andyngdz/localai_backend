@@ -4,8 +4,5 @@
 [environment]
 # Project root directory
 root = ["."]
-
-# Disable call-non-callable rule due to diffusers pipeline type stub limitations
-# TODO: Implement proper Protocol-based callable types for pipelines
-[rules]
-call-non-callable = "ignore"
+# Custom type stubs directory
+extra-paths = ["typings"]

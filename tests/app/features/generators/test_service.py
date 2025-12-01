@@ -105,11 +105,9 @@ class TestGenerateImageOrchestration:
 		service, _, mock_config_validator, *_ = mock_service
 
 		# Mock generator to avoid actual execution
-		service.generator.execute_pipeline = AsyncMock(
-			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		)
-
-		await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
 
 		mock_config_validator.validate_config.assert_called_once_with(sample_config)
 
@@ -120,11 +118,9 @@ class TestGenerateImageOrchestration:
 		"""Test that resource preparation is called."""
 		service, _, _, mock_resource_manager, *_ = mock_service
 
-		service.generator.execute_pipeline = AsyncMock(
-			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		)
-
-		await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
 
 		mock_resource_manager.prepare_for_generation.assert_called_once()
 
@@ -136,11 +132,9 @@ class TestGenerateImageOrchestration:
 		service, _, _, _, mock_lora_loader, *_ = mock_service
 		mock_lora_loader.load_loras_for_generation.return_value = True
 
-		service.generator.execute_pipeline = AsyncMock(
-			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		)
-
-		await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
 
 		mock_lora_loader.load_loras_for_generation.assert_called_once_with(sample_config, mock_db)
 
@@ -151,11 +145,9 @@ class TestGenerateImageOrchestration:
 		"""Test that prompts are processed through prompt_processor."""
 		service, _, _, _, _, mock_prompt_processor, _ = mock_service
 
-		service.generator.execute_pipeline = AsyncMock(
-			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		)
-
-		await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
 
 		mock_prompt_processor.prepare_prompts.assert_called_once_with(sample_config)
 
@@ -167,13 +159,11 @@ class TestGenerateImageOrchestration:
 		service, _, *_, mock_prompt_processor, _ = mock_service
 		mock_prompt_processor.prepare_prompts.return_value = ('positive_test', 'negative_test')
 
-		service.generator.execute_pipeline = AsyncMock(
-			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
 
-		await service.generate_image(sample_config, mock_db)
-
-		service.generator.execute_pipeline.assert_called_once_with(sample_config, 'positive_test', 'negative_test')
+			mock_execute.assert_called_once_with(sample_config, 'positive_test', 'negative_test')
 
 	@pytest.mark.asyncio
 	async def test_builds_response_from_output(
@@ -183,9 +173,9 @@ class TestGenerateImageOrchestration:
 		service, _, *_, mock_response_builder = mock_service
 
 		mock_output = Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		service.generator.execute_pipeline = AsyncMock(return_value=mock_output)
-
-		await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(return_value=mock_output)
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
 
 		mock_response_builder.build_response.assert_called_once()
 
@@ -196,11 +186,9 @@ class TestGenerateImageOrchestration:
 		"""Test that method returns ImageGenerationResponse."""
 		service, *_ = mock_service
 
-		service.generator.execute_pipeline = AsyncMock(
-			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		)
-
-		result = await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			result = await service.generate_image(sample_config, mock_db)
 
 		assert isinstance(result, ImageGenerationResponse)
 		assert len(result.items) == 1
@@ -238,10 +226,10 @@ class TestGenerateImageErrorHandling:
 	) -> None:
 		"""Test FileNotFoundError handling."""
 		service, *_ = mock_service
-		service.generator.execute_pipeline = AsyncMock(side_effect=FileNotFoundError('Model files missing'))
-
-		with pytest.raises(ValueError, match='Required files not found'):
-			await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(side_effect=FileNotFoundError('Model files missing'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Required files not found'):
+				await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
 	async def test_handles_oom_error_and_calls_cleanup(
@@ -249,10 +237,10 @@ class TestGenerateImageErrorHandling:
 	) -> None:
 		"""Test OOM error handling."""
 		service, _, _, mock_resource_manager, *_ = mock_service
-		service.generator.execute_pipeline = AsyncMock(side_effect=torch.cuda.OutOfMemoryError('CUDA OOM'))
-
-		with pytest.raises(ValueError, match='Out of memory error'):
-			await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(side_effect=torch.cuda.OutOfMemoryError('CUDA OOM'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Out of memory error'):
+				await service.generate_image(sample_config, mock_db)
 
 		mock_resource_manager.handle_oom_error.assert_called_once()
 
@@ -262,10 +250,10 @@ class TestGenerateImageErrorHandling:
 	) -> None:
 		"""Test general exception handling."""
 		service, *_ = mock_service
-		service.generator.execute_pipeline = AsyncMock(side_effect=RuntimeError('Something went wrong'))
-
-		with pytest.raises(ValueError, match='Failed to generate image'):
-			await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(side_effect=RuntimeError('Something went wrong'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Failed to generate image'):
+				await service.generate_image(sample_config, mock_db)
 
 
 class TestGenerateImageCleanup:
@@ -278,11 +266,9 @@ class TestGenerateImageCleanup:
 		"""Test that cleanup is called after successful generation."""
 		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
 
-		service.generator.execute_pipeline = AsyncMock(
-			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		)
-
-		await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
 
 		# Verify cleanup methods were called
 		mock_lora_loader.unload_loras.assert_called_once()
@@ -294,12 +280,12 @@ class TestGenerateImageCleanup:
 	) -> None:
 		"""Test that cleanup is called even after errors."""
 		service, _, _, mock_resource_manager, *_ = mock_service
-		service.generator.execute_pipeline = AsyncMock(side_effect=RuntimeError('Test error'))
-
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except ValueError:
-			pass  # Expected
+		mock_execute = AsyncMock(side_effect=RuntimeError('Test error'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			try:
+				await service.generate_image(sample_config, mock_db)
+			except ValueError:
+				pass  # Expected
 
 		mock_resource_manager.cleanup_after_generation.assert_called_once()
 
@@ -310,11 +296,9 @@ class TestGenerateImageCleanup:
 		"""Test that cleanup is always called regardless of LoRA state."""
 		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
 
-		service.generator.execute_pipeline = AsyncMock(
-			return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
-		)
-
-		await service.generate_image(sample_config, mock_db)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
 
 		# Both cleanup methods should be called
 		mock_lora_loader.unload_loras.assert_called_once()

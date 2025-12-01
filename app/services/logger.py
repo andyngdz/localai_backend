@@ -4,6 +4,7 @@ import os
 from typing import Any, MutableMapping, Optional
 
 import colorlog
+from pydantic import BaseModel
 from typing_extensions import override
 
 
@@ -138,7 +139,7 @@ class LoggerService:
 			>>> logger_service.format_config(config)
 			'{"width": 512, "height": 512, "steps": 20}'
 		"""
-		if hasattr(config, 'model_dump'):
+		if isinstance(config, BaseModel):
 			data = config.model_dump()
 		elif hasattr(config, '__dict__'):
 			data = config.__dict__
