@@ -1,8 +1,8 @@
 """Tests for latent_decoder module."""
 
-from typing import cast
 from unittest.mock import Mock
 
+import numpy as np
 import pytest
 import torch
 from PIL import Image
@@ -28,8 +28,9 @@ def mock_pipe():
 	mock_image = Mock(spec=Image.Image)
 	pipe.image_processor.postprocess = Mock(return_value=[mock_image])
 
-	# Mock safety checker
-	pipe.safety_checker = Mock(return_value=([mock_image], [False]))
+	# Mock safety checker (returns numpy arrays)
+	mock_numpy_image = np.zeros((64, 64, 3), dtype=np.uint8)
+	pipe.safety_checker = Mock(return_value=(np.stack([mock_numpy_image]), [False]))
 
 	# Mock feature extractor
 	pipe.feature_extractor = Mock()
@@ -101,8 +102,9 @@ class TestRunSafetyChecker:
 		"""Test successful safety checker execution (happy path)."""
 		from app.cores.generation.latent_decoder import latent_decoder
 
-		mock_image = Mock(spec=Image.Image)
-		images = cast(list[Image.Image], [mock_image])
+		# Use real PIL images so np.array() works
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image]
 
 		result_images, nsfw_detected = latent_decoder.run_safety_checker(mock_pipe, images)
 
@@ -112,8 +114,9 @@ class TestRunSafetyChecker:
 		# Verify feature extractor was called
 		mock_pipe.feature_extractor.assert_called_once_with(images, return_tensors='pt')
 
-		# Verify results
+		# Verify results are PIL images (converted back from numpy)
 		assert isinstance(result_images, list)
+		assert all(isinstance(img, Image.Image) for img in result_images)
 		assert isinstance(nsfw_detected, list)
 		assert len(nsfw_detected) == len(result_images)
 
@@ -122,8 +125,9 @@ class TestRunSafetyChecker:
 		from app.cores.generation.latent_decoder import latent_decoder
 
 		mock_pipe.safety_checker = None
-		mock_image = Mock(spec=Image.Image)
-		images = cast(list[Image.Image], [mock_image, mock_image])
+		# These tests return early, so Mock images work fine
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image, pil_image]
 
 		result_images, nsfw_detected = latent_decoder.run_safety_checker(mock_pipe, images)
 
@@ -138,8 +142,9 @@ class TestRunSafetyChecker:
 		from app.cores.generation.latent_decoder import latent_decoder
 
 		mock_pipe.feature_extractor = None
-		mock_image = Mock(spec=Image.Image)
-		images = cast(list[Image.Image], [mock_image])
+		# These tests return early, so Mock images work fine
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image]
 
 		result_images, nsfw_detected = latent_decoder.run_safety_checker(mock_pipe, images)
 
@@ -153,10 +158,14 @@ class TestRunSafetyChecker:
 		"""Test that warning is logged when NSFW content detected."""
 		from app.cores.generation.latent_decoder import latent_decoder
 
-		# Configure safety checker to detect NSFW in first image
-		mock_image = Mock(spec=Image.Image)
-		images = cast(list[Image.Image], [mock_image, mock_image])
-		mock_pipe.safety_checker.return_value = (images, [True, False])
+		# Use real PIL images so np.array() works
+		pil_image1 = Image.new('RGB', (64, 64), color='red')
+		pil_image2 = Image.new('RGB', (64, 64), color='blue')
+		images = [pil_image1, pil_image2]
+
+		# Configure safety checker to detect NSFW in first image (returns numpy)
+		mock_numpy_images = np.stack([np.zeros((64, 64, 3), dtype=np.uint8)] * 2)
+		mock_pipe.safety_checker.return_value = (mock_numpy_images, [True, False])
 
 		with caplog.at_level('WARNING'):
 			latent_decoder.run_safety_checker(mock_pipe, images)
@@ -169,9 +178,13 @@ class TestRunSafetyChecker:
 		"""Test that info is logged when no NSFW content detected."""
 		from app.cores.generation.latent_decoder import latent_decoder
 
-		mock_image = Mock(spec=Image.Image)
-		images = cast(list[Image.Image], [mock_image])
-		mock_pipe.safety_checker.return_value = (images, [False])
+		# Use real PIL images so np.array() works
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image]
+
+		# Configure safety checker to return no NSFW (returns numpy)
+		mock_numpy_image = np.zeros((64, 64, 3), dtype=np.uint8)
+		mock_pipe.safety_checker.return_value = (np.stack([mock_numpy_image]), [False])
 
 		with caplog.at_level('INFO'):
 			latent_decoder.run_safety_checker(mock_pipe, images)
@@ -183,8 +196,9 @@ class TestRunSafetyChecker:
 		"""Test that feature extractor output is moved to correct device and dtype."""
 		from app.cores.generation.latent_decoder import latent_decoder
 
-		mock_image = Mock(spec=Image.Image)
-		images = cast(list[Image.Image], [mock_image])
+		# Use real PIL images so np.array() works
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image]
 
 		latent_decoder.run_safety_checker(mock_pipe, images)
 
@@ -194,3 +208,26 @@ class TestRunSafetyChecker:
 		# Verify pixel values were converted to pipe dtype
 		call_kwargs = mock_pipe.safety_checker.call_args[1]
 		assert 'clip_input' in call_kwargs
+
+	def test_converts_pil_to_numpy_and_back(self, mock_pipe):
+		"""Test that PIL images are converted to numpy for safety checker and back."""
+		from app.cores.generation.latent_decoder import latent_decoder
+
+		# Use real PIL images
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image]
+
+		# Configure safety checker to return numpy array
+		mock_numpy_result = np.full((1, 64, 64, 3), 128, dtype=np.uint8)
+		mock_pipe.safety_checker.return_value = (mock_numpy_result, [False])
+
+		result_images, _ = latent_decoder.run_safety_checker(mock_pipe, images)
+
+		# Verify safety checker received numpy array
+		call_kwargs = mock_pipe.safety_checker.call_args[1]
+		assert isinstance(call_kwargs['images'], np.ndarray)
+		assert call_kwargs['images'].shape == (1, 64, 64, 3)
+
+		# Verify results are PIL images
+		assert len(result_images) == 1
+		assert isinstance(result_images[0], Image.Image)
