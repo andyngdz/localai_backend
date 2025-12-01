@@ -8,6 +8,7 @@ UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 		description='High-quality resampling, best for photos',
 		suggested_denoise_strength=0.4,
 		method=UpscalingMethod.TRADITIONAL,
+		is_recommended=False,
 	),
 	UpscalerType.BICUBIC: UpscalerItem(
 		value='Bicubic',
@@ -15,6 +16,7 @@ UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 		description='Smooth interpolation, good balance',
 		suggested_denoise_strength=0.4,
 		method=UpscalingMethod.TRADITIONAL,
+		is_recommended=False,
 	),
 	UpscalerType.BILINEAR: UpscalerItem(
 		value='Bilinear',
@@ -22,6 +24,7 @@ UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 		description='Fast interpolation, moderate quality',
 		suggested_denoise_strength=0.35,
 		method=UpscalingMethod.TRADITIONAL,
+		is_recommended=False,
 	),
 	UpscalerType.NEAREST: UpscalerItem(
 		value='Nearest',
@@ -29,6 +32,7 @@ UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 		description='No interpolation, preserves sharp edges',
 		suggested_denoise_strength=0.3,
 		method=UpscalingMethod.TRADITIONAL,
+		is_recommended=False,
 	),
 	UpscalerType.REALESRGAN_X2PLUS: UpscalerItem(
 		value='RealESRGAN_x2plus',
@@ -36,6 +40,7 @@ UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 		description='AI upscaler for general images, 2x native scale',
 		suggested_denoise_strength=0.35,
 		method=UpscalingMethod.AI,
+		is_recommended=True,
 	),
 	UpscalerType.REALESRGAN_X4PLUS: UpscalerItem(
 		value='RealESRGAN_x4plus',
@@ -43,6 +48,7 @@ UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 		description='AI upscaler for general images, 4x native scale',
 		suggested_denoise_strength=0.3,
 		method=UpscalingMethod.AI,
+		is_recommended=True,
 	),
 	UpscalerType.REALESRGAN_X4PLUS_ANIME: UpscalerItem(
 		value='RealESRGAN_x4plus_anime',
@@ -50,6 +56,7 @@ UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 		description='AI upscaler optimized for anime/illustrations',
 		suggested_denoise_strength=0.3,
 		method=UpscalingMethod.AI,
+		is_recommended=True,
 	),
 }
 

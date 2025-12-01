@@ -272,6 +272,29 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/86/41/00a6b000f222f0fa4c6d9e1d6dcc9811a374cabb8abb9d408b77de39648c/basicsr-1.4.2.tar.gz", hash = "sha256:b89b595a87ef964cda9913b4d99380ddb6554c965577c0c10cb7b78e31301e87", size = 172524, upload-time = "2022-08-30T04:33:55.259Z" }
 
 [[package]]
+name = "basicsr-fixed"
+version = "1.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "addict" },
+    { name = "future" },
+    { name = "lmdb" },
+    { name = "numpy" },
+    { name = "opencv-python" },
+    { name = "pillow" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "scikit-image" },
+    { name = "scipy" },
+    { name = "tb-nightly" },
+    { name = "torch" },
+    { name = "torchvision" },
+    { name = "tqdm" },
+    { name = "yapf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8b/06/f41e0d7b6404be190545cc81afb27f84497f8feb33ff6f3175e693817709/basicsr-fixed-1.4.2.tar.gz", hash = "sha256:a9dd0989bc4af9e0dda656c83e61f9b01ff89da1f432018e575e56ad25e0d684", size = 173663, upload-time = "2025-01-20T06:00:05.849Z" }
+
+[[package]]
 name = "bidict"
 version = "0.23.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1633,6 +1656,7 @@ dependencies = [
     { name = "attr" },
     { name = "attrs" },
     { name = "babel" },
+    { name = "basicsr-fixed" },
     { name = "bidict" },
     { name = "brotli" },
     { name = "brotlicffi" },
@@ -1800,6 +1824,7 @@ requires-dist = [
     { name = "attr", specifier = "==0.3.2" },
     { name = "attrs", specifier = "==25.3.0" },
     { name = "babel", specifier = "==2.17.0" },
+    { name = "basicsr-fixed", specifier = ">=1.4.2" },
     { name = "bidict", specifier = "==0.23.1" },
     { name = "brotli", specifier = "==1.2.0" },
     { name = "brotlicffi", specifier = "==1.1.0.0" },
@@ -2351,7 +2376,7 @@ name = "nvidia-cudnn-cu12"
 version = "9.1.0.70"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "nvidia-cublas-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9f/fd/713452cd72343f682b1c7b9321e23829f00b842ceaedcda96e742ea0b0b3/nvidia_cudnn_cu12-9.1.0.70-py3-none-manylinux2014_x86_64.whl", hash = "sha256:165764f44ef8c61fcdfdfdbe769d687e06374059fbb388b6c89ecb0e28793a6f", size = 664752741, upload-time = "2024-04-22T15:24:15.253Z" },
@@ -2362,7 +2387,7 @@ name = "nvidia-cufft-cu12"
 version = "11.2.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/27/94/3266821f65b92b3138631e9c8e7fe1fb513804ac934485a8d05776e1dd43/nvidia_cufft_cu12-11.2.1.3-py3-none-manylinux2014_x86_64.whl", hash = "sha256:f083fc24912aa410be21fa16d157fed2055dab1cc4b6934a0e03cba69eb242b9", size = 211459117, upload-time = "2024-04-03T20:57:40.402Z" },
@@ -2381,9 +2406,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.6.1.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
-    { name = "nvidia-cusparse-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
-    { name = "nvidia-nvjitlink-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "nvidia-cublas-cu12" },
+    { name = "nvidia-cusparse-cu12" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/e1/5b9089a4b2a4790dfdea8b3a006052cfecff58139d5a4e34cb1a51df8d6f/nvidia_cusolver_cu12-11.6.1.9-py3-none-manylinux2014_x86_64.whl", hash = "sha256:19e33fa442bcfd085b3086c4ebf7e8debc07cfe01e11513cc6d332fd918ac260", size = 127936057, upload-time = "2024-04-03T20:58:28.735Z" },
@@ -2394,7 +2419,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.3.1.170"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/db/f7/97a9ea26ed4bbbfc2d470994b8b4f338ef663be97b8f677519ac195e113d/nvidia_cusparse_cu12-12.3.1.170-py3-none-manylinux2014_x86_64.whl", hash = "sha256:ea4f11a2904e2a8dc4b1833cc1b5181cde564edd0d5cd33e3c168eff2d1863f1", size = 207454763, upload-time = "2024-04-03T20:58:59.995Z" },
@@ -3861,11 +3886,11 @@ wheels = [
 
 [[package]]
 name = "types-psutil"
-version = "7.1.3.20251129"
+version = "7.1.3.20251130"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4d/a2/4e9992bb56c4d1bcdeee8397134ed446ec802fa11a564d780362fef17244/types_psutil-7.1.3.20251129.tar.gz", hash = "sha256:3d6af84712be290803ed3cf4dd4ea7eb0b2fa61ed40de7d5c3a909879c4191ee", size = 24302, upload-time = "2025-11-29T03:03:40.73Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3d/0e/4c0c52099a8b4901d3e8eb5ac12ece32331b96bf87690377fb6c90f85475/types_psutil-7.1.3.20251130.tar.gz", hash = "sha256:7f42e7a7845a93397e430b48a8074a35410d7a436695fd3375ec9b687d8d95f8", size = 24467, upload-time = "2025-11-30T03:18:14.469Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/ce/65c4ea4d27701accbc3828ecc5eadf96fc61bd94a421fd4ab52c76608833/types_psutil-7.1.3.20251129-py3-none-any.whl", hash = "sha256:832299f76c6fcf096ea8714cf6eda14d3b26f5631e83bec7829941795fc3b4a5", size = 30352, upload-time = "2025-11-29T03:03:39.499Z" },
+    { url = "https://files.pythonhosted.org/packages/81/9d/353588c1fe06fa267a088a920eaebb0ac5b67f863dba0bff7c7deb4113a2/types_psutil-7.1.3.20251130-py3-none-any.whl", hash = "sha256:e9ccfaa63a1342810dab06c2e40696c843e6f422137868d335ad282b93e468e3", size = 31251, upload-time = "2025-11-30T03:18:13.359Z" },
 ]
 
 [[package]]

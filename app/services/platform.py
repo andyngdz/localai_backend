@@ -1,6 +1,6 @@
 from app.constants.platform import OperatingSystem
 from app.services.logger import logger_service
-from app.services.patch_service import WindowsProactorEventLoopPolicy
+from app.services.patch_service import WindowsProactorEventLoopPolicy, setup_windows_event_loop
 
 logger = logger_service.get_logger(__name__, category='Service')
 
@@ -17,8 +17,6 @@ class PlatformService:
 
 		if os_type == OperatingSystem.WINDOWS and WindowsProactorEventLoopPolicy is not None:
 			try:
-				from app.services.patch_service import setup_windows_event_loop
-
 				setup_windows_event_loop()
 				logger.info('Windows event loop policy set for compatibility.')
 			except Exception as error:

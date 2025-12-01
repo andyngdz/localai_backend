@@ -46,6 +46,7 @@ class TestConfigAPI:
 				description='Test description',
 				suggested_denoise_strength=0.5,
 				method=UpscalingMethod.TRADITIONAL,
+				is_recommended=False,
 			)
 		]
 		mock_config_service.get_upscalers.return_value = mock_upscalers

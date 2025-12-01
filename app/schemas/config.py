@@ -20,6 +20,7 @@ class UpscalerItem(BaseModel):
 		..., ge=0.0, le=1.0, description='Suggested denoise strength for composition preservation'
 	)
 	method: UpscalingMethod = Field(..., description='Upscaling method type (traditional or AI)')
+	is_recommended: bool = Field(..., description='Whether this upscaler is recommended for typical use')
 
 
 class ConfigResponse(BaseModel):
