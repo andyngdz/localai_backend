@@ -17,7 +17,7 @@ dependencies = [
     "attr==0.3.2",
     "attrs==25.3.0",
     "babel==2.17.0",
-    "basicsr-fixed>=1.4.2",
+    "basicsr",
     "bidict==0.23.1",
     "brotli==1.2.0",
     "brotlicffi==1.1.0.0",
@@ -196,6 +196,9 @@ explicit = true
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu124" }
+# Use basicsr from GitHub with torchvision 0.17+ fix (commit 8d56e3a)
+basicsr = { git = "https://github.com/XPixelGroup/BasicSR", rev = "8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a" }
+
 
 [dependency-groups]
 dev = [
