@@ -10,7 +10,7 @@ asttokens==3.0.0
 attr==0.3.2
 attrs==25.3.0
 babel==2.17.0
-basicsr>=1.4.2
+basicsr
 bidict==0.23.1
 brotli==1.2.0
 brotlicffi==1.1.0.0
