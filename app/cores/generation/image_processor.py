@@ -2,7 +2,6 @@
 
 import os
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 import torch
@@ -84,19 +83,11 @@ class ImageProcessor:
 		Note:
 			SDXL models don't have NSFW detection, only SD 1.5 models do.
 		"""
-		nsfw_detected: Optional[list[bool]] = getattr(output, 'nsfw_content_detected', None)
+		nsfw_detected = output.nsfw_content_detected
 
 		if nsfw_detected is None:
-			# NSFW detection not available (e.g., SDXL models)
 			logger.info('NSFW detection not available for this model (likely SDXL)')
 			return [False] * len(output.images)
-
-		# Safety checker ran - check if ANY image contains NSFW content
-		if any(nsfw_detected):
-			nsfw_count = sum(nsfw_detected)
-			logger.warning(f'NSFW content detected in {nsfw_count} of {len(nsfw_detected)} image(s)')
-		else:
-			logger.info('Safety checker: No NSFW content detected')
 
 		return nsfw_detected
 

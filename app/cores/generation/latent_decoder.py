@@ -1,5 +1,6 @@
 """Latent decoding utilities using pipeline components."""
 
+import numpy as np
 import torch
 from PIL import Image
 
@@ -54,10 +55,16 @@ class LatentDecoder:
 
 		safety_checker_input = pipe.feature_extractor(images, return_tensors='pt').to(pipe.device)
 
-		checked_images, nsfw_detected = pipe.safety_checker(
-			images=images,
+		# Convert PIL to numpy (safety checker expects numpy arrays)
+		numpy_images = np.stack([np.array(img) for img in images])
+
+		checked_images_np, nsfw_detected = pipe.safety_checker(
+			images=numpy_images,
 			clip_input=safety_checker_input.pixel_values.to(pipe.dtype),
 		)
+
+		# Convert numpy back to PIL
+		checked_images = [Image.fromarray(img) for img in checked_images_np]
 
 		if any(nsfw_detected):
 			nsfw_count = sum(nsfw_detected)

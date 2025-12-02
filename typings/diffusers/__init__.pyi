@@ -6,7 +6,9 @@ This module provides type hints for the diffusers library APIs used in this proj
 from collections.abc import Mapping
 from typing import Optional, Union
 
+import numpy as np
 import torch
+from numpy.typing import NDArray
 from PIL import Image
 from transformers import CLIPImageProcessor
 
@@ -72,9 +74,9 @@ class StableDiffusionSafetyChecker:
 
 	def __call__(
 		self,
-		images: list[Image.Image],
+		images: NDArray[np.uint8],
 		clip_input: torch.Tensor,
-	) -> tuple[list[Image.Image], list[bool]]: ...
+	) -> tuple[NDArray[np.uint8], list[bool]]: ...
 
 class AutoPipelineForText2Image:
 	"""Auto pipeline for text-to-image generation."""

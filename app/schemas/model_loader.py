@@ -2,11 +2,13 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import Literal, Optional, Protocol, TypeAlias, Union
 
+import numpy as np
 import torch
 from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
 from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import StableDiffusion3Pipeline
 from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipeline
+from numpy.typing import NDArray
 from PIL import Image
 from pydantic import BaseModel, Field
 
@@ -108,9 +110,9 @@ class SafetyChecker(Protocol):
 
 	def __call__(
 		self,
-		images: list[Image.Image],
+		images: NDArray[np.uint8],
 		clip_input: torch.Tensor,
-	) -> tuple[list[Image.Image], list[bool]]: ...
+	) -> tuple[NDArray[np.uint8], list[bool]]: ...
 
 
 class FeatureExtractorOutput(Protocol):
