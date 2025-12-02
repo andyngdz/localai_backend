@@ -73,3 +73,22 @@ class TestGetUpscalerSections:
 
 		for section in result:
 			assert all(isinstance(item, UpscalerItem) for item in section.options)
+
+	def test_ai_upscalers_are_recommended(self):
+		"""Test that AI upscalers are recommended and traditional are not."""
+		result = self.service.get_upscaler_sections()
+
+		for section in result:
+			for item in section.options:
+				if section.method == UpscalingMethod.AI:
+					assert item.is_recommended is True
+				else:
+					assert item.is_recommended is False
+
+	def test_denoise_strengths_in_valid_range(self):
+		"""Test that all denoise strengths are between 0.0 and 1.0."""
+		result = self.service.get_upscaler_sections()
+
+		for section in result:
+			for item in section.options:
+				assert 0.0 <= item.suggested_denoise_strength <= 1.0
