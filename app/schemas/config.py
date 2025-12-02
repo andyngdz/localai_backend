@@ -23,7 +23,15 @@ class UpscalerItem(BaseModel):
 	is_recommended: bool = Field(..., description='Whether this upscaler is recommended for typical use')
 
 
+class UpscalerSection(BaseModel):
+	"""A section grouping upscalers by method."""
+
+	method: UpscalingMethod = Field(..., description='Upscaling method type')
+	title: str = Field(..., description='Display title for the section')
+	options: list[UpscalerItem] = Field(..., description='Upscaler options in this section')
+
+
 class ConfigResponse(BaseModel):
 	"""Complete config response."""
 
-	upscalers: list[UpscalerItem] = Field(..., description='Available upscaler types')
+	upscalers: list[UpscalerSection] = Field(..., description='Upscaler sections grouped by method')

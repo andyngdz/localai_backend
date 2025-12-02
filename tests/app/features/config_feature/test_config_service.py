@@ -1,97 +1,94 @@
 """Tests for app/features/config/service.py
 
 Covers:
-- ConfigService.get_upscalers returns all upscaler types
-- Each upscaler has correct metadata
+- ConfigService.get_upscaler_sections returns grouped sections
 """
 
-import pytest
-
-from app.features.config.service import UPSCALER_METADATA, ConfigService
-from app.schemas.config import UpscalerItem
-from app.schemas.hires_fix import UpscalerType
+from app.features.config.service import ConfigService
+from app.schemas.config import UpscalerItem, UpscalerSection, UpscalingMethod
 
 
-class TestConfigService:
-	"""Test ConfigService functionality."""
+class TestGetUpscalerSections:
+	"""Test ConfigService.get_upscaler_sections functionality."""
 
 	def setup_method(self):
 		"""Setup test method."""
 		self.service = ConfigService()
 
-	def test_get_upscalers_returns_all_upscaler_types(self):
-		"""Test that get_upscalers returns all UpscalerType enum values."""
-		result = self.service.get_upscalers()
+	def test_returns_upscaler_sections(self):
+		"""Test that get_upscaler_sections returns UpscalerSection instances."""
+		result = self.service.get_upscaler_sections()
 
-		assert len(result) == len(UpscalerType)
-		values = [item.value for item in result]
-		for upscaler_type in UpscalerType:
-			assert upscaler_type.value in values
+		assert isinstance(result, list)
+		assert all(isinstance(section, UpscalerSection) for section in result)
 
-	def test_get_upscalers_returns_upscaler_items(self):
-		"""Test that get_upscalers returns UpscalerItem instances."""
-		result = self.service.get_upscalers()
+	def test_returns_two_sections(self):
+		"""Test that get_upscaler_sections returns traditional and AI sections."""
+		result = self.service.get_upscaler_sections()
 
-		assert all(isinstance(item, UpscalerItem) for item in result)
+		assert len(result) == 2
+		methods = [section.method for section in result]
+		assert UpscalingMethod.TRADITIONAL in methods
+		assert UpscalingMethod.AI in methods
 
-	def test_get_upscalers_includes_correct_metadata(self):
-		"""Test that each upscaler has correct metadata from UPSCALER_METADATA."""
-		result = self.service.get_upscalers()
+	def test_traditional_section_has_correct_title(self):
+		"""Test that traditional section has 'Traditional' title."""
+		result = self.service.get_upscaler_sections()
+		traditional_section = next(s for s in result if s.method == UpscalingMethod.TRADITIONAL)
 
-		for item in result:
-			upscaler_type = UpscalerType(item.value)
-			expected = UPSCALER_METADATA[upscaler_type]
+		assert traditional_section.title == 'Traditional'
 
-			assert item.name == expected.name
-			assert item.description == expected.description
-			assert item.suggested_denoise_strength == pytest.approx(expected.suggested_denoise_strength)
+	def test_ai_section_has_correct_title(self):
+		"""Test that AI section has 'AI' title."""
+		result = self.service.get_upscaler_sections()
+		ai_section = next(s for s in result if s.method == UpscalingMethod.AI)
 
-	def test_lanczos_upscaler_metadata(self):
-		"""Test Lanczos upscaler has correct metadata."""
-		result = self.service.get_upscalers()
-		lanczos = next(item for item in result if item.value == 'Lanczos')
+		assert ai_section.title == 'AI'
 
-		assert lanczos.name == 'Lanczos (High Quality)'
-		assert lanczos.description == 'High-quality resampling, best for photos'
-		assert lanczos.suggested_denoise_strength == pytest.approx(0.4)
-
-	def test_nearest_upscaler_metadata(self):
-		"""Test Nearest upscaler has correct metadata."""
-		result = self.service.get_upscalers()
-		nearest = next(item for item in result if item.value == 'Nearest')
-
-		assert nearest.name == 'Nearest (Sharp Edges)'
-		assert nearest.description == 'No interpolation, preserves sharp edges'
-		assert nearest.suggested_denoise_strength == pytest.approx(0.3)
-
-	def test_denoise_strengths_are_in_valid_range(self):
-		"""Test that all denoise strengths are between 0 and 1."""
-		result = self.service.get_upscalers()
-
-		for item in result:
-			assert 0.0 <= item.suggested_denoise_strength <= 1.0
-
-	def test_upscalers_have_is_recommended_field(self):
-		"""Test that all upscalers have is_recommended field."""
-		result = self.service.get_upscalers()
-
-		for item in result:
-			assert isinstance(item.is_recommended, bool)
-
-	def test_realesrgan_upscalers_are_recommended(self):
-		"""Test that RealESRGAN upscalers are marked as recommended."""
-		result = self.service.get_upscalers()
-		realesrgan_values = ['RealESRGAN_x2plus', 'RealESRGAN_x4plus', 'RealESRGAN_x4plus_anime']
-
-		for item in result:
-			if item.value in realesrgan_values:
-				assert item.is_recommended is True
-
-	def test_traditional_upscalers_are_not_recommended(self):
-		"""Test that traditional upscalers are not marked as recommended."""
-		result = self.service.get_upscalers()
+	def test_traditional_section_contains_traditional_upscalers(self):
+		"""Test that traditional section contains only traditional upscalers."""
+		result = self.service.get_upscaler_sections()
+		traditional_section = next(s for s in result if s.method == UpscalingMethod.TRADITIONAL)
 		traditional_values = ['Lanczos', 'Bicubic', 'Bilinear', 'Nearest']
 
-		for item in result:
-			if item.value in traditional_values:
-				assert item.is_recommended is False
+		assert len(traditional_section.options) == 4
+		for item in traditional_section.options:
+			assert item.value in traditional_values
+			assert item.method == UpscalingMethod.TRADITIONAL
+
+	def test_ai_section_contains_ai_upscalers(self):
+		"""Test that AI section contains only AI upscalers."""
+		result = self.service.get_upscaler_sections()
+		ai_section = next(s for s in result if s.method == UpscalingMethod.AI)
+		ai_values = ['RealESRGAN_x2plus', 'RealESRGAN_x4plus', 'RealESRGAN_x4plus_anime']
+
+		assert len(ai_section.options) == 3
+		for item in ai_section.options:
+			assert item.value in ai_values
+			assert item.method == UpscalingMethod.AI
+
+	def test_options_are_upscaler_items(self):
+		"""Test that options in each section are UpscalerItem instances."""
+		result = self.service.get_upscaler_sections()
+
+		for section in result:
+			assert all(isinstance(item, UpscalerItem) for item in section.options)
+
+	def test_ai_upscalers_are_recommended(self):
+		"""Test that AI upscalers are recommended and traditional are not."""
+		result = self.service.get_upscaler_sections()
+
+		for section in result:
+			for item in section.options:
+				if section.method == UpscalingMethod.AI:
+					assert item.is_recommended is True
+				else:
+					assert item.is_recommended is False
+
+	def test_denoise_strengths_in_valid_range(self):
+		"""Test that all denoise strengths are between 0.0 and 1.0."""
+		result = self.service.get_upscaler_sections()
+
+		for section in result:
+			for item in section.options:
+				assert 0.0 <= item.suggested_denoise_strength <= 1.0

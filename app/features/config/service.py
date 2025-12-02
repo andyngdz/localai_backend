@@ -1,4 +1,4 @@
-from app.schemas.config import UpscalerItem, UpscalingMethod
+from app.schemas.config import UpscalerItem, UpscalerSection, UpscalingMethod
 from app.schemas.hires_fix import UpscalerType
 
 UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
@@ -61,9 +61,32 @@ UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 }
 
 
+UPSCALER_SECTIONS: list[UpscalerSection] = [
+	UpscalerSection(
+		method=UpscalingMethod.TRADITIONAL,
+		title='Traditional',
+		options=[
+			UPSCALER_METADATA[UpscalerType.LANCZOS],
+			UPSCALER_METADATA[UpscalerType.BICUBIC],
+			UPSCALER_METADATA[UpscalerType.BILINEAR],
+			UPSCALER_METADATA[UpscalerType.NEAREST],
+		],
+	),
+	UpscalerSection(
+		method=UpscalingMethod.AI,
+		title='AI',
+		options=[
+			UPSCALER_METADATA[UpscalerType.REALESRGAN_X2PLUS],
+			UPSCALER_METADATA[UpscalerType.REALESRGAN_X4PLUS],
+			UPSCALER_METADATA[UpscalerType.REALESRGAN_X4PLUS_ANIME],
+		],
+	),
+]
+
+
 class ConfigService:
-	def get_upscalers(self) -> list[UpscalerItem]:
-		return [UPSCALER_METADATA[upscaler] for upscaler in UpscalerType]
+	def get_upscaler_sections(self) -> list[UpscalerSection]:
+		return UPSCALER_SECTIONS
 
 
 config_service = ConfigService()
