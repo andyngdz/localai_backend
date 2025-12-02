@@ -3,10 +3,10 @@ from typing import Any, Dict, Optional
 
 import socketio
 from pydantic import BaseModel
+from starlette.types import ASGIApp
 
+from app.schemas.socket import SocketEvents
 from app.services.logger import logger_service
-
-from .schemas import SocketEvents
 
 logger = logger_service.get_logger(__name__, category='Socket')
 
@@ -27,7 +27,7 @@ class SocketService:
 			cors_allowed_origins='*',
 			logger=False,
 		)
-		self.sio_app = socketio.ASGIApp(self.sio)
+		self.sio_app: ASGIApp = socketio.ASGIApp(self.sio)
 		logger.info('SocketService initialized.')
 
 	def attach_loop(self, loop: asyncio.AbstractEventLoop) -> None:

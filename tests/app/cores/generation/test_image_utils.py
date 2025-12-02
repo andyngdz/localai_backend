@@ -1,12 +1,12 @@
 """Tests for image generation utilities."""
 
-from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
 from app.cores.generation.image_utils import process_generated_images
-from app.features.generators.schemas import ImageGenerationItem
+from app.schemas.generators import ImageGenerationItem
 
 
 class TestProcessGeneratedImages:
@@ -18,7 +18,7 @@ class TestProcessGeneratedImages:
 		"""Test that images are processed and results returned correctly."""
 		# Arrange
 		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_output = SimpleNamespace(images=[test_image, test_image])
+		mock_output = StableDiffusionPipelineOutput(images=[test_image, test_image], nsfw_content_detected=None)
 
 		mock_image_processor.is_nsfw_content_detected.return_value = [False, False]
 		mock_image_processor.save_image.return_value = ('/static/test.png', 'test.png')
@@ -44,7 +44,7 @@ class TestProcessGeneratedImages:
 		"""Test that NSFW content is detected correctly."""
 		# Arrange
 		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_output = SimpleNamespace(images=[test_image])
+		mock_output = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=None)
 
 		mock_image_processor.is_nsfw_content_detected.return_value = [True]
 		mock_image_processor.save_image.return_value = ('/static/test.png', 'test.png')
@@ -62,7 +62,7 @@ class TestProcessGeneratedImages:
 		"""Test that cache is cleared between processing images."""
 		# Arrange
 		test_images = [Image.new('RGB', (64, 64), color='blue') for _ in range(3)]
-		mock_output = SimpleNamespace(images=test_images)
+		mock_output = StableDiffusionPipelineOutput(images=test_images, nsfw_content_detected=None)
 
 		mock_image_processor.is_nsfw_content_detected.return_value = [False] * 3
 		mock_image_processor.save_image.return_value = ('/static/test.png', 'test.png')
@@ -79,7 +79,7 @@ class TestProcessGeneratedImages:
 		"""Test that missing clear_tensor_cache attribute is handled gracefully."""
 		# Arrange
 		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_output = SimpleNamespace(images=[test_image])
+		mock_output = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=None)
 
 		# Ensure clear_tensor_cache does NOT exist
 		if hasattr(mock_image_processor, 'clear_tensor_cache'):
@@ -102,7 +102,9 @@ class TestProcessGeneratedImages:
 		# Arrange
 		test_image = Image.new('RGB', (64, 64), color='blue')
 		non_image_object = 'not an image'
-		mock_output = SimpleNamespace(images=[test_image, non_image_object, test_image])
+		# Use Mock to create an output with mixed types (intentionally invalid for testing)
+		mock_output = Mock()
+		mock_output.images = [test_image, non_image_object, test_image]
 
 		mock_image_processor.is_nsfw_content_detected.return_value = [False, False, False]
 		mock_image_processor.save_image.return_value = ('/static/test.png', 'test.png')

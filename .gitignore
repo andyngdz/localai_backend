@@ -21,7 +21,8 @@ localai_backend.db
 coverage.xml
 *.xlsx
 *.csv
-.claude
+.claude/settings.*.json
+.worktrees/
 
 # Build artifacts and distribution directories
 # PyInstaller output (e.g., dist/app.exe or dist/app)

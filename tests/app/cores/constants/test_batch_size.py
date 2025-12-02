@@ -1,6 +1,6 @@
 import pytest
 
-from app.cores.constants.batch_size import BATCH_SIZE_THRESHOLDS
+from app.constants.batch_size import BATCH_SIZE_THRESHOLDS
 
 
 class TestBatchSizeThresholdsStructure:

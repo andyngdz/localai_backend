@@ -1,7 +1,6 @@
 """Factory for creating platform-specific optimizers."""
 
-import sys
-
+from app.constants.platform import OperatingSystem
 from app.services import logger_service
 
 from .base import PlatformOptimizer
@@ -21,18 +20,23 @@ def get_optimizer() -> PlatformOptimizer:
 	Raises:
 		RuntimeError: If platform is not supported
 	"""
-	platform = sys.platform
+	try:
+		os_type = OperatingSystem.from_sys_platform()
+	except ValueError as error:
+		logger.error(str(error))
+		raise RuntimeError(str(error)) from error
 
-	if platform == 'win32':
+	if os_type == OperatingSystem.WINDOWS:
 		logger.info('Using Windows optimizer')
 		return WindowsOptimizer()
-	elif platform == 'linux':
+	if os_type == OperatingSystem.LINUX:
 		logger.info('Using Linux optimizer')
 		return LinuxOptimizer()
-	elif platform == 'darwin':
+	if os_type == OperatingSystem.DARWIN:
 		logger.info('Using macOS optimizer')
 		return DarwinOptimizer()
-	else:
-		error_msg = f'Unsupported platform: {platform}'
-		logger.error(error_msg)
-		raise RuntimeError(error_msg)
+
+	# This should never be reached since enum only has 3 values
+	error_msg = f'Unsupported platform: {os_type}'
+	logger.error(error_msg)
+	raise RuntimeError(error_msg)

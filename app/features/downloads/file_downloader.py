@@ -1,11 +1,13 @@
 import os
+from http import HTTPStatus
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import requests
 from huggingface_hub import hf_hub_url
 from requests.adapters import HTTPAdapter
 
+from app.schemas.downloads import AuthHeaders
 from app.services import logger_service
 
 from .progress import DownloadProgress
@@ -31,12 +33,12 @@ class FileDownloader:
 		session.mount('https://', adapter)
 		return session
 
-	def auth_headers(self, token: Optional[str] = None) -> Dict[str, str]:
+	def auth_headers(self, token: Optional[str] = None) -> AuthHeaders:
 		"""Build authorization headers for HuggingFace API requests."""
-		headers = {}
 		if token:
-			headers['Authorization'] = f'Bearer {token}'
-		return headers
+			return AuthHeaders(authorization=f'Bearer {token}')
+
+		return AuthHeaders()
 
 	def download_file(
 		self,
@@ -90,39 +92,54 @@ class FileDownloader:
 			os.remove(local_path_str)
 
 		temp_path = f'{local_path_str}.part'
+		resume_size = 0
+		write_mode = 'wb'
+
 		if os.path.exists(temp_path):
-			os.remove(temp_path)
+			resume_size = os.path.getsize(temp_path)
 
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
-		headers = self.auth_headers(token)
+		headers = self.auth_headers(token).as_dict()
 
-		try:
-			with self.session.get(url, stream=True, headers=headers, timeout=60) as response:
-				response.raise_for_status()
-				target_size = file_size
-				content_length = response.headers.get('Content-Length')
-				if content_length:
-					try:
-						target_size = int(content_length)
-					except (TypeError, ValueError):
-						target_size = file_size
-				if target_size and target_size > 0:
-					progress.set_file_size(file_index, target_size)
+		if resume_size > 0:
+			headers['Range'] = f'bytes={resume_size}-'
 
-				with open(temp_path, 'wb') as dest:
-					for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
-						if not chunk:
-							continue
-						dest.write(chunk)
-						progress.update_bytes(len(chunk))
+		with self.session.get(url, stream=True, headers=headers, timeout=60) as response:
+			response.raise_for_status()
 
-			os.replace(temp_path, local_path_str)
-			final_size = os.path.getsize(local_path_str)
-			progress.set_file_size(file_index, final_size)
-			return local_path_str
-		finally:
-			if os.path.exists(temp_path):
-				os.remove(temp_path)
+			# Handle Resuming
+			if response.status_code == HTTPStatus.PARTIAL_CONTENT:
+				write_mode = 'ab'
+				progress.register_existing_bytes(resume_size)
+				logger.info('Resuming %s from %s bytes', filename, resume_size)
+			elif resume_size > 0:
+				# Server ignored range or file changed, restart download
+				resume_size = 0
+				logger.info('Server ignored range for %s, restarting download', filename)
+
+			target_size = file_size
+			content_length = response.headers.get('Content-Length')
+			if content_length:
+				try:
+					length = int(content_length)
+					target_size = length + resume_size
+				except (TypeError, ValueError):
+					target_size = file_size
+			if target_size and target_size > 0:
+				progress.set_file_size(file_index, target_size)
+
+			with open(temp_path, write_mode) as dest:
+				for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
+					if not chunk:
+						continue
+					dest.write(chunk)
+					progress.update_bytes(len(chunk))
+
+		os.replace(temp_path, local_path_str)
+		final_size = os.path.getsize(local_path_str)
+		progress.set_file_size(file_index, final_size)
+
+		return local_path_str
 
 	def fetch_remote_file_size(
 		self,
@@ -133,7 +150,7 @@ class FileDownloader:
 	) -> int:
 		"""Best-effort size lookup for repositories that do not publish sibling metadata."""
 		url = hf_hub_url(repo_id=repo_id, filename=filename, revision=revision)
-		headers = self.auth_headers(token)
+		headers = self.auth_headers(token).as_dict()
 
 		try:
 			response = self.session.head(url, headers=headers, timeout=30, allow_redirects=True)

@@ -1,7 +1,6 @@
+from app.schemas.model_loader import ModelLoadPhase, ModelLoadProgressResponse
 from app.services import logger_service
 from app.socket import socket_service
-
-from .schemas import ModelLoadPhase, ModelLoadProgressResponse
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
 
@@ -25,7 +24,7 @@ def emit_progress(model_id: str, step: int, message: str) -> None:
 		phase = map_step_to_phase(step)
 
 		progress = ModelLoadProgressResponse(
-			id=model_id,
+			model_id=model_id,
 			step=step,
 			total=9,
 			phase=phase,

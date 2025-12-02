@@ -29,17 +29,17 @@ class StorageService:
 		"""Get the directory path for a model based on its ID."""
 		name_serialized = id.replace('/', '--')
 
-		dir = os.path.join(CACHE_FOLDER, f'models--{name_serialized}')
+		model_dir = os.path.join(CACHE_FOLDER, f'models--{name_serialized}')
 
-		return dir
+		return model_dir
 
 	def get_model_lock_dir(self, id: str) -> str:
 		"""Get the full path for a model lock file based on its ID."""
 		name_serialized = id.replace('/', '--')
 
-		dir = os.path.join(CACHE_LOCK_FOLDER, f'models--{name_serialized}')
+		lock_dir = os.path.join(CACHE_LOCK_FOLDER, f'models--{name_serialized}')
 
-		return dir
+		return lock_dir
 
 	def get_loras_dir(self) -> str:
 		"""Get the directory path for LoRA files."""
@@ -48,6 +48,10 @@ class StorageService:
 	def get_lora_file_path(self, filename: str) -> str:
 		"""Get the full path for a LoRA file."""
 		return os.path.join(self.get_loras_dir(), filename)
+
+	def get_realesrgan_model_path(self, filename: str) -> str:
+		"""Get the full path for a Real-ESRGAN model file."""
+		return os.path.join(CACHE_FOLDER, 'realesrgan', filename)
 
 
 storage_service = StorageService()

@@ -4,19 +4,11 @@ import gc
 import time
 
 import torch
-from pydantic import BaseModel, Field
 
+from app.schemas.hardware import CleanupMetrics
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='GPU')
-
-
-class CleanupMetrics(BaseModel):
-	"""Metrics from GPU model cleanup operation."""
-
-	time_ms: float = Field(description='Cleanup time in milliseconds')
-	objects_collected: int = Field(description='Number of objects collected by GC')
-	error: str | None = Field(default=None, description='Error message if cleanup failed')
 
 
 def cleanup_gpu_model(model, name: str = 'model') -> CleanupMetrics:

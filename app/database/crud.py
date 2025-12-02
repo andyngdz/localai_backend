@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy.orm import Session, selectinload
 
@@ -129,14 +129,14 @@ def get_all_loras(db: Session) -> List[LoRA]:
 	return loras
 
 
-def get_lora_by_id(db: Session, lora_id: int) -> LoRA | None:
+def get_lora_by_id(db: Session, lora_id: int) -> Optional[LoRA]:
 	"""Get a LoRA by its database ID."""
 	lora = db.query(LoRA).filter(LoRA.id == lora_id).first()
 
 	return lora
 
 
-def get_lora_by_file_path(db: Session, file_path: str) -> LoRA | None:
+def get_lora_by_file_path(db: Session, file_path: str) -> Optional[LoRA]:
 	"""Get a LoRA by its file path."""
 	lora = db.query(LoRA).filter(LoRA.file_path == file_path).first()
 

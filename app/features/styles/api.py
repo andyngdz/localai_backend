@@ -2,10 +2,9 @@
 
 from fastapi import APIRouter
 
+from app.constants.styles import all_styles, sections
+from app.schemas.styles import StyleSectionResponse
 from app.services import styles_service
-from app.styles import all_styles, sections
-
-from .schemas import StyleSectionResponse
 
 styles = APIRouter(
 	prefix='/styles',

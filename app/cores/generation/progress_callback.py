@@ -2,7 +2,10 @@
 
 import torch
 
+from app.constants.generation import CACHE_CLEAR_INTERVAL
 from app.cores.generation.image_processor import image_processor
+from app.schemas.generators import ImageGenerationStepEndResponse
+from app.schemas.model_loader import DiffusersPipeline
 from app.services import image_service, logger_service
 from app.socket import socket_service
 
@@ -20,10 +23,11 @@ class ProgressCallback:
 		"""Reset the callback state for a new generation."""
 		self.step_count = 0
 		# Clear any cached tensors in image processor
-		if hasattr(self.image_processor, 'clear_tensor_cache'):
-			self.image_processor.clear_tensor_cache()
+		self.image_processor.clear_tensor_cache()
 
-	def callback_on_step_end(self, _pipe, current_step: int, timestep: float, callback_kwargs: dict) -> dict:
+	def callback_on_step_end(
+		self, _pipe: DiffusersPipeline, current_step: int, timestep: float, callback_kwargs: dict
+	) -> dict:
 		"""Callback for step-by-step progress updates via WebSocket with memory cleanup.
 
 		Args:
@@ -38,9 +42,6 @@ class ProgressCallback:
 		logger.info(f'Callback on step end: current_step={current_step}, timestep={timestep}')
 
 		latents = callback_kwargs['latents']
-
-		# Import here to avoid circular dependency
-		from app.features.generators.schemas import ImageGenerationStepEndResponse
 
 		for index, latent in enumerate(latents):
 			# Generate preview image
@@ -69,11 +70,13 @@ class ProgressCallback:
 		# Increment step counter
 		self.step_count += 1
 
-		# Periodically clear CUDA cache (every 5 steps) to prevent memory buildup
-		if self.step_count % 5 == 0:
+		# Periodically clear CUDA cache to prevent memory buildup during generation
+		# Clears every N steps (configured via CACHE_CLEAR_INTERVAL constant)
+		# This ensures cache is cleared even in short generations (e.g., 4 steps = 1 clear at step 3)
+		if self.step_count % CACHE_CLEAR_INTERVAL == 0:
 			if torch.cuda.is_available():
 				torch.cuda.empty_cache()
-				logger.debug(f'Cleared CUDA cache at step {current_step} (every 5 steps)')
+				logger.debug(f'Cleared CUDA cache at step {current_step}')
 
 		return callback_kwargs
 

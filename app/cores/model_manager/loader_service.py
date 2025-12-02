@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from app.cores.model_loader import CancellationException, CancellationToken, model_loader
-from app.cores.model_loader.schemas import ModelLoadCompletedResponse
+from app.schemas.model_loader import ModelLoadCompletedResponse
 from app.services import logger_service
 from app.socket import socket_service
 
@@ -42,11 +42,11 @@ class LoaderService:
 		self.executor.shutdown(wait=True)
 		logger.info('LoaderService executor shut down')
 
-	async def load_model_async(self, id: str) -> dict[str, object]:
+	async def load_model_async(self, model_id: str) -> dict[str, object]:
 		"""Load model asynchronously with automatic cancellation of previous loads.
 
 		Args:
-			id: Model identifier to load
+			model_id: Model identifier to load
 
 		Returns:
 			Model configuration dictionary
@@ -57,20 +57,20 @@ class LoaderService:
 		"""
 		async with self.lock:
 			if self.state_manager.current_state == ModelState.LOADING:
-				logger.info(f'Another load in progress, need to cancel for new load: {id}')
+				logger.info(f'Another load in progress, need to cancel for new load: {model_id}')
 
 		if self.state_manager.current_state == ModelState.LOADING:
 			await self.cancel_current_load()
 
 		async with self.lock:
-			logger.info(f'Request to load: {id}, current state: {self.state_manager.current_state.value}')
+			logger.info(f'Request to load: {model_id}, current state: {self.state_manager.current_state.value}')
 
 			if (
-				self.pipeline_manager.model_id == id
+				self.pipeline_manager.model_id == model_id
 				and self.pipeline_manager.pipe is not None
 				and self.state_manager.current_state == ModelState.LOADED
 			):
-				logger.info(f'Model {id} already loaded, returning config')
+				logger.info(f'Model {model_id} already loaded, returning config')
 				return dict(self.pipeline_manager.pipe.config)
 
 			if not self.state_manager.can_transition_to(ModelState.LOADING):
@@ -83,14 +83,14 @@ class LoaderService:
 			self.loading_task = asyncio.current_task()
 
 		try:
-			logger.info(f'Executing load for {id}')
-			config = await self.execute_load_in_background(id)
+			logger.info(f'Executing load for {model_id}')
+			config = await self.execute_load_in_background(model_id)
 
 			async with self.lock:
 				self.state_manager.set_state(ModelState.LOADED, StateTransitionReason.LOAD_COMPLETED)
 				self.loading_task = None
 				self.cancel_token = None
-				logger.info(f'Successfully loaded {id}')
+				logger.info(f'Successfully loaded {model_id}')
 
 			return config
 
@@ -165,23 +165,23 @@ class LoaderService:
 			except Exception as e:
 				logger.warning(f'Unexpected error during load cancellation: {e}')
 
-	async def execute_load_in_background(self, id: str) -> dict:
+	async def execute_load_in_background(self, model_id: str) -> dict:
 		"""Execute model loading in background thread pool.
 
 		Args:
-			id: Model identifier to load
+			model_id: Model identifier to load
 
 		Returns:
 			Model configuration dictionary
 		"""
 		loop = asyncio.get_event_loop()
-		return await loop.run_in_executor(self.executor, self.load_model_sync, id)
+		return await loop.run_in_executor(self.executor, self.load_model_sync, model_id)
 
-	def load_model_sync(self, id: str) -> dict[str, object]:
+	def load_model_sync(self, model_id: str) -> dict[str, object]:
 		"""Synchronous model loading (called from executor thread).
 
 		Args:
-			id: Model identifier to load
+			model_id: Model identifier to load
 
 		Returns:
 			Model configuration dictionary
@@ -189,19 +189,19 @@ class LoaderService:
 		Raises:
 			CancellationException: If loading is cancelled via cancel_token
 		"""
-		logger.info(f'Loading model: {id}')
+		logger.info(f'Loading model: {model_id}')
 
 		if self.pipeline_manager.pipe is not None:
-			logger.info(f'Unloading existing model {self.pipeline_manager.model_id} before loading {id}')
+			logger.info(f'Unloading existing model {self.pipeline_manager.model_id} before loading {model_id}')
 			self.unload_model_sync()
 
-		logger.info(f'Starting model_loader for {id}')
-		pipe = model_loader(id, self.cancel_token)
+		logger.info(f'Starting model_loader for {model_id}')
+		pipe = model_loader(model_id, self.cancel_token)
 
-		logger.info(f'Model {id} loaded successfully')
-		self.pipeline_manager.set_pipeline(pipe, id)
+		logger.info(f'Model {model_id} loaded successfully')
+		self.pipeline_manager.set_pipeline(pipe, model_id)
 
-		socket_service.model_load_completed(ModelLoadCompletedResponse(id=id))
+		socket_service.model_load_completed(ModelLoadCompletedResponse(model_id=model_id))
 
 		return dict(pipe.config)
 

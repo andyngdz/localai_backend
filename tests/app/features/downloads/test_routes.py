@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.features.downloads import downloads as downloads_router
-from app.features.downloads.schemas import DownloadModelRequest, DownloadModelResponse, DownloadModelStartResponse
+from app.schemas.downloads import DownloadModelRequest, DownloadModelResponse, DownloadModelStartResponse
 
 
 class DummySocketService:
@@ -31,9 +31,11 @@ class DummySocketService:
 
 	async def download_start(self, payload: DownloadModelStartResponse) -> None:
 		self.download_start_calls.append(payload)
+		await asyncio.sleep(0)
 
 	async def download_completed(self, payload: DownloadModelResponse) -> None:
 		self.download_completed_calls.append(payload)
+		await asyncio.sleep(0)
 
 
 class DummyDownloadService:
@@ -72,25 +74,25 @@ def test_post_download_success(monkeypatch: pytest.MonkeyPatch) -> None:
 	client = TestClient(app)
 
 	# Act
-	response = client.post('/downloads/', json={'id': 'test-model'})
+	response = client.post('/downloads/', json={'model_id': 'test-model'})
 
 	# Assert
 	assert response.status_code == 200
 	# API returns a response body with download details
 	response_data = response.json()
-	assert response_data['id'] == 'test-model'
+	assert response_data['model_id'] == 'test-model'
 	assert response_data['message'] == 'Download completed and saved to database'
 	assert response_data['path'] == '/path/to/model'
 
 	# Service calls assertions
 	assert dummy_service.calls == ['test-model']
 	assert len(dummy_socket.download_start_calls) == 1
-	assert dummy_socket.download_start_calls[0].id == 'test-model'
+	assert dummy_socket.download_start_calls[0].model_id == 'test-model'
 
 	# Verify download_completed was called with correct payload
 	assert hasattr(dummy_socket, 'download_completed_calls'), 'Socket service missing download_completed_calls attribute'
 	assert len(dummy_socket.download_completed_calls) == 1
-	assert dummy_socket.download_completed_calls[0].id == 'test-model'
+	assert dummy_socket.download_completed_calls[0].model_id == 'test-model'
 	assert dummy_socket.download_completed_calls[0].message == 'Download completed and saved to database'
 
 
@@ -104,7 +106,7 @@ def test_post_download_handles_cancelled_error(monkeypatch: pytest.MonkeyPatch) 
 
 	# Instead of testing through the API, test the handler function directly
 	# This avoids the CancelledError propagation through the test client
-	request = DownloadModelRequest(id='cancel-me')
+	request = DownloadModelRequest(model_id='cancel-me')
 
 	# We expect this to raise a CancelledError
 	with pytest.raises(asyncio.CancelledError):
@@ -113,7 +115,7 @@ def test_post_download_handles_cancelled_error(monkeypatch: pytest.MonkeyPatch) 
 	# Service call assertions - these should still happen before the error
 	assert dummy_service.calls == ['cancel-me']
 	assert len(dummy_socket.download_start_calls) == 1
-	assert dummy_socket.download_start_calls[0].id == 'cancel-me'
+	assert dummy_socket.download_start_calls[0].model_id == 'cancel-me'
 
 
 def test_post_download_retries_on_client_error() -> None:

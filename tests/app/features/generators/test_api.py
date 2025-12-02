@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from app.features.generators.schemas import ImageGenerationItem, ImageGenerationResponse
+from app.schemas.generators import ImageGenerationItem, ImageGenerationResponse
 from main import app
 
 client = TestClient(app)
@@ -38,7 +38,7 @@ class TestGenerationImageEndpoint:
 					'seed': -1,
 					'sampler': 'EULER_A',  # Must match SamplerType enum
 					'number_of_images': 1,
-					'hires_fix': False,
+					'hires_fix': None,
 					'styles': [],
 					'loras': [],
 				},
@@ -80,7 +80,7 @@ class TestGenerationImageEndpoint:
 					'seed': -1,
 					'sampler': 'EULER_A',
 					'number_of_images': 1,
-					'hires_fix': False,
+					'hires_fix': None,
 					'styles': [],
 					'loras': [{'lora_id': 1, 'weight': 0.8}],
 				},
@@ -108,7 +108,7 @@ class TestGenerationImageEndpoint:
 					'seed': -1,
 					'sampler': 'EULER_A',
 					'number_of_images': 1,
-					'hires_fix': False,
+					'hires_fix': None,
 					'styles': [],
 					'loras': [],
 				},
@@ -137,7 +137,7 @@ class TestGenerationImageEndpoint:
 					'seed': -1,
 					'sampler': 'EULER_A',
 					'number_of_images': 1,
-					'hires_fix': False,
+					'hires_fix': None,
 					'styles': [],
 					'loras': [{'lora_id': 999, 'weight': 1.0}],
 				},
@@ -174,7 +174,7 @@ class TestGenerationImageEndpoint:
 					'seed': -1,
 					'sampler': 'EULER_A',
 					'number_of_images': 2,
-					'hires_fix': False,
+					'hires_fix': None,
 					'styles': [],
 					'loras': [],
 				},
@@ -235,7 +235,7 @@ class TestGeneratorAPIEdgeCases:
 					'seed': -1,
 					'sampler': 'EULER_A',
 					'number_of_images': 1,
-					'hires_fix': False,
+					'hires_fix': None,
 					'styles': [],
 					'loras': [],
 				},
@@ -270,7 +270,7 @@ class TestGeneratorAPIEdgeCases:
 					'seed': -1,
 					'sampler': 'EULER_A',
 					'number_of_images': 1,
-					'hires_fix': False,
+					'hires_fix': None,
 					'styles': ['sai-anime', 'sai-photographic'],
 					'loras': [],
 				},
@@ -305,7 +305,12 @@ class TestGeneratorAPIEdgeCases:
 					'seed': -1,
 					'sampler': 'EULER_A',
 					'number_of_images': 1,
-					'hires_fix': True,
+					'hires_fix': {
+						'upscale_factor': 2.0,
+						'upscaler': 'Lanczos',
+						'denoising_strength': 0.7,
+						'steps': 0,
+					},
 					'styles': [],
 					'loras': [],
 				},

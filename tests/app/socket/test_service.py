@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from app.socket.schemas import SocketEvents
+from app.schemas.socket import SocketEvents
 from app.socket.service import SocketService
 
 

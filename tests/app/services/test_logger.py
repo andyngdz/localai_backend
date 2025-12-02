@@ -216,6 +216,79 @@ class TestLoggerService:
 			assert logger.logger.level == logging.ERROR
 
 
+class TestFormatConfig:
+	"""Test format_config method."""
+
+	def test_format_config_with_pydantic_model(self):
+		"""Test format_config with Pydantic BaseModel."""
+		from pydantic import BaseModel
+
+		class TestConfig(BaseModel):
+			width: int = 512
+			height: int = 512
+			steps: int = 20
+
+		service = LoggerService()
+		config = TestConfig()
+		result = service.format_config(config)
+
+		assert '"width": 512' in result
+		assert '"height": 512' in result
+		assert '"steps": 20' in result
+
+	def test_format_config_with_dict(self):
+		"""Test format_config with dictionary."""
+		service = LoggerService()
+		config = {'name': 'test', 'value': 123}
+		result = service.format_config(config)
+
+		assert '"name": "test"' in result
+		assert '"value": 123' in result
+
+	def test_format_config_with_object(self):
+		"""Test format_config with object having __dict__."""
+		service = LoggerService()
+
+		class SimpleObject:
+			def __init__(self):
+				self.field1 = 'value1'
+				self.field2 = 42
+
+		config = SimpleObject()
+		result = service.format_config(config)
+
+		assert '"field1": "value1"' in result
+		assert '"field2": 42' in result
+
+	def test_format_config_with_primitive(self):
+		"""Test format_config with primitive value wraps in dict."""
+		service = LoggerService()
+		result = service.format_config('simple string')
+
+		assert '"value": "simple string"' in result
+
+	def test_format_config_returns_json_string(self):
+		"""Test that format_config returns valid JSON string."""
+		import json
+
+		service = LoggerService()
+		config = {'key': 'value'}
+		result = service.format_config(config)
+
+		parsed = json.loads(result)
+		assert parsed == {'key': 'value'}
+
+	def test_format_config_handles_non_serializable(self):
+		"""Test format_config handles non-JSON-serializable values via default=str."""
+		from datetime import datetime
+
+		service = LoggerService()
+		config = {'timestamp': datetime(2024, 1, 15, 12, 0, 0)}
+		result = service.format_config(config)
+
+		assert '2024-01-15' in result
+
+
 class TestLoggerIntegration:
 	"""Integration tests for logger service."""
 

@@ -101,7 +101,7 @@ class TestDownloadProgressInit:
 		assert mock_socket.download_step_progress.call_count >= 1
 		first_call_args = mock_socket.download_step_progress.call_args_list[0][0][0]
 		assert first_call_args.phase == 'init'
-		assert first_call_args.id == 'test-repo'
+		assert first_call_args.model_id == 'test-repo'
 
 		progress.close()
 
@@ -131,7 +131,7 @@ class TestEmitProgress:
 		wait_for_chunk(mock_socket, fast_chunk_emitter)
 
 		call_args = mock_socket.download_step_progress.call_args[0][0]
-		assert call_args.id == 'test-repo'
+		assert call_args.model_id == 'test-repo'
 		assert call_args.step == 1
 		assert call_args.total == 3
 		assert call_args.downloaded_size == 50
@@ -441,15 +441,16 @@ class TestChunkEmitterBehavior:
 	def test_coalesces_chunk_updates(self, mock_socket, fast_chunk_emitter):
 		"""Ensure the chunk emitter only forwards the latest payload per model."""
 		from app.features.downloads.progress import DownloadStepProgressResponse
+		from app.schemas.downloads import DownloadPhase
 
 		mock_socket.download_step_progress.reset_mock()
 		payload1 = DownloadStepProgressResponse(
-			id='model',
+			model_id='model',
 			step=1,
 			total=2,
 			downloaded_size=5,
 			total_downloaded_size=10,
-			phase='chunk',
+			phase=DownloadPhase.CHUNK,
 		)
 		payload2 = payload1.model_copy(update={'downloaded_size': 9})
 
@@ -495,3 +496,38 @@ class TestChunkEmitterBehavior:
 
 		assert progress.downloaded_size == 300
 		assert progress.completed_files_size == 300
+
+
+class TestRegisterExistingBytes:
+	def test_increments_downloaded_size(self, progress_instance, mock_logger, mock_socket, fast_chunk_emitter):
+		"""Test that register_existing_bytes increments downloaded_size and emits chunk."""
+		mock_socket.download_step_progress.reset_mock()
+		mock_logger.info.reset_mock()
+
+		progress_instance.register_existing_bytes(50)
+
+		assert progress_instance.downloaded_size == 50
+		mock_logger.info.assert_called_once()
+		assert 'Resuming download' in mock_logger.info.call_args[0][0]
+
+		# Wait for emitter
+		wait_for_chunk(mock_socket, fast_chunk_emitter)
+		call_args = mock_socket.download_step_progress.call_args[0][0]
+		assert call_args.phase == 'chunk'
+		assert call_args.downloaded_size == 50
+
+	def test_ignores_zero_or_negative_bytes(self, progress_instance, mock_logger):
+		"""Test that zero or negative byte counts are ignored."""
+		progress_instance.register_existing_bytes(0)
+		progress_instance.register_existing_bytes(-10)
+
+		assert progress_instance.downloaded_size == 0
+		mock_logger.info.assert_not_called()
+
+	def test_clamps_to_total_downloaded_size(self, progress_instance):
+		"""Test that downloaded_size doesn't exceed total_downloaded_size."""
+		progress_instance.total_downloaded_size = 100
+
+		progress_instance.register_existing_bytes(150)
+
+		assert progress_instance.downloaded_size == 100

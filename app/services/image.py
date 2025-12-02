@@ -3,6 +3,8 @@ import io
 
 from PIL import Image
 
+from app.constants.img2img import IMG2IMG_RESIZE_MODES
+
 
 class ImageService:
 	def to_base64(self, image: Image.Image) -> str:
@@ -68,8 +70,6 @@ class ImageService:
 		Raises:
 			ValueError: If mode is not in supported modes
 		"""
-		from app.features.img2img.constants import IMG2IMG_RESIZE_MODES
-
 		# Validate mode against supported modes
 		if mode not in IMG2IMG_RESIZE_MODES:
 			raise ValueError(f'Invalid resize mode: {mode}. Supported modes: {IMG2IMG_RESIZE_MODES}')

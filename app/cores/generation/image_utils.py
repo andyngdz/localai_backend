@@ -1,16 +1,15 @@
 """Shared utilities for image generation processing."""
 
-from typing import TYPE_CHECKING, Any
+from __future__ import annotations
 
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL.Image import Image
 
 from app.cores.generation import image_processor, memory_manager
-
-if TYPE_CHECKING:
-	from app.features.generators.schemas import ImageGenerationItem
+from app.schemas.generators import ImageGenerationItem
 
 
-def process_generated_images(output: Any) -> tuple[list['ImageGenerationItem'], list[bool]]:
+def process_generated_images(output: StableDiffusionPipelineOutput) -> tuple[list[ImageGenerationItem], list[bool]]:
 	"""Process generated images and save them to disk.
 
 	Args:
@@ -19,8 +18,6 @@ def process_generated_images(output: Any) -> tuple[list['ImageGenerationItem'], 
 	Returns:
 		Tuple of (image_items, nsfw_content_detected)
 	"""
-	# Import here to avoid circular dependency
-	from app.features.generators.schemas import ImageGenerationItem
 
 	# Clear preview generation cache immediately after generation completes
 	if hasattr(image_processor, 'clear_tensor_cache'):

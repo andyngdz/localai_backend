@@ -34,5 +34,9 @@ skip-magic-trailing-comma = false
 indent-style = "tab"
 line-ending = "auto"
 docstring-code-format = true
+
 [lint]
 select = ["E", "F", "I"]
+
+[lint.per-file-ignores]
+"app/constants/styles/*.py" = ["E501"]

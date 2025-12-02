@@ -1,74 +1,57 @@
+"""Tests for GeneratorService after modular refactoring."""
+
 from collections.abc import Generator
 from typing import TypeAlias
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import torch
-from _pytest.logging import LogCaptureFixture
-from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
 from app.cores.samplers import SamplerType
-from app.features.generators.schemas import (
-	GeneratorConfig,
-	ImageGenerationItem,
-	ImageGenerationResponse,
-)
 from app.features.generators.service import GeneratorService
-from app.services.styles import DEFAULT_NEGATIVE_PROMPT
+from app.schemas.generators import GeneratorConfig, ImageGenerationItem, ImageGenerationResponse
 
-MockServiceFixture: TypeAlias = tuple[GeneratorService, Mock, Mock, Mock, Mock, Mock, Mock, Mock]
+MockServiceFixture: TypeAlias = tuple[GeneratorService, Mock, Mock, Mock, Mock, Mock, Mock]
 
 
 @pytest.fixture
 def mock_service() -> Generator[MockServiceFixture, None, None]:
-	"""Create GeneratorService with mocked dependencies."""
+	"""Create GeneratorService with mocked module dependencies."""
 	with (
 		patch('app.features.generators.service.model_manager') as mock_model_manager,
-		patch('app.features.generators.service.seed_manager') as mock_seed_manager,
-		patch('app.features.generators.service.image_processor') as mock_image_processor,
-		patch('app.features.generators.service.memory_manager') as mock_memory_manager,
-		patch('app.features.generators.service.progress_callback') as mock_progress_callback,
-		patch('app.features.generators.service.styles_service') as mock_styles_service,
-		patch('app.features.generators.service.torch') as mock_torch,
-		patch('app.cores.generation.image_utils.image_processor') as mock_image_utils_processor,
-		patch('app.cores.generation.image_utils.memory_manager') as mock_image_utils_memory,
+		patch('app.features.generators.service.config_validator') as mock_config_validator,
+		patch('app.features.generators.service.resource_manager') as mock_resource_manager,
+		patch('app.features.generators.service.lora_loader') as mock_lora_loader,
+		patch('app.features.generators.service.prompt_processor') as mock_prompt_processor,
+		patch('app.features.generators.service.response_builder') as mock_response_builder,
 	):
-		# Configure seed_manager
-		mock_seed_manager.get_seed.return_value = 12345
-
-		# Configure image_processor (both instances point to same mock)
-		mock_image_processor.is_nsfw_content_detected.return_value = [False]
-		mock_image_processor.save_image.return_value = ('/static/test.png', 'test')
-		mock_image_utils_processor.is_nsfw_content_detected = mock_image_processor.is_nsfw_content_detected
-		mock_image_utils_processor.save_image = mock_image_processor.save_image
-		mock_image_utils_processor.clear_tensor_cache = Mock()
-
-		# Configure memory_manager (both instances point to same mock)
-		mock_memory_manager.clear_cache = Mock()
-		mock_memory_manager.validate_batch_size = Mock()
-		mock_image_utils_memory.clear_cache = mock_memory_manager.clear_cache
-
-		# Configure progress_callback
-		mock_progress_callback.callback_on_step_end = Mock()
-
-		# Configure torch
-		mock_torch.cuda.OutOfMemoryError = torch.cuda.OutOfMemoryError
-		mock_torch.Generator = Mock(return_value=Mock())
-
-		from app.features.generators.service import GeneratorService
+		# Configure mocks
+		mock_model_manager.has_model = True  # Model is loaded by default
+		mock_config_validator.validate_config = Mock()
+		mock_resource_manager.prepare_for_generation = Mock()
+		mock_resource_manager.cleanup_after_generation = Mock()
+		mock_resource_manager.handle_oom_error = Mock()
+		mock_lora_loader.load_loras_for_generation = Mock(return_value=False)
+		mock_lora_loader.unload_loras = Mock()
+		mock_prompt_processor.prepare_prompts = Mock(return_value=('positive', 'negative'))
+		mock_response_builder.build_response = Mock(
+			return_value=ImageGenerationResponse(
+				items=[ImageGenerationItem(path='/static/test.png', file_name='test')],
+				nsfw_content_detected=[False],
+			)
+		)
 
 		service = GeneratorService()
 
 		yield (
 			service,
 			mock_model_manager,
-			mock_seed_manager,
-			mock_image_processor,
-			mock_memory_manager,
-			mock_progress_callback,
-			mock_styles_service,
-			mock_torch,
+			mock_config_validator,
+			mock_resource_manager,
+			mock_lora_loader,
+			mock_prompt_processor,
+			mock_response_builder,
 		)
 
 
@@ -84,7 +67,7 @@ def sample_config() -> GeneratorConfig:
 		number_of_images=1,
 		seed=-1,
 		sampler=SamplerType.EULER_A,
-		hires_fix=False,
+		hires_fix=None,
 		styles=[],
 	)
 
@@ -96,420 +79,227 @@ def mock_db() -> Mock:
 
 
 class TestGeneratorServiceInit:
+	"""Tests for GeneratorService initialization."""
+
 	def test_creates_executor(self, mock_service: MockServiceFixture) -> None:
+		"""Test that service creates ThreadPoolExecutor."""
 		service, *_ = mock_service
 		assert service.executor is not None
 		assert hasattr(service.executor, 'submit')
 
+	def test_creates_base_generator(self, mock_service: MockServiceFixture) -> None:
+		"""Test that service creates BaseGenerator instance."""
+		service, *_ = mock_service
+		assert service.generator is not None
+		assert hasattr(service.generator, 'execute_pipeline')
 
-class TestApplyHiresFix:
-	def test_logs_warning_when_hires_fix_enabled(
-		self, mock_service: MockServiceFixture, caplog: LogCaptureFixture
+
+class TestGenerateImageOrchestration:
+	"""Tests for generate_image orchestration flow."""
+
+	@pytest.mark.asyncio
+	async def test_validates_config_before_generation(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
+		"""Test that config validation is called first."""
+		service, _, mock_config_validator, *_ = mock_service
+
+		# Mock generator to avoid actual execution
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
+
+		mock_config_validator.validate_config.assert_called_once_with(sample_config)
+
+	@pytest.mark.asyncio
+	async def test_prepares_resources_before_generation(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test that resource preparation is called."""
+		service, _, _, mock_resource_manager, *_ = mock_service
+
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
+
+		mock_resource_manager.prepare_for_generation.assert_called_once()
+
+	@pytest.mark.asyncio
+	async def test_loads_loras_when_specified(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test that LoRAs are loaded when configured."""
+		service, _, _, _, mock_lora_loader, *_ = mock_service
+		mock_lora_loader.load_loras_for_generation.return_value = True
+
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
+
+		mock_lora_loader.load_loras_for_generation.assert_called_once_with(sample_config, mock_db)
+
+	@pytest.mark.asyncio
+	async def test_processes_prompts_with_styles(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test that prompts are processed through prompt_processor."""
+		service, _, _, _, _, mock_prompt_processor, _ = mock_service
+
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
+
+		mock_prompt_processor.prepare_prompts.assert_called_once_with(sample_config)
+
+	@pytest.mark.asyncio
+	async def test_executes_pipeline_with_processed_prompts(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test that pipeline execution receives processed prompts."""
+		service, _, *_, mock_prompt_processor, _ = mock_service
+		mock_prompt_processor.prepare_prompts.return_value = ('positive_test', 'negative_test')
+
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
+
+			mock_execute.assert_called_once_with(sample_config, 'positive_test', 'negative_test')
+
+	@pytest.mark.asyncio
+	async def test_builds_response_from_output(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test that response is built from pipeline output."""
+		service, _, *_, mock_response_builder = mock_service
+
+		mock_output = Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
+		mock_execute = AsyncMock(return_value=mock_output)
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image(sample_config, mock_db)
+
+		mock_response_builder.build_response.assert_called_once()
+
+	@pytest.mark.asyncio
+	async def test_returns_image_generation_response(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test that method returns ImageGenerationResponse."""
 		service, *_ = mock_service
 
-		service.apply_hires_fix(True)
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			result = await service.generate_image(sample_config, mock_db)
 
-		assert 'Hires fix requested, but not fully implemented' in caplog.text
-
-	def test_does_not_log_when_hires_fix_disabled(
-		self, mock_service: MockServiceFixture, caplog: LogCaptureFixture
-	) -> None:
-		service, *_ = mock_service
-
-		service.apply_hires_fix(False)
-
-		assert 'Hires fix requested' not in caplog.text
+		assert isinstance(result, ImageGenerationResponse)
+		assert len(result.items) == 1
+		assert result.items[0].path == '/static/test.png'
 
 
-class TestGenerateImage:
+class TestGenerateImageErrorHandling:
+	"""Tests for error handling in generate_image."""
+
 	@pytest.mark.asyncio
 	async def test_raises_error_when_no_model_loaded(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
+		"""Test that error is raised when no model is loaded."""
 		service, mock_model_manager, *_ = mock_service
-		mock_model_manager.pipe = None
+		mock_model_manager.has_model = False
 
 		with pytest.raises(ValueError, match='No model is currently loaded'):
 			await service.generate_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_clears_cuda_cache_before_generation_when_cuda_available(
+	async def test_raises_error_when_validation_fails(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
-		service, mock_model_manager, _, _, mock_memory_manager, *_ = mock_service
-		mock_model_manager.pipe = Mock()
+		"""Test that validation errors are propagated."""
+		service, _, mock_config_validator, *_ = mock_service
+		mock_config_validator.validate_config.side_effect = ValueError('Invalid config')
 
-		# Mock the executor to avoid actual execution
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop execution'))
-
-		try:
+		with pytest.raises(ValueError, match='Invalid config'):
 			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass
-
-		mock_memory_manager.clear_cache.assert_called()
-
-	@pytest.mark.asyncio
-	async def test_validates_batch_size_with_device_service(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, _, _, mock_memory_manager, *_ = mock_service
-		mock_model_manager.pipe = Mock()
-
-		# Set batch size higher than recommended
-		sample_config.number_of_images = 4
-
-		# Mock executor to stop execution after validation
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
-
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass
-
-		mock_memory_manager.validate_batch_size.assert_called_once_with(4, 512, 512)
-
-	@pytest.mark.asyncio
-	async def test_does_not_warn_when_batch_size_within_limit(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, *_ = mock_service
-		mock_model_manager.pipe = Mock()
-
-		sample_config.number_of_images = 2
-
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
-
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass
-
-		# Test passes if no errors occur - batch size validation happens in memory_manager
-
-	@pytest.mark.asyncio
-	async def test_sets_sampler_before_generation(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, *_ = mock_service
-		mock_model_manager.pipe = Mock()
-
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
-
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass
-
-		mock_model_manager.set_sampler.assert_called_once_with(SamplerType.EULER_A)
-
-	@pytest.mark.asyncio
-	async def test_applies_styles_via_styles_service(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
-		mock_model_manager.pipe = Mock()
-		mock_styles_service.apply_styles.return_value = ('positive prompt', 'negative prompt')
-
-		sample_config.styles = ['style1', 'style2']
-
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
-
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass
-
-		mock_styles_service.apply_styles.assert_called_once_with(
-			'test prompt', DEFAULT_NEGATIVE_PROMPT, ['style1', 'style2']
-		)
-
-	@pytest.mark.asyncio
-	async def test_uses_default_negative_prompt_when_none_provided(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
-		mock_model_manager.pipe = Mock()
-		mock_styles_service.apply_styles.return_value = ('positive', None)
-
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
-
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass
-
-		# Verify styles were applied
-		mock_styles_service.apply_styles.assert_called_once()
-
-	@pytest.mark.asyncio
-	async def test_successful_image_generation(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
-
-		# Mock the pipe
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_pipe.return_value = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=[False])
-		mock_model_manager.pipe = mock_pipe
-
-		# Mock styles
-		mock_styles_service.apply_styles.return_value = ('positive', 'negative')
-
-		# image_processor is already mocked to return test values
-		# mock_image_processor.save_image returns ('/static/test.png', 'test')
-		# mock_image_processor.is_nsfw_content_detected returns [False]
-
-		result = await service.generate_image(sample_config, mock_db)
-
-		assert isinstance(result, ImageGenerationResponse)
-		assert len(result.items) == 1
-		assert isinstance(result.items[0], ImageGenerationItem)
-		assert result.items[0].path == '/static/test.png'
-		assert result.items[0].file_name == 'test'
-		assert result.nsfw_content_detected == [False]
-
-	@pytest.mark.asyncio
-	async def test_handles_oom_error_and_clears_cache(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, _, _, mock_memory_manager, _, mock_styles_service, *_ = mock_service
-
-		mock_pipe = Mock()
-		mock_pipe.device = 'cuda'
-		mock_pipe.side_effect = torch.cuda.OutOfMemoryError('CUDA out of memory')
-		mock_model_manager.pipe = mock_pipe
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-		with pytest.raises(ValueError, match='Out of memory error'):
-			await service.generate_image(sample_config, mock_db)
-
-		# Verify cache was cleared in except and finally blocks
-		assert mock_memory_manager.clear_cache.call_count >= 2
 
 	@pytest.mark.asyncio
 	async def test_handles_file_not_found_error(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
-		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
+		"""Test FileNotFoundError handling."""
+		service, *_ = mock_service
+		mock_execute = AsyncMock(side_effect=FileNotFoundError('Model files missing'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Required files not found'):
+				await service.generate_image(sample_config, mock_db)
 
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		mock_pipe.side_effect = FileNotFoundError('Model files not found')
-		mock_model_manager.pipe = mock_pipe
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
+	@pytest.mark.asyncio
+	async def test_handles_oom_error_and_calls_cleanup(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test OOM error handling."""
+		service, _, _, mock_resource_manager, *_ = mock_service
+		mock_execute = AsyncMock(side_effect=torch.cuda.OutOfMemoryError('CUDA OOM'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Out of memory error'):
+				await service.generate_image(sample_config, mock_db)
 
-		with pytest.raises(ValueError, match='Model files not found'):
-			await service.generate_image(sample_config, mock_db)
+		mock_resource_manager.handle_oom_error.assert_called_once()
 
 	@pytest.mark.asyncio
 	async def test_handles_general_exception(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
-		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
-
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		mock_pipe.side_effect = RuntimeError('Something went wrong')
-		mock_model_manager.pipe = mock_pipe
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-		with pytest.raises(ValueError, match='Failed to generate image'):
-			await service.generate_image(sample_config, mock_db)
-
-	@pytest.mark.asyncio
-	async def test_clears_cuda_cache_in_finally_block(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, _, _, mock_memory_manager, _, mock_styles_service, *_ = mock_service
-
-		mock_pipe = Mock()
-		mock_pipe.device = 'cuda'
-		mock_pipe.side_effect = RuntimeError('Test error')
-		mock_model_manager.pipe = mock_pipe
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass
-
-		# Verify cache was cleared in finally block
-		mock_memory_manager.clear_cache.assert_called()
-
-	@pytest.mark.asyncio
-	async def test_resets_progress_callback_if_reset_exists(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, _, _, _, mock_progress_callback, mock_styles_service, *_ = mock_service
-
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		mock_model_manager.pipe = mock_pipe
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-		# Add reset method to progress_callback
-		mock_progress_callback.reset = Mock()
-
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
-
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass
-
-		# Verify reset was called
-		mock_progress_callback.reset.assert_called()
-
-	@pytest.mark.asyncio
-	async def test_handles_progress_callback_without_reset(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		service, mock_model_manager, _, _, _, mock_progress_callback, mock_styles_service, *_ = mock_service
-
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		mock_model_manager.pipe = mock_pipe
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-		# Ensure progress_callback does NOT have reset attribute
-		if hasattr(mock_progress_callback, 'reset'):
-			delattr(mock_progress_callback, 'reset')
-
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
-
-		# Should not raise error even without reset
-		try:
-			await service.generate_image(sample_config, mock_db)
-		except Exception:
-			# Ignore the intentional exception raised by the mock to stop execution
-			pass  # Expected exception from executor.submit
-
-	@pytest.mark.asyncio
-	async def test_handles_oom_when_clear_tensor_cache_not_available(
-		self, sample_config: GeneratorConfig, mock_db: Mock
-	) -> None:
-		"""Test OOM handling when image_processor doesn't have clear_tensor_cache."""
-		# Create service with fresh patches where clear_tensor_cache does NOT exist
-		with (
-			patch('app.features.generators.service.model_manager') as mock_model_manager,
-			patch('app.features.generators.service.seed_manager') as mock_seed_manager,
-			patch('app.features.generators.service.memory_manager') as mock_memory_manager,
-			patch('app.features.generators.service.styles_service') as mock_styles_service,
-			patch('app.features.generators.service.torch') as mock_torch,
-			patch('app.features.generators.service.image_processor') as mock_image_processor,
-			patch('app.cores.generation.image_utils.image_processor') as mock_image_utils_processor,
-			patch('app.cores.generation.image_utils.memory_manager'),
-		):
-			# Ensure image_processor does NOT have clear_tensor_cache
-			if hasattr(mock_image_processor, 'clear_tensor_cache'):
-				delattr(mock_image_processor, 'clear_tensor_cache')
-
-			# Set up image_utils mocks
-			mock_image_utils_processor.is_nsfw_content_detected.return_value = [False]
-			mock_image_utils_processor.save_image.return_value = ('/static/test.png', 'test')
-
-			# Set up other required mocks
-			mock_seed_manager.get_seed.return_value = 12345
-			mock_torch.cuda.OutOfMemoryError = torch.cuda.OutOfMemoryError
-			mock_torch.Generator = Mock(return_value=Mock())
-			mock_memory_manager.clear_cache = Mock()
-			mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-			mock_pipe = Mock()
-			mock_pipe.device = 'cuda'
-			mock_pipe.side_effect = torch.cuda.OutOfMemoryError('CUDA out of memory')
-			mock_model_manager.pipe = mock_pipe
-
-			from app.features.generators.service import GeneratorService
-
-			service = GeneratorService()
-
-			# Should still handle OOM error even without clear_tensor_cache
-			with pytest.raises(ValueError, match='Out of memory error'):
+		"""Test general exception handling."""
+		service, *_ = mock_service
+		mock_execute = AsyncMock(side_effect=RuntimeError('Something went wrong'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Failed to generate image'):
 				await service.generate_image(sample_config, mock_db)
 
+
+class TestGenerateImageCleanup:
+	"""Tests for resource cleanup in finally block."""
+
 	@pytest.mark.asyncio
-	async def test_unloads_loras_in_finally_block(
+	async def test_cleans_up_resources_after_success(
 		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
-		from app.schemas.lora import LoRAConfigItem
+		"""Test that cleanup is called after successful generation."""
+		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
 
-		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
-
-		# Set up LoRAs
-		sample_config.loras = [LoRAConfigItem(lora_id=1, weight=0.8)]
-
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_pipe.return_value = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=[False])
-		mock_model_manager.pipe = mock_pipe
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-		# Mock database
-		with patch('app.features.generators.service.database_service') as mock_database_service:
-			mock_lora = Mock()
-			mock_lora.id = 1
-			mock_lora.name = 'test_lora'
-			mock_lora.file_path = '/path/to/lora.safetensors'
-			mock_database_service.get_lora_by_id.return_value = mock_lora
-
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
 			await service.generate_image(sample_config, mock_db)
 
-			# Verify unload_loras was called in finally block
-			mock_model_manager.pipeline_manager.unload_loras.assert_called_once()
+		# Verify cleanup methods were called
+		mock_lora_loader.unload_loras.assert_called_once()
+		mock_resource_manager.cleanup_after_generation.assert_called_once_with()
 
 	@pytest.mark.asyncio
-	async def test_handles_error_during_lora_unload(
-		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock, caplog: LogCaptureFixture
+	async def test_cleans_up_resources_after_error(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
 	) -> None:
-		from app.schemas.lora import LoRAConfigItem
+		"""Test that cleanup is called even after errors."""
+		service, _, _, mock_resource_manager, *_ = mock_service
+		mock_execute = AsyncMock(side_effect=RuntimeError('Test error'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			try:
+				await service.generate_image(sample_config, mock_db)
+			except ValueError:
+				pass  # Expected
 
-		service, mock_model_manager, _, _, _, _, mock_styles_service, *_ = mock_service
+		mock_resource_manager.cleanup_after_generation.assert_called_once()
 
-		# Set up LoRAs
-		sample_config.loras = [LoRAConfigItem(lora_id=1, weight=0.8)]
+	@pytest.mark.asyncio
+	async def test_cleanup_always_called(
+		self, mock_service: MockServiceFixture, sample_config: GeneratorConfig, mock_db: Mock
+	) -> None:
+		"""Test that cleanup is always called regardless of LoRA state."""
+		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
 
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_pipe.return_value = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=[False])
-		mock_model_manager.pipe = mock_pipe
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-		# Make unload_loras raise an error
-		mock_model_manager.pipeline_manager.unload_loras.side_effect = RuntimeError('Unload failed')
-
-		# Mock database
-		with patch('app.features.generators.service.database_service') as mock_database_service:
-			mock_lora = Mock()
-			mock_lora.id = 1
-			mock_lora.name = 'test_lora'
-			mock_lora.file_path = '/path/to/lora.safetensors'
-			mock_database_service.get_lora_by_id.return_value = mock_lora
-
-			# Should not raise, error is logged
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
 			await service.generate_image(sample_config, mock_db)
 
-			# Verify error was logged
-			assert 'Failed to unload LoRAs' in caplog.text
+		# Both cleanup methods should be called
+		mock_lora_loader.unload_loras.assert_called_once()
+		mock_resource_manager.cleanup_after_generation.assert_called_once_with()

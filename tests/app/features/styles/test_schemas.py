@@ -13,8 +13,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from app.features.styles.schemas import StyleSectionResponse
-from app.styles.schemas import StyleItem
+from app.schemas.styles import StyleItem, StyleSectionResponse
 
 
 class TestStyleSectionResponse:
@@ -43,12 +42,9 @@ class TestStyleSectionResponse:
 
 	def test_missing_required_fields(self):
 		"""Test that StyleSectionResponse raises error when required fields are missing."""
-		# Arrange
-		invalid_data = {'styles': []}
-
-		# Act & Assert
+		# Act & Assert - Pass only styles (missing required 'id' and 'name')
 		with pytest.raises(ValidationError) as exc_info:
-			StyleSectionResponse(**invalid_data)
+			StyleSectionResponse(styles=[])
 
 		# Verify the error message mentions the missing field
 		assert 'id' in str(exc_info.value)

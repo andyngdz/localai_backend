@@ -13,8 +13,7 @@ from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 from app.features.styles.api import get_prompt_styles, get_styles
-from app.features.styles.schemas import StyleSectionResponse
-from app.styles.schemas import StyleItem
+from app.schemas.styles import StyleItem, StyleSectionResponse
 
 
 def setup_module():

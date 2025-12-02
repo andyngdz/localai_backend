@@ -1,10 +1,11 @@
+from app.schemas.samplers import SamplerItem
+
 from .schedulers import (
 	SCHEDULER_DESCRIPTIONS,
 	SCHEDULER_MAPPING,
 	SCHEDULER_NAMES,
 	SamplerType,
 )
-from .schemas import SamplerItem
 from .service import samplers_service
 
 __all__ = [

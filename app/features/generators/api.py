@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from app.cores.samplers import samplers_service
 from app.database import database_service
 from app.database.crud import add_generated_image
+from app.schemas.generators import ImageGenerationRequest
 from app.services import logger_service
 
-from .schemas import ImageGenerationRequest
 from .service import generator_service
 
 logger = logger_service.get_logger(__name__, category='Generate')

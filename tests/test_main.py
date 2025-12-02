@@ -1,9 +1,12 @@
 """Tests for main application entry point."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from main import app
+from main import app, lifespan
 
 client = TestClient(app)
 
@@ -105,3 +108,52 @@ class TestRouterRegistration:
 		response = client.get('/styles')
 		# Should work or return specific error
 		assert response.status_code != status.HTTP_404_NOT_FOUND
+
+	def test_config_router_registered(self):
+		"""Test config router is accessible."""
+		response = client.get('/config/')
+		# Should return config data
+		assert response.status_code == status.HTTP_200_OK
+		data = response.json()
+		assert 'upscalers' in data
+
+
+class TestLifespan:
+	"""Tests for application lifespan events."""
+
+	@pytest.mark.asyncio
+	@patch('main.model_manager')
+	@patch('main.socket_service')
+	@patch('main.database_service')
+	@patch('main.platform_service')
+	@patch('main.storage_service')
+	@patch('main.logger_service')
+	@patch('main.SessionLocal')
+	async def test_lifespan_initializes_services(
+		self,
+		mock_session_local,
+		mock_logger_service,
+		mock_storage_service,
+		mock_platform_service,
+		mock_database_service,
+		mock_socket_service,
+		mock_model_manager,
+	):
+		"""Test that lifespan initializes all services on startup."""
+		mock_db = MagicMock()
+		mock_session_local.return_value = mock_db
+		mock_model_manager.unload_model_async = AsyncMock()
+		mock_model_manager.loader_service = MagicMock()
+
+		async with lifespan(MagicMock()):
+			# Verify services were initialized
+			mock_logger_service.init.assert_called_once()
+			mock_storage_service.init.assert_called_once()
+			mock_platform_service.init.assert_called_once()
+			mock_database_service.init.assert_called_once()
+			mock_socket_service.attach_loop.assert_called_once()
+			mock_model_manager.unload_model_async.assert_called_once()
+
+		# Verify cleanup after yield
+		mock_model_manager.loader_service.shutdown.assert_called_once()
+		mock_db.close.assert_called_once()

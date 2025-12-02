@@ -3,26 +3,36 @@
 from pathlib import Path
 from typing import Optional
 
-from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForText2Image
-
-from app.cores.constants.error_messages import ERROR_NO_MODEL_LOADED
-from app.cores.constants.samplers import DEFAULT_SAMPLE_SIZE
+from app.constants.error_messages import ERROR_NO_MODEL_LOADED
+from app.constants.samplers import DEFAULT_SAMPLE_SIZE
 from app.cores.samplers import SCHEDULER_MAPPING, SamplerType
-from app.schemas.lora import LoRAData
+from app.schemas.loras import LoRAData
+from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
-
-# Type alias for diffusers pipelines
-DiffusersPipeline = AutoPipelineForText2Image | AutoPipelineForImage2Image
 
 
 class PipelineManager:
 	"""Manages the active diffusion pipeline and its configuration."""
 
 	def __init__(self) -> None:
-		self.pipe: DiffusersPipeline | None = None
-		self.model_id: str | None = None
+		self.pipe: Optional[DiffusersPipeline] = None
+		self.model_id: Optional[str] = None
+
+	def _get_pipe(self) -> DiffusersPipeline:
+		"""Get pipeline or raise error if not loaded.
+
+		Returns:
+			Pipeline instance
+
+		Raises:
+			ValueError: If no model is loaded
+		"""
+		if self.pipe is None:
+			raise ValueError(ERROR_NO_MODEL_LOADED)
+
+		return self.pipe
 
 	def set_pipeline(self, pipe: DiffusersPipeline, model_id: str) -> None:
 		"""Store pipeline and model ID.
@@ -41,7 +51,7 @@ class PipelineManager:
 		self.model_id = None
 		logger.info('Pipeline cleared')
 
-	def get_pipeline(self) -> DiffusersPipeline | None:
+	def get_pipeline(self) -> Optional[DiffusersPipeline]:
 		"""Get current pipeline.
 
 		Returns:
@@ -66,21 +76,20 @@ class PipelineManager:
 		Raises:
 			ValueError: If no model is loaded or sampler is unsupported
 		"""
-		if not self.pipe:
-			raise ValueError(ERROR_NO_MODEL_LOADED)
+		pipe = self._get_pipe()
 
 		scheduler = SCHEDULER_MAPPING.get(sampler)
 		if not scheduler:
 			raise ValueError(f'Unsupported sampler type: {sampler.value}')
 
-		config = self.pipe.scheduler.config
+		config = pipe.scheduler.config
 		kwargs = {}
 
 		if sampler in [SamplerType.DPM_SOLVER_MULTISTEP_KARRAS, SamplerType.DPM_SOLVER_SDE_KARRAS]:
 			kwargs['use_karras_sigmas'] = True
 
 		new_scheduler = scheduler.from_config(config, **kwargs)
-		self.pipe.scheduler = new_scheduler
+		pipe.scheduler = new_scheduler
 		logger.info(f'Sampler set to: {sampler.value}')
 
 	def get_sample_size(self) -> int:
@@ -92,10 +101,9 @@ class PipelineManager:
 		Raises:
 			ValueError: If no model is loaded
 		"""
-		if not self.pipe:
-			raise ValueError(ERROR_NO_MODEL_LOADED)
+		pipe = self._get_pipe()
 
-		unet_config = self.pipe.unet.config
+		unet_config = pipe.unet.config
 		if hasattr(unet_config, 'sample_size'):
 			sample_size: int = unet_config.sample_size
 			return sample_size
@@ -113,8 +121,7 @@ class PipelineManager:
 		Raises:
 			ValueError: If no model is loaded or all LoRAs fail to load
 		"""
-		if not self.pipe:
-			raise ValueError(ERROR_NO_MODEL_LOADED)
+		pipe = self._get_pipe()
 
 		if not lora_configs:
 			logger.warning('load_loras called with empty config list')
@@ -135,7 +142,7 @@ class PipelineManager:
 				lora_dir = str(lora_path.parent)
 				lora_filename = lora_path.name
 
-				self.pipe.load_lora_weights(lora_dir, weight_name=lora_filename, adapter_name=adapter_name)
+				pipe.load_lora_weights(lora_dir, weight_name=lora_filename, adapter_name=adapter_name)
 				adapter_names.append(adapter_name)
 				adapter_weights.append(config.weight)
 				logger.info(f"Successfully loaded LoRA '{name}'")
@@ -161,7 +168,7 @@ class PipelineManager:
 				f'Loaded {len(adapter_names)}/{len(lora_configs)} LoRAs. Skipped incompatible: {", ".join(failed_loras)}'
 			)
 
-		self.pipe.set_adapters(adapter_names, adapter_weights=adapter_weights)
+		pipe.set_adapters(adapter_names, adapter_weights=adapter_weights)
 		logger.info(f'Successfully activated {len(adapter_names)} compatible LoRAs')
 
 	def unload_loras(self) -> None:
@@ -170,15 +177,11 @@ class PipelineManager:
 		Raises:
 			ValueError: If no model is loaded
 		"""
-		if not self.pipe:
-			raise ValueError(ERROR_NO_MODEL_LOADED)
+		pipe = self._get_pipe()
 
 		try:
-			self.pipe.unload_lora_weights()
+			pipe.unload_lora_weights()
 			logger.info('Unloaded all LoRAs')
 		except Exception as error:
 			logger.error(f'Failed to unload LoRAs: {error}')
 			raise ValueError(f'Failed to unload LoRAs: {error}')
-
-
-pipeline_manager = PipelineManager()

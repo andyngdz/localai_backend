@@ -1,5 +1,8 @@
+from typing import Optional
+
 from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForText2Image
 
+from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
@@ -13,9 +16,7 @@ class PipelineConverter:
 	and other pipeline modes while reusing loaded model components.
 	"""
 
-	def convert_to_img2img(
-		self, pipe: AutoPipelineForText2Image | AutoPipelineForImage2Image | None
-	) -> AutoPipelineForImage2Image:
+	def convert_to_img2img(self, pipe: Optional[DiffusersPipeline]) -> AutoPipelineForImage2Image:
 		"""
 		Convert pipeline to image-to-image mode.
 
@@ -49,9 +50,7 @@ class PipelineConverter:
 			logger.error(f'Failed to convert to img2img pipeline: {error}')
 			raise
 
-	def convert_to_text2img(
-		self, pipe: AutoPipelineForText2Image | AutoPipelineForImage2Image | None
-	) -> AutoPipelineForText2Image:
+	def convert_to_text2img(self, pipe: Optional[DiffusersPipeline]) -> AutoPipelineForText2Image:
 		"""
 		Convert pipeline to text-to-image mode.
 
@@ -84,7 +83,7 @@ class PipelineConverter:
 			logger.error(f'Failed to convert to text2img pipeline: {error}')
 			raise
 
-	def get_pipeline_type(self, pipe: AutoPipelineForText2Image | AutoPipelineForImage2Image | None) -> str:
+	def get_pipeline_type(self, pipe: Optional[DiffusersPipeline]) -> str:
 		"""
 		Detect the current pipeline type.
 

@@ -27,7 +27,7 @@ from app.features.models.api import (
 	load_model,
 	unload_model,
 )
-from app.features.models.schemas import (
+from app.schemas.models import (
 	LoadModelRequest,
 	LoadModelResponse,
 	ModelAvailableResponse,
@@ -58,7 +58,8 @@ class TestDeleteModelEndpoint:
 		mock_model_service.delete_model.assert_called_once_with(self.db_mock, self.model_id)
 		assert isinstance(result, JSONResponseMessage)
 		# Check the content dict that was passed to JSONResponse
-		assert result.body.decode() == '{"message":"Model test/model deleted successfully"}'
+		body_content = result.body if isinstance(result.body, bytes) else bytes(result.body)
+		assert body_content.decode() == '{"message":"Model test/model deleted successfully"}'
 
 	@patch('app.features.models.api.model_manager')
 	def test_delete_model_in_use(self, mock_model_manager):
@@ -110,7 +111,7 @@ class TestLoadModelEndpoint:
 	def setup_method(self):
 		"""Setup test method."""
 		self.model_id = 'test/model'
-		self.request = LoadModelRequest(id=self.model_id)
+		self.request = LoadModelRequest(model_id=self.model_id)
 		self.model_config = {'model_type': 'diffusion', 'version': '1.0'}
 		self.sample_size = 512
 
@@ -129,7 +130,7 @@ class TestLoadModelEndpoint:
 		# Assert
 		mock_model_manager.load_model_async.assert_called_once_with(self.model_id)
 		assert isinstance(result, LoadModelResponse)
-		assert result.id == self.model_id
+		assert result.model_id == self.model_id
 		assert result.config == self.model_config
 		assert result.sample_size == self.sample_size
 
@@ -192,7 +193,8 @@ class TestUnloadModelEndpoint:
 		# Assert
 		mock_model_manager.unload_model_async.assert_called_once()
 		assert isinstance(result, JSONResponseMessage)
-		assert 'Model unloaded successfully' in result.body.decode()
+		body_content = result.body if isinstance(result.body, bytes) else bytes(result.body)
+		assert 'Model unloaded successfully' in body_content.decode()
 
 	@pytest.mark.asyncio
 	@patch('app.features.models.api.model_manager')
@@ -270,7 +272,7 @@ class TestModelAvailabilityEndpoint:
 		# Assert
 		mock_model_service.is_model_downloaded.assert_called_once_with(self.db_mock, self.model_id)
 		assert isinstance(result, ModelAvailableResponse)
-		assert result.id == self.model_id
+		assert result.model_id == self.model_id
 		assert result.is_downloaded is True
 
 	@patch('app.features.models.api.model_service')
@@ -346,7 +348,7 @@ class TestGetModelInfoEndpoint:
 		# Act
 		from app.features.models.api import get_model_info
 
-		result = get_model_info(id='test/model')
+		result = get_model_info(model_id='test/model')
 
 		# Assert
 		mock_api.model_info.assert_called_once_with('test/model', files_metadata=True)
@@ -358,10 +360,10 @@ class TestGetModelInfoEndpoint:
 
 		# Test with empty string
 		with pytest.raises(HTTPException) as exc_info:
-			get_model_info(id='')
+			get_model_info(model_id='')
 
 		assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-		assert "Missing 'id' query parameter" in str(exc_info.value.detail)
+		assert "Missing 'model_id' query parameter" in str(exc_info.value.detail)
 
 
 class TestGetDownloadedModelsEndpoint:
@@ -405,13 +407,13 @@ class TestGetModelStatusEndpoint:
 
 	@patch('app.features.models.api.model_manager')
 	def test_get_model_status_success(self, mock_model_manager):
-		"""Test successful model status retrieval (lines 200-216)."""
+		"""Test successful model status retrieval."""
 		# Arrange
 		from app.cores.model_manager import ModelState
 
 		mock_model_manager.current_state = ModelState.LOADED
 		mock_model_manager.id = 'test/model'
-		mock_model_manager.pipe = MagicMock()
+		mock_model_manager.has_model = True
 
 		# Act
 		from app.features.models.api import get_model_status
@@ -432,7 +434,7 @@ class TestGetModelStatusEndpoint:
 
 		mock_model_manager.current_state = ModelState.LOADING
 		mock_model_manager.id = None
-		mock_model_manager.pipe = None
+		mock_model_manager.has_model = False
 
 		# Act
 		from app.features.models.api import get_model_status

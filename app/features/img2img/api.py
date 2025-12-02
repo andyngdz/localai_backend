@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.database import database_service
 from app.database.crud import add_generated_image
+from app.schemas.img2img import Img2ImgRequest
 from app.services import logger_service
 
-from .schemas import Img2ImgRequest
 from .service import img2img_service
 
 logger = logger_service.get_logger(__name__, category='API')

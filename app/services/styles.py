@@ -4,9 +4,10 @@ from typing import List, Optional
 
 from transformers import CLIPTokenizer, GPT2TokenizerFast
 
+from app.constants.generation import DEFAULT_NEGATIVE_PROMPT
+from app.constants.styles import all_styles
+from app.schemas.styles import StyleItem
 from app.services import logger_service
-from app.styles import all_styles
-from app.styles.schemas import StyleItem
 
 logger = logger_service.get_logger(__name__, category='Service')
 
@@ -18,14 +19,6 @@ MAX_CLIP_TOKENS = 77
 # Separator between prompt parts
 PROMPT_SEPARATOR = ', '
 SEPARATOR_TOKEN_COST = 2  # Estimated tokens for PROMPT_SEPARATOR
-
-DEFAULT_NEGATIVE_PROMPT = (
-	'(worst quality, low quality, lowres, blurry, jpeg artifacts, watermark, '
-	'signature, text, logo), '
-	'(bad hands, bad anatomy, mutated, deformed, disfigured, extra limbs, '
-	'cropped, out of frame), '
-	'(cartoon, anime, cgi, render, 3d, doll, toy, painting, sketch)'
-)
 
 
 class StylesService:

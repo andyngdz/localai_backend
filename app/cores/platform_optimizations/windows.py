@@ -2,7 +2,8 @@
 
 import torch
 
-from app.cores.constants.memory_thresholds import ATTENTION_SLICING_THRESHOLD_GB
+from app.constants.memory_thresholds import ATTENTION_SLICING_THRESHOLD_GB
+from app.constants.platform import OperatingSystem
 from app.services import device_service, logger_service
 
 from .base import PlatformOptimizer
@@ -89,4 +90,4 @@ class WindowsOptimizer(PlatformOptimizer):
 		Returns:
 			'Windows'
 		"""
-		return 'Windows'
+		return OperatingSystem.WINDOWS.value

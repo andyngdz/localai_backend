@@ -1,7 +1,10 @@
 import json
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 from huggingface_hub import DatasetInfo, HfApi, ModelInfo, SpaceInfo, hf_hub_download
+from huggingface_hub.errors import EntryNotFoundError
+
+from app.schemas.downloads import RepositoryFileSize, RepositoryFileSizes
 
 RepoInfo = Union[ModelInfo, DatasetInfo, SpaceInfo]
 
@@ -31,34 +34,44 @@ class HuggingFaceRepository:
 		Returns:
 			Repository information (ModelInfo, DatasetInfo, or SpaceInfo)
 		"""
-		return self.api.repo_info(id)
+		return self.api.repo_info(id, files_metadata=True)
 
 	def list_files(self, id: str, repo_info: Optional[RepoInfo] = None) -> List[str]:
 		"""Get list of all files in a HuggingFace repository."""
-		info = repo_info or self.api.repo_info(id)
+		info = repo_info or self.api.repo_info(id, files_metadata=True)
 
 		if not info.siblings:
 			return []
 
 		return [sibling.rfilename for sibling in info.siblings]
 
-	def get_file_sizes_map(self, id: str, repo_info: Optional[RepoInfo] = None) -> Dict[str, int]:
-		"""Get mapping of filenames to their sizes in a HuggingFace repository."""
+	def get_file_sizes_map(self, id: str, repo_info: Optional[RepoInfo] = None) -> RepositoryFileSizes:
+		"""Get structured file size metadata for a HuggingFace repository."""
 		info = repo_info or self.api.repo_info(id)
 
 		if not info.siblings:
-			return {}
+			return RepositoryFileSizes()
 
-		return {sibling.rfilename: getattr(sibling, 'size', 0) or 0 for sibling in info.siblings}
+		entries = [
+			RepositoryFileSize(
+				filename=sibling.rfilename,
+				size=getattr(sibling, 'size', 0) or 0,
+			)
+			for sibling in info.siblings
+		]
+		return RepositoryFileSizes(files=entries)
 
 	def get_components(self, id: str, revision: Optional[str] = None) -> List[str]:
 		"""Get list of model components from model_index.json."""
-		model_index = hf_hub_download(
-			repo_id=id,
-			filename='model_index.json',
-			repo_type='model',
-			revision=revision,
-		)
+		try:
+			model_index = hf_hub_download(
+				repo_id=id,
+				filename='model_index.json',
+				repo_type='model',
+				revision=revision,
+			)
+		except EntryNotFoundError:
+			return []
 
 		with open(model_index, 'r', encoding='utf-8') as file:
 			data = json.load(file)

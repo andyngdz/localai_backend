@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from app.schemas.styles import StyleItem
 from app.services.styles import StylesService
-from app.styles.schemas import StyleItem
 
 
 class TestStylesService:

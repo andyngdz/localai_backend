@@ -118,6 +118,26 @@ class TestModelManagerBackwardCompatibility:
 		"""Create fresh ModelManager for each test."""
 		self.model_manager = ModelManager()
 
+	def test_has_model_property_returns_true_when_pipeline_exists(self):
+		"""Test has_model returns True when pipeline is loaded."""
+		mock_pipe = MagicMock()
+
+		with patch.object(self.model_manager.pipeline_manager, 'get_pipeline', return_value=mock_pipe):
+			# Execute
+			result = self.model_manager.has_model
+
+			# Verify
+			assert result is True
+
+	def test_has_model_property_returns_false_when_no_pipeline(self):
+		"""Test has_model returns False when no pipeline is loaded."""
+		with patch.object(self.model_manager.pipeline_manager, 'get_pipeline', return_value=None):
+			# Execute
+			result = self.model_manager.has_model
+
+			# Verify
+			assert result is False
+
 	def test_pipe_property_getter_delegates_to_pipeline_manager(self):
 		"""Test pipe property getter delegates to PipelineManager.get_pipeline()."""
 		mock_pipe = MagicMock()
@@ -129,6 +149,13 @@ class TestModelManagerBackwardCompatibility:
 			# Verify delegation
 			mock_get.assert_called_once()
 			assert result == mock_pipe
+
+	def test_pipe_property_getter_raises_when_no_pipeline(self):
+		"""Test pipe property getter raises ValueError when no pipeline is loaded."""
+		with patch.object(self.model_manager.pipeline_manager, 'get_pipeline', return_value=None):
+			# Execute & Verify
+			with pytest.raises(ValueError, match='No model is currently loaded'):
+				_ = self.model_manager.pipe
 
 	def test_pipe_property_setter_delegates_to_pipeline_manager(self):
 		"""Test pipe property setter delegates to PipelineManager.set_pipeline()."""
@@ -266,7 +293,9 @@ class TestModelManagerIntegration:
 			self.model_manager.set_sampler(SamplerType.EULER)
 
 			# Verify scheduler changed
-			assert self.model_manager.pipeline_manager.pipe.scheduler == mock_new_scheduler_instance
+			pipeline = self.model_manager.pipeline_manager.pipe
+			assert pipeline is not None
+			assert pipeline.scheduler == mock_new_scheduler_instance
 
 	def test_sample_size_integration(self):
 		"""Test sample_size property works through ModelManager facade."""

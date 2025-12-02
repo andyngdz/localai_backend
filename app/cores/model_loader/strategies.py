@@ -1,36 +1,31 @@
 import os
 from pathlib import Path
-from typing import Literal, NotRequired, Optional, TypedDict, Union, cast
+from typing import Any, Optional
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
+from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import StableDiffusion3Pipeline
+from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipeline
 from transformers import CLIPImageProcessor
 
-from app.cores.constants.model_loader import ModelLoadingStrategy
-from app.cores.model_manager.pipeline_manager import DiffusersPipeline
+from app.constants.model_loader import ModelLoadingStrategy
+from app.schemas.model_loader import (
+	DiffusersPipeline,
+	ModelLoadFailed,
+	PretrainedStrategy,
+	SingleFilePipelineClass,
+	SingleFileStrategy,
+	Strategy,
+)
 from app.services import device_service, logger_service
 from app.socket import socket_service
 from config import CACHE_FOLDER
 
 from .cancellation import CancellationToken
 from .progress import emit_progress
-from .schemas import ModelLoadFailed
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
-
-
-class SingleFileStrategy(TypedDict):
-	type: Literal[ModelLoadingStrategy.SINGLE_FILE]
-	checkpoint_path: str
-
-
-class PretrainedStrategy(TypedDict):
-	type: Literal[ModelLoadingStrategy.PRETRAINED]
-	use_safetensors: bool
-	variant: NotRequired[str]
-
-
-Strategy = Union[SingleFileStrategy, PretrainedStrategy]
 
 
 def find_single_file_checkpoint(model_path: str) -> Optional[str]:
@@ -65,17 +60,12 @@ def find_checkpoint_in_cache(model_cache_path: str) -> Optional[str]:
 def build_loading_strategies(checkpoint_path: Optional[str]) -> list[Strategy]:
 	strategies: list[Strategy] = []
 	if checkpoint_path:
-		strategies.append(
-			{
-				'type': ModelLoadingStrategy.SINGLE_FILE,
-				'checkpoint_path': checkpoint_path,
-			}
-		)
+		strategies.append(SingleFileStrategy(checkpoint_path=checkpoint_path))
 
-	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': True})
-	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': False})
-	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': True, 'variant': 'fp16'})
-	strategies.append({'type': ModelLoadingStrategy.PRETRAINED, 'use_safetensors': False, 'variant': 'fp16'})
+	strategies.append(PretrainedStrategy(use_safetensors=True))
+	strategies.append(PretrainedStrategy(use_safetensors=False))
+	strategies.append(PretrainedStrategy(use_safetensors=True, variant='fp16'))
+	strategies.append(PretrainedStrategy(use_safetensors=False, variant='fp16'))
 
 	return strategies
 
@@ -85,49 +75,46 @@ def _load_single_file(
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
-	from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import StableDiffusionPipeline
-	from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import StableDiffusionXLPipeline
-
 	errors = []
 
-	for pipeline_class in [StableDiffusionXLPipeline, StableDiffusionPipeline]:
+	# Try pipelines in order: SD 1.5 (most common), SDXL, SD3
+	pipeline_classes: list[SingleFilePipelineClass] = [
+		StableDiffusionPipeline,
+		StableDiffusionXLPipeline,
+		StableDiffusion3Pipeline,
+	]
+
+	for pipeline_class in pipeline_classes:
 		try:
 			logger.debug(f'Trying {pipeline_class.__name__} for single-file checkpoint')
 
-			from_single_file = getattr(pipeline_class, 'from_single_file')
-
-			pipe = cast(
-				DiffusersPipeline,
-				from_single_file(
-					checkpoint,
-					torch_dtype=device_service.torch_dtype,
-				),
+			pipe = pipeline_class.from_single_file(
+				checkpoint,
+				torch_dtype=device_service.torch_dtype,
+				safety_checker=safety_checker,
+				feature_extractor=feature_extractor,
 			)
-
-			if hasattr(pipe, 'safety_checker'):
-				pipe.safety_checker = safety_checker
-
-			if hasattr(pipe, 'feature_extractor'):
-				pipe.feature_extractor = feature_extractor
 
 			logger.info(f'Successfully loaded with {pipeline_class.__name__}')
 			return pipe
-		except Exception as error:  # pragma: no cover - defensive fallbacks
+		except Exception as error:
 			errors.append(f'{pipeline_class.__name__}: {error}')
 
 	raise ValueError(f'Failed to load single-file checkpoint {checkpoint}. Tried: {", ".join(errors)}')
 
 
 def _load_pretrained(
-	id: str,
-	params: PretrainedStrategy,
+	model_id: str,
+	strategy: PretrainedStrategy,
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
-	load_params = {key: value for key, value in params.items() if key != 'type'}
+	load_params: dict[str, Any] = {'use_safetensors': strategy.use_safetensors}
+	if strategy.variant:
+		load_params['variant'] = strategy.variant
 
 	return AutoPipelineForText2Image.from_pretrained(
-		id,
+		model_id,
 		cache_dir=CACHE_FOLDER,
 		low_cpu_mem_usage=True,
 		torch_dtype=device_service.torch_dtype,
@@ -138,42 +125,36 @@ def _load_pretrained(
 
 
 def _get_strategy_type(strategy: Strategy) -> ModelLoadingStrategy:
-	strategy_type = cast(ModelLoadingStrategy, strategy['type'])
-	if strategy_type not in (
-		ModelLoadingStrategy.SINGLE_FILE,
-		ModelLoadingStrategy.PRETRAINED,
-	):
-		raise ValueError(f'Unsupported strategy type: {strategy_type}')
-
-	return strategy_type
+	return ModelLoadingStrategy(strategy.type)
 
 
 def _load_strategy_pipeline(
-	id: str,
+	model_id: str,
 	strategy: Strategy,
 	strategy_type: ModelLoadingStrategy,
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
 	if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
-		checkpoint_path = cast(SingleFileStrategy, strategy)['checkpoint_path']
-		if not checkpoint_path:
-			raise ValueError('Missing checkpoint path for single-file strategy')
-		return _load_single_file(checkpoint_path, safety_checker, feature_extractor)
+		if isinstance(strategy, SingleFileStrategy):
+			if not strategy.checkpoint_path:
+				raise ValueError('Missing checkpoint path for single-file strategy')
 
-	if strategy_type == ModelLoadingStrategy.PRETRAINED:
+			return _load_single_file(strategy.checkpoint_path, safety_checker, feature_extractor)
+
+	if isinstance(strategy, PretrainedStrategy):
 		return _load_pretrained(
-			id,
-			cast(PretrainedStrategy, strategy),
+			model_id,
+			strategy,
 			safety_checker,
 			feature_extractor,
 		)
 
-	raise ValueError(f'Unsupported strategy type: {strategy_type}')
+	raise ValueError(f'Unknown strategy type: {strategy}')
 
 
 def execute_loading_strategies(
-	id: str,
+	model_id: str,
 	strategies: list[Strategy],
 	safety_checker: StableDiffusionSafetyChecker,
 	feature_extractor: CLIPImageProcessor,
@@ -185,14 +166,14 @@ def execute_loading_strategies(
 		if cancel_token:
 			cancel_token.check_cancelled()
 
-		emit_progress(id, 5, 'Loading model weights...')
+		emit_progress(model_id, 5, 'Loading model weights...')
 
 		try:
 			strategy_type = _get_strategy_type(strategy)
 			logger.info(f'Trying loading strategy {idx}/{len(strategies)} ({strategy_type}): {strategy}')
 
 			pipe = _load_strategy_pipeline(
-				id,
+				model_id,
 				strategy,
 				strategy_type,
 				safety_checker,
@@ -201,15 +182,15 @@ def execute_loading_strategies(
 
 			logger.info(f'Successfully loaded model using strategy {idx}')
 			return pipe
-		except Exception as error:  # pragma: no cover - log/continue until last failure
+		except Exception as error:
 			last_error = error
 			logger.warning(f'Strategy {idx} failed: {error}')
 
 			continue
 
-	error_msg = f'Failed to load model {id} with all strategies. Last error: {last_error}'
+	error_msg = f'Failed to load model {model_id} with all strategies. Last error: {last_error}'
 	logger.error(error_msg)
-	socket_service.model_load_failed(ModelLoadFailed(id=id, error=str(last_error)))
+	socket_service.model_load_failed(ModelLoadFailed(model_id=model_id, error=str(last_error)))
 
 	if last_error is not None:
 		raise last_error
@@ -217,9 +198,6 @@ def execute_loading_strategies(
 
 
 __all__ = [
-	'SingleFileStrategy',
-	'PretrainedStrategy',
-	'Strategy',
 	'find_single_file_checkpoint',
 	'find_checkpoint_in_cache',
 	'build_loading_strategies',

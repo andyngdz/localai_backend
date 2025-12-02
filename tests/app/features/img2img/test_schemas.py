@@ -3,9 +3,9 @@
 import pytest
 from pydantic import ValidationError
 
+from app.constants.img2img import IMG2IMG_DEFAULT_STRENGTH
 from app.cores.samplers import SamplerType
-from app.features.img2img.constants import IMG2IMG_DEFAULT_STRENGTH
-from app.features.img2img.schemas import Img2ImgConfig, Img2ImgRequest
+from app.schemas.img2img import Img2ImgConfig, Img2ImgRequest
 
 
 class TestImg2ImgConfig:
@@ -15,13 +15,13 @@ class TestImg2ImgConfig:
 
 		assert config.init_image == 'base64string'
 		assert config.prompt == 'test prompt'
-		assert config.strength == IMG2IMG_DEFAULT_STRENGTH
+		assert config.strength == pytest.approx(IMG2IMG_DEFAULT_STRENGTH)
 		assert config.resize_mode == 'resize'
 		assert config.width == 512
 		assert config.height == 512
 		assert config.number_of_images == 1
 		assert config.steps == 24
-		assert config.cfg_scale == 7.5
+		assert config.cfg_scale == pytest.approx(7.5)
 		assert config.seed == -1
 		assert config.sampler == SamplerType.EULER_A
 		assert config.styles == []
@@ -43,13 +43,13 @@ class TestImg2ImgConfig:
 			styles=['style1', 'style2'],
 		)
 
-		assert config.strength == 0.5
+		assert config.strength == pytest.approx(0.5)
 		assert config.resize_mode == 'crop'
 		assert config.width == 1024
 		assert config.height == 768
 		assert config.number_of_images == 2
 		assert config.steps == 50
-		assert config.cfg_scale == 10.0
+		assert config.cfg_scale == pytest.approx(10.0)
 		assert config.seed == 42
 		assert config.sampler == SamplerType.DDIM
 		assert config.styles == ['style1', 'style2']
@@ -58,10 +58,10 @@ class TestImg2ImgConfig:
 		"""Test strength validation (0.0 to 1.0)."""
 		# Valid strength
 		config = Img2ImgConfig(init_image='base64', prompt='test', strength=0.0)
-		assert config.strength == 0.0
+		assert config.strength == pytest.approx(0.0)
 
 		config = Img2ImgConfig(init_image='base64', prompt='test', strength=1.0)
-		assert config.strength == 1.0
+		assert config.strength == pytest.approx(1.0)
 
 		# Invalid strength (too high)
 		with pytest.raises(ValidationError):

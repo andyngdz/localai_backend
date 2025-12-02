@@ -1,5 +1,6 @@
 """Linux-specific optimizations for CUDA pipelines."""
 
+from app.constants.platform import OperatingSystem
 from app.services import device_service, logger_service
 
 from .base import PlatformOptimizer
@@ -41,4 +42,4 @@ class LinuxOptimizer(PlatformOptimizer):
 		Returns:
 			'Linux'
 		"""
-		return 'Linux'
+		return OperatingSystem.LINUX.value

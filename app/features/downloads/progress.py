@@ -1,13 +1,13 @@
 import logging
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from tqdm import tqdm as BaseTqdm
+from typing_extensions import override
 
+from app.schemas.downloads import DownloadPhase, DownloadProgressCache, DownloadStepProgressResponse
 from app.socket import socket_service
-
-from .schemas import DownloadPhase, DownloadStepProgressResponse
 
 
 class ChunkEmitter:
@@ -16,7 +16,7 @@ class ChunkEmitter:
 	def __init__(self, interval: float = 0.25):
 		self.interval = interval
 		self.lock = threading.Lock()
-		self.latest: Dict[str, DownloadStepProgressResponse] = {}
+		self.latest = DownloadProgressCache()
 		self.event = threading.Event()
 		self.thread = threading.Thread(
 			target=self.drain,
@@ -27,12 +27,12 @@ class ChunkEmitter:
 
 	def enqueue(self, payload: DownloadStepProgressResponse) -> None:
 		with self.lock:
-			self.latest[payload.id] = payload
+			self.latest.upsert(payload)
 			self.event.set()
 
 	def flush(self, model_id: str) -> None:
 		with self.lock:
-			payload = self.latest.pop(model_id, None)
+			payload = self.latest.pop(model_id)
 			if not self.latest:
 				self.event.clear()
 		if payload is not None:
@@ -43,14 +43,15 @@ class ChunkEmitter:
 			self.event.wait()
 			time.sleep(self.interval)
 			with self.lock:
-				payloads = list(self.latest.values())
-				self.latest.clear()
+				payloads = self.latest.pop_all()
+				if not payloads:
+					self.event.clear()
+					continue
 				self.event.clear()
 			for payload in payloads:
 				self.emit(payload)
 
-	@staticmethod
-	def emit(payload: DownloadStepProgressResponse) -> None:
+	def emit(self, payload: DownloadStepProgressResponse) -> None:
 		try:
 			socket_service.download_step_progress(payload)
 		except Exception:  # pragma: no cover - guard against socket errors
@@ -77,7 +78,7 @@ class DownloadProgress(BaseTqdm):
 		self.downloaded_size: int = 0
 		self.total_downloaded_size: int = sum(self.file_sizes)
 		self.completed_files_size: int = 0
-		self.current_file: str | None = None
+		self.current_file: Optional[str] = None
 
 		# Throttling to prevent websocket spam (huge performance boost)
 		self.last_emit_time: float = time.time()
@@ -95,7 +96,7 @@ class DownloadProgress(BaseTqdm):
 	def emit_progress(self, phase: DownloadPhase, *, current_file: Optional[str] = None) -> None:
 		"""Push the latest cumulative byte totals to all websocket clients."""
 		payload = DownloadStepProgressResponse(
-			id=self.id,
+			model_id=self.id,
 			step=self.n,
 			total=self.total,
 			downloaded_size=self.downloaded_size,
@@ -117,6 +118,19 @@ class DownloadProgress(BaseTqdm):
 		"""Mark the beginning of a file download so the UI can show file-level progress."""
 		self.current_file = filename
 		self.emit_progress(DownloadPhase.FILE_START, current_file=filename)
+
+	def register_existing_bytes(self, byte_count: int) -> None:
+		"""Register bytes that were already present on disk (resumed download)."""
+		if byte_count <= 0:
+			return
+
+		self.downloaded_size += byte_count
+		if self.total_downloaded_size > 0 and self.downloaded_size > self.total_downloaded_size:
+			self.downloaded_size = self.total_downloaded_size
+
+		self.logger.info(f'Resuming download with {byte_count} existing bytes')
+		# Emit immediately so UI updates to the resumed percentage
+		self.emit_progress(DownloadPhase.CHUNK)
 
 	def set_file_size(self, index: int, size: int) -> None:
 		"""Update the recorded size for a file and adjust totals accordingly."""
@@ -162,9 +176,11 @@ class DownloadProgress(BaseTqdm):
 			self.last_emit_time = now
 			self.last_emit_size = self.downloaded_size
 
-	def update(self, n=1):
-		super().update(n)
-		start_index = max(0, self.n - n)
+	@override
+	def update(self, n: Optional[float] = 1) -> Optional[bool]:
+		step = 1 if n is None else n
+		result = super().update(step)
+		start_index = max(0, int(self.n - step))
 		end_index = self.n
 		for i in range(start_index, end_index):
 			if i < len(self.file_sizes):
@@ -175,6 +191,9 @@ class DownloadProgress(BaseTqdm):
 
 		self.emit_progress(DownloadPhase.FILE_COMPLETE)
 
+		return result
+
+	@override
 	def close(self):
 		"""Close the progress bar and emit final completion event."""
 		self.emit_progress(DownloadPhase.COMPLETE)

@@ -1,8 +1,10 @@
+import json
 import logging
 import os
 from typing import Any, MutableMapping, Optional
 
 import colorlog
+from pydantic import BaseModel
 from typing_extensions import override
 
 
@@ -123,6 +125,28 @@ class LoggerService:
 			logger.setLevel(getattr(logging, module_level_str.upper(), logging.INFO))
 
 		return CategoryAdapter(logger, category)
+
+	def format_config(self, config: object) -> str:
+		"""Format config object as JSON for logging.
+
+		Args:
+			config: Object with attributes or dict to format
+
+		Returns:
+			JSON formatted string with line breaks
+
+		Example:
+			>>> logger_service.format_config(config)
+			'{"width": 512, "height": 512, "steps": 20}'
+		"""
+		if isinstance(config, BaseModel):
+			data = config.model_dump()
+		elif hasattr(config, '__dict__'):
+			data = config.__dict__
+		else:
+			data = dict(config) if isinstance(config, dict) else {'value': config}
+
+		return json.dumps(data, indent=2, default=str)
 
 
 logger_service = LoggerService()
