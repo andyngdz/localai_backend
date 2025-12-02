@@ -1,19 +1,6 @@
-# Config API
+# config-api
 
-## Purpose
-
-Configuration endpoint for frontend to fetch application settings without hardcoding.
-
-## Requirements
-
-### Requirement: Config Endpoint
-
-The system SHALL provide GET /config endpoint.
-
-#### Scenario: Fetch config
-
-- **WHEN** GET /config is called
-- **THEN** configuration data is returned
+## MODIFIED Requirements
 
 ### Requirement: Upscaler Options
 
@@ -48,14 +35,11 @@ The system SHALL return upscaler options grouped by method with section metadata
 - **THEN** RealESRGAN upscalers (x2plus, x4plus, x4plus_anime) have is_recommended=true
 - **AND** traditional upscalers (Lanczos, Bicubic, Bilinear, Nearest) have is_recommended=false
 
-### Requirement: Extensible Schema
+## REMOVED Requirements
 
-The system SHALL use extensible schema for future config items.
+### Requirement: Flat upscalers list
 
-#### Scenario: Add new config
-
-- **WHEN** new config type is needed
-- **THEN** schema can be extended without breaking changes
+The flat `upscalers` array of items is replaced with `upscalers` array of grouped sections.
 
 ## Key Entities
 

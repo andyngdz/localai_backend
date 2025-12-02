@@ -10,5 +10,5 @@ config = APIRouter(prefix='/config', tags=['config'])
 def get_config() -> ConfigResponse:
 	"""Returns application configuration for the frontend."""
 	return ConfigResponse(
-		upscalers=config_service.get_upscalers(),
+		upscalers=config_service.get_upscaler_sections(),
 	)
