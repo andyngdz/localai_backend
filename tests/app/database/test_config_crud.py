@@ -10,8 +10,15 @@ from app.database.config_crud import (
 	get_device_index,
 	get_gpu_scale_factor,
 	get_ram_scale_factor,
+	get_safety_check_enabled,
+	set_safety_check_enabled,
 )
-from app.database.constant import DEFAULT_MAX_GPU_SCALE_FACTOR, DEFAULT_MAX_RAM_SCALE_FACTOR, DeviceSelection
+from app.database.constant import (
+	DEFAULT_MAX_GPU_SCALE_FACTOR,
+	DEFAULT_MAX_RAM_SCALE_FACTOR,
+	DEFAULT_SAFETY_CHECK_ENABLED,
+	DeviceSelection,
+)
 from app.database.models import Config
 
 
@@ -259,3 +266,93 @@ class TestGetRamScaleFactor:
 		assert result == DEFAULT_MAX_RAM_SCALE_FACTOR
 		mock_db.query.assert_called_once_with(Config)
 		mock_query.first.assert_called_once()
+
+
+class TestGetSafetyCheckEnabled:
+	"""Tests for the get_safety_check_enabled function."""
+
+	def test_get_safety_check_enabled_with_config_true(self):
+		"""Test get_safety_check_enabled when config exists with True."""
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.safety_check_enabled = True
+		mock_query.first.return_value = mock_config
+
+		result = get_safety_check_enabled(mock_db)
+
+		assert result is True
+		mock_db.query.assert_called_once_with(Config)
+
+	def test_get_safety_check_enabled_with_config_false(self):
+		"""Test get_safety_check_enabled when config exists with False."""
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.safety_check_enabled = False
+		mock_query.first.return_value = mock_config
+
+		result = get_safety_check_enabled(mock_db)
+
+		assert result is False
+
+	def test_get_safety_check_enabled_with_none_value(self):
+		"""Test get_safety_check_enabled when config exists but value is None."""
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.safety_check_enabled = None
+		mock_query.first.return_value = mock_config
+
+		result = get_safety_check_enabled(mock_db)
+
+		assert result == DEFAULT_SAFETY_CHECK_ENABLED
+
+	def test_get_safety_check_enabled_without_config(self):
+		"""Test get_safety_check_enabled when config doesn't exist."""
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+		mock_query.first.return_value = None
+
+		result = get_safety_check_enabled(mock_db)
+
+		assert result == DEFAULT_SAFETY_CHECK_ENABLED
+
+
+class TestSetSafetyCheckEnabled:
+	"""Tests for the set_safety_check_enabled function."""
+
+	def test_set_safety_check_enabled_with_existing_config(self):
+		"""Test set_safety_check_enabled when config exists."""
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.safety_check_enabled = True
+		mock_query.first.return_value = mock_config
+
+		result = set_safety_check_enabled(mock_db, False)
+
+		assert mock_config.safety_check_enabled is False
+		mock_db.commit.assert_called_once()
+		assert result is False
+
+	def test_set_safety_check_enabled_without_config(self):
+		"""Test set_safety_check_enabled when config doesn't exist returns default."""
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+		mock_query.first.return_value = None
+
+		result = set_safety_check_enabled(mock_db, False)
+
+		assert result == DEFAULT_SAFETY_CHECK_ENABLED
+		mock_db.commit.assert_not_called()

@@ -67,6 +67,8 @@ class TestExecutePipeline:
 			await generator.execute_pipeline(sample_config, 'positive', 'negative')
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.config_crud')
+	@patch('app.features.generators.base_generator.SessionLocal')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
@@ -79,6 +81,8 @@ class TestExecutePipeline:
 		mock_seed_manager,
 		mock_torch_generator,
 		mock_latent_decoder,
+		mock_session_local,
+		mock_config_crud,
 		sample_config,
 		mock_executor,
 	):
@@ -91,6 +95,7 @@ class TestExecutePipeline:
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
 		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+		mock_config_crud.get_safety_check_enabled.return_value = True
 		generator = BaseGenerator(mock_executor)
 
 		# Mock executor to return immediately
@@ -109,6 +114,8 @@ class TestExecutePipeline:
 		mock_model_manager.set_sampler.assert_called_once_with(sample_config.sampler)
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.config_crud')
+	@patch('app.features.generators.base_generator.SessionLocal')
 	@patch('app.features.generators.base_generator.hires_fix_processor')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
@@ -123,6 +130,8 @@ class TestExecutePipeline:
 		mock_torch_generator,
 		mock_latent_decoder,
 		mock_hires_fix_processor,
+		mock_session_local,
+		mock_config_crud,
 		sample_config,
 		mock_executor,
 	):
@@ -135,6 +144,7 @@ class TestExecutePipeline:
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
 		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+		mock_config_crud.get_safety_check_enabled.return_value = True
 		generator = BaseGenerator(mock_executor)
 
 		mock_output = Mock()
@@ -151,6 +161,8 @@ class TestExecutePipeline:
 		mock_hires_fix_processor.apply.assert_not_called()
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.config_crud')
+	@patch('app.features.generators.base_generator.SessionLocal')
 	@patch('app.features.generators.base_generator.hires_fix_processor')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
@@ -167,6 +179,8 @@ class TestExecutePipeline:
 		mock_torch_generator,
 		mock_latent_decoder,
 		mock_hires_fix_processor,
+		mock_session_local,
+		mock_config_crud,
 		mock_executor,
 	):
 		"""Test that hires fix application is logged."""
@@ -197,6 +211,7 @@ class TestExecutePipeline:
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
 		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+		mock_config_crud.get_safety_check_enabled.return_value = True
 		generator = BaseGenerator(mock_executor)
 
 		mock_base_images = [Image.new('RGB', (512, 512))]
@@ -218,6 +233,8 @@ class TestApplyHiresFixToSafeImages:
 	"""Test _apply_hires_fix_to_safe_images() method."""
 
 	@pytest.mark.asyncio
+	@patch('app.features.generators.base_generator.config_crud')
+	@patch('app.features.generators.base_generator.SessionLocal')
 	@patch('app.features.generators.base_generator.hires_fix_processor')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
@@ -234,6 +251,8 @@ class TestApplyHiresFixToSafeImages:
 		mock_torch_generator,
 		mock_latent_decoder,
 		mock_hires_fix_processor,
+		mock_session_local,
+		mock_config_crud,
 		mock_executor,
 	):
 		"""Test that hires fix is skipped when all images are flagged as NSFW."""
@@ -264,6 +283,7 @@ class TestApplyHiresFixToSafeImages:
 		mock_model_manager.pipe = mock_pipe
 		mock_seed_manager.get_seed.return_value = 12345
 		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+		mock_config_crud.get_safety_check_enabled.return_value = True
 		generator = BaseGenerator(mock_executor)
 
 		mock_base_images = [Image.new('RGB', (512, 512))]

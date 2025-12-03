@@ -231,3 +231,45 @@ class TestRunSafetyChecker:
 		# Verify results are PIL images
 		assert len(result_images) == 1
 		assert isinstance(result_images[0], Image.Image)
+
+	def test_skips_safety_check_when_disabled(self, mock_pipe):
+		"""Test that safety checker is skipped when enabled=False."""
+		from app.cores.generation.latent_decoder import latent_decoder
+
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image]
+
+		result_images, nsfw_detected = latent_decoder.run_safety_checker(mock_pipe, images, enabled=False)
+
+		# Verify safety checker was NOT called
+		mock_pipe.safety_checker.assert_not_called()
+
+		# Verify images unchanged
+		assert result_images == images
+
+		# Verify nsfw flags are False
+		assert nsfw_detected == [False]
+
+	def test_skips_safety_check_when_disabled_logs_info(self, mock_pipe, caplog):
+		"""Test that disabling safety checker logs info message."""
+		from app.cores.generation.latent_decoder import latent_decoder
+
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image]
+
+		with caplog.at_level('INFO'):
+			latent_decoder.run_safety_checker(mock_pipe, images, enabled=False)
+
+		assert 'Safety checker disabled' in caplog.text
+
+	def test_runs_safety_check_when_enabled_true(self, mock_pipe):
+		"""Test that safety checker runs when enabled=True (explicit)."""
+		from app.cores.generation.latent_decoder import latent_decoder
+
+		pil_image = Image.new('RGB', (64, 64), color='red')
+		images = [pil_image]
+
+		latent_decoder.run_safety_checker(mock_pipe, images, enabled=True)
+
+		# Verify safety checker WAS called
+		mock_pipe.safety_checker.assert_called_once()
