@@ -11,6 +11,8 @@ from app.cores.generation import progress_callback, seed_manager
 from app.cores.generation.hires_fix import hires_fix_processor
 from app.cores.generation.latent_decoder import latent_decoder
 from app.cores.model_manager import model_manager
+from app.database import config_crud
+from app.database.service import SessionLocal
 from app.schemas.generators import GeneratorConfig, OutputType, Text2ImgParams
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
@@ -95,8 +97,15 @@ class BaseGenerator:
 		# Decode base latents to PIL images
 		images = latent_decoder.decode_latents(pipe, base_latents)
 
+		# Read safety check setting from database
+		db = SessionLocal()
+		try:
+			safety_check_enabled = config_crud.get_safety_check_enabled(db)
+		finally:
+			db.close()
+
 		# Run safety checker on base resolution images
-		images, nsfw_detected = latent_decoder.run_safety_checker(pipe, images)
+		images, nsfw_detected = latent_decoder.run_safety_checker(pipe, images, enabled=safety_check_enabled)
 
 		# Apply hires fix to safe images if configured
 		if config.hires_fix:

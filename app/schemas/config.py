@@ -35,3 +35,10 @@ class ConfigResponse(BaseModel):
 	"""Complete config response."""
 
 	upscalers: list[UpscalerSection] = Field(..., description='Upscaler sections grouped by method')
+	safety_check_enabled: bool = Field(..., description='Whether safety check is enabled for image generation')
+
+
+class SafetyCheckRequest(BaseModel):
+	"""Request to update safety check setting."""
+
+	enabled: bool = Field(..., description='Whether to enable safety check')

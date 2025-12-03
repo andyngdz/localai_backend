@@ -37,18 +37,24 @@ class LatentDecoder:
 		self,
 		pipe: DiffusersPipeline,
 		images: list[Image.Image],
+		enabled: bool = True,
 	) -> tuple[list[Image.Image], list[bool]]:
 		"""Run pipeline's safety checker on images.
 
 		Args:
 			pipe: Pipeline with safety_checker and feature_extractor
 			images: List of PIL images
+			enabled: Whether safety check is enabled (default: True)
 
 		Returns:
 			Tuple of (images, nsfw_detected)
 			- Images may be blacked out if NSFW detected
 			- nsfw_detected is list of bools per image
 		"""
+		if not enabled:
+			logger.info('Safety checker disabled by user setting')
+			return images, [False] * len(images)
+
 		if pipe.safety_checker is None or pipe.feature_extractor is None:
 			logger.info('No safety checker available (likely SDXL)')
 			return images, [False] * len(images)
