@@ -109,13 +109,17 @@ class TestRouterRegistration:
 		# Should work or return specific error
 		assert response.status_code != status.HTTP_404_NOT_FOUND
 
-	def test_config_router_registered(self):
+	@patch('app.features.config.api.config_crud')
+	def test_config_router_registered(self, mock_config_crud):
 		"""Test config router is accessible."""
+		mock_config_crud.get_safety_check_enabled.return_value = True
+
 		response = client.get('/config/')
 		# Should return config data
 		assert response.status_code == status.HTTP_200_OK
 		data = response.json()
 		assert 'upscalers' in data
+		assert 'safety_check_enabled' in data
 
 
 class TestLifespan:
