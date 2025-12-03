@@ -99,8 +99,10 @@ class BaseGenerator:
 
 		# Read safety check setting from database
 		db = SessionLocal()
-		safety_check_enabled = config_crud.get_safety_check_enabled(db)
-		db.close()
+		try:
+			safety_check_enabled = config_crud.get_safety_check_enabled(db)
+		finally:
+			db.close()
 
 		# Run safety checker on base resolution images
 		images, nsfw_detected = latent_decoder.run_safety_checker(pipe, images, enabled=safety_check_enabled)
