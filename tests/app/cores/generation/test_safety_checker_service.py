@@ -342,3 +342,22 @@ class TestRunCheck:
 			service._run_check([pil_image])
 
 		assert 'No NSFW content detected' in caplog.text
+
+
+class TestSingleton:
+	"""Test singleton instance behavior."""
+
+	def test_singleton_is_exported(self):
+		"""Verify safety_checker_service singleton is exported."""
+		from app.cores.generation.safety_checker_service import safety_checker_service
+
+		assert safety_checker_service is not None
+
+	def test_singleton_is_instance_of_service(self):
+		"""Verify singleton is SafetyCheckerService instance."""
+		from app.cores.generation.safety_checker_service import (
+			SafetyCheckerService,
+			safety_checker_service,
+		)
+
+		assert isinstance(safety_checker_service, SafetyCheckerService)
