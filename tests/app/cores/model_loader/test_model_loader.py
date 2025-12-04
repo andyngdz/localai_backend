@@ -88,8 +88,6 @@ class TestStrategyHelpers:
 		pipe = execute_loading_strategies(
 			model_id='mid',
 			strategies=[SingleFileStrategy(checkpoint_path='/tmp/foo.safetensors')],
-			safety_checker=MagicMock(),
-			feature_extractor=MagicMock(),
 			cancel_token=None,
 		)
 		assert pipe is mock_load.return_value
@@ -110,8 +108,6 @@ class TestStrategyHelpers:
 			execute_loading_strategies(
 				model_id='mid',
 				strategies=[SingleFileStrategy(checkpoint_path='/tmp/foo.safetensors')],
-				safety_checker=MagicMock(),
-				feature_extractor=MagicMock(),
 				cancel_token=None,
 			)
 		mock_socket.model_load_failed.assert_called_once()
@@ -175,16 +171,12 @@ class TestModelLoader:
 		return_value=[PretrainedStrategy(use_safetensors=True)],
 	)
 	@patch('app.cores.model_loader.model_loader.find_checkpoint_in_cache', return_value=None)
-	@patch('app.cores.model_loader.model_loader.StableDiffusionSafetyChecker')
-	@patch('app.cores.model_loader.model_loader.CLIPImageProcessor')
 	@patch('app.cores.model_loader.model_loader.MaxMemoryConfig')
 	@patch('app.cores.model_loader.model_loader.SessionLocal')
 	def test_model_loader_success(
 		self,
 		mock_session: Mock,
 		mock_max_memory: Mock,
-		mock_clip: Mock,
-		mock_safety: Mock,
 		mock_find_cache: Mock,
 		mock_build: Mock,
 		mock_execute: Mock,
@@ -229,16 +221,12 @@ class TestModelLoader:
 		return_value=[PretrainedStrategy(use_safetensors=True)],
 	)
 	@patch('app.cores.model_loader.model_loader.find_checkpoint_in_cache', return_value=None)
-	@patch('app.cores.model_loader.model_loader.StableDiffusionSafetyChecker')
-	@patch('app.cores.model_loader.model_loader.CLIPImageProcessor')
 	@patch('app.cores.model_loader.model_loader.MaxMemoryConfig')
 	@patch('app.cores.model_loader.model_loader.SessionLocal')
 	def test_model_loader_handles_runtime_error(
 		self,
 		mock_session: Mock,
 		mock_max_memory: Mock,
-		mock_clip: Mock,
-		mock_safety: Mock,
 		mock_find_cache: Mock,
 		mock_build: Mock,
 		mock_execute: Mock,

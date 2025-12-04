@@ -94,16 +94,14 @@ class TestLoadSingleFile:
 	def test_loads_single_file_successfully(self, mock_device_service: Mock) -> None:
 		mock_device_service.torch_dtype = 'float16'
 		checkpoint = '/path/to/checkpoint.safetensors'
-		safety_checker = Mock()
-		feature_extractor = Mock()
 
 		# Define dummy classes to satisfy isinstance checks
 		class DummySDPipeline:
 			@classmethod
 			def from_single_file(cls, checkpoint: str, **kwargs: Any) -> Any:
-				# Verify safety_checker and feature_extractor are passed
-				assert 'safety_checker' in kwargs
-				assert 'feature_extractor' in kwargs
+				# Verify safety_checker is NOT passed (removed from pipeline loading)
+				assert 'safety_checker' not in kwargs
+				assert 'feature_extractor' not in kwargs
 				return Mock(spec=DummySDPipeline)
 
 		class DummySDXLPipeline:
@@ -120,14 +118,12 @@ class TestLoadSingleFile:
 				'app.cores.model_loader.strategies.StableDiffusionXLPipeline',
 				new=DummySDXLPipeline,
 			):
-				result = _load_single_file(checkpoint, safety_checker, feature_extractor)
+				result = _load_single_file(checkpoint)
 
 				assert isinstance(result, Mock)  # It returns the mock from DummySDPipeline
 
 	def test_raises_value_error_when_all_classes_fail(self) -> None:
 		checkpoint = '/path/to/checkpoint.safetensors'
-		safety_checker = Mock()
-		feature_extractor = Mock()
 
 		class DummySDPipeline:
 			@classmethod
@@ -148,7 +144,7 @@ class TestLoadSingleFile:
 				new=DummySDXLPipeline,
 			):
 				with pytest.raises(ValueError, match='Failed to load single-file checkpoint'):
-					_load_single_file(checkpoint, safety_checker, feature_extractor)
+					_load_single_file(checkpoint)
 
 
 class TestLoadPretrained:
@@ -158,18 +154,18 @@ class TestLoadPretrained:
 		mock_device_service.torch_dtype = 'float16'
 		model_id = 'test-model'
 		strategy = PretrainedStrategy(use_safetensors=True)
-		safety_checker = Mock()
-		feature_extractor = Mock()
 		mock_pipe = Mock()
 		mock_auto_pipeline.from_pretrained.return_value = mock_pipe
 
-		result = _load_pretrained(model_id, strategy, safety_checker, feature_extractor)
+		result = _load_pretrained(model_id, strategy)
 
 		assert result is mock_pipe
 		mock_auto_pipeline.from_pretrained.assert_called_once()
 		_, kwargs = mock_auto_pipeline.from_pretrained.call_args
 		assert kwargs['use_safetensors'] is True
-		assert kwargs['safety_checker'] is safety_checker
+		# Verify safety_checker is NOT passed (removed from pipeline loading)
+		assert 'safety_checker' not in kwargs
+		assert 'feature_extractor' not in kwargs
 
 
 class TestGetStrategyType:
@@ -185,19 +181,19 @@ class TestLoadStrategyPipeline:
 	@patch('app.cores.model_loader.strategies._load_single_file')
 	def test_calls_load_single_file(self, mock_load_single: Mock) -> None:
 		strategy = SingleFileStrategy(checkpoint_path='/path')
-		_load_strategy_pipeline('id', strategy, ModelLoadingStrategy.SINGLE_FILE, Mock(), Mock())
+		_load_strategy_pipeline('id', strategy, ModelLoadingStrategy.SINGLE_FILE)
 		mock_load_single.assert_called_once()
 
 	@patch('app.cores.model_loader.strategies._load_pretrained')
 	def test_calls_load_pretrained(self, mock_load_pretrained: Mock) -> None:
 		strategy = PretrainedStrategy(use_safetensors=True)
-		_load_strategy_pipeline('id', strategy, ModelLoadingStrategy.PRETRAINED, Mock(), Mock())
+		_load_strategy_pipeline('id', strategy, ModelLoadingStrategy.PRETRAINED)
 		mock_load_pretrained.assert_called_once()
 
 	def test_raises_error_missing_checkpoint_path(self) -> None:
 		strategy = SingleFileStrategy(checkpoint_path='')
 		with pytest.raises(ValueError, match='Missing checkpoint path'):
-			_load_strategy_pipeline('id', strategy, ModelLoadingStrategy.SINGLE_FILE, Mock(), Mock())
+			_load_strategy_pipeline('id', strategy, ModelLoadingStrategy.SINGLE_FILE)
 
 
 class TestExecuteLoadingStrategies:
@@ -208,7 +204,7 @@ class TestExecuteLoadingStrategies:
 		mock_pipe = Mock()
 		mock_load.return_value = mock_pipe
 
-		result = execute_loading_strategies('id', strategies, Mock(), Mock(), None)
+		result = execute_loading_strategies('id', strategies, None)
 		assert result is mock_pipe
 
 	@patch('app.cores.model_loader.strategies._load_strategy_pipeline')
@@ -219,6 +215,6 @@ class TestExecuteLoadingStrategies:
 		mock_load.side_effect = RuntimeError('Load failed')
 
 		with pytest.raises(RuntimeError, match='Load failed'):
-			execute_loading_strategies('id', strategies, Mock(), Mock(), None)
+			execute_loading_strategies('id', strategies, None)
 
 		mock_socket.model_load_failed.assert_called_once()

@@ -1,14 +1,8 @@
 from typing import Optional
 
 import pydash
-from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
-from transformers import CLIPImageProcessor
 
-from app.constants.model_loader import (
-	CLIP_IMAGE_PROCESSOR_MODEL,
-	MODEL_LOADING_PROGRESS_STEPS,
-	SAFETY_CHECKER_MODEL,
-)
+from app.constants.model_loader import MODEL_LOADING_PROGRESS_STEPS
 from app.cores.max_memory import MaxMemoryConfig
 from app.database.service import SessionLocal
 from app.schemas.model_loader import DiffusersPipeline, ModelLoadCompletedResponse
@@ -77,12 +71,8 @@ def model_loader(model_id: str, cancel_token: Optional[CancellationToken] = None
 		max_memory = MaxMemoryConfig(db).to_dict()
 		logger.info(f'Max memory configuration: {max_memory}')
 
-		# Checkpoint 2: Before loading feature extractor
+		# Checkpoint 2: Before cache lookup
 		_emit_progress_step(model_id, 2, cancel_token)
-
-		feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
-
-		safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
 
 		# Checkpoint 3: Before cache lookup
 		_emit_progress_step(model_id, 3, cancel_token)
@@ -100,8 +90,6 @@ def model_loader(model_id: str, cancel_token: Optional[CancellationToken] = None
 		pipe = execute_loading_strategies(
 			model_id,
 			strategies,
-			safety_checker_instance,
-			feature_extractor,
 			cancel_token,
 		)
 
