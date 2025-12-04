@@ -27,8 +27,8 @@ class ModelLoadProgressResponse(BaseModel):
 	"""Response model for model loading progress updates."""
 
 	model_id: str = Field(..., description='The ID of the model being loaded.')
-	step: int = Field(..., description='Current checkpoint (1-9).')
-	total: int = Field(default=9, description='Total checkpoints.')
+	step: int = Field(..., description='Current checkpoint (1-8).')
+	total: int = Field(default=8, description='Total checkpoints.')
 	phase: ModelLoadPhase = Field(..., description='Current loading phase.')
 	message: str = Field(..., description='Human-readable progress message.')
 
@@ -44,13 +44,6 @@ class ModelLoadFailed(BaseModel):
 
 	model_id: str = Field(..., description='The ID of the model that failed to load.')
 	error: str = Field(..., description='The error message.')
-
-
-class ModelLoaderProgressStep(BaseModel):
-	"""Progress step for model loader initialization."""
-
-	id: int = Field(..., description='Step number.')
-	message: str = Field(..., description='Progress message for this step.')
 
 
 class SingleFileStrategy(BaseModel):

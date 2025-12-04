@@ -198,7 +198,7 @@ class TestLoadStrategyPipeline:
 
 class TestExecuteLoadingStrategies:
 	@patch('app.cores.model_loader.strategies._load_strategy_pipeline')
-	@patch('app.cores.model_loader.strategies.emit_progress')
+	@patch('app.cores.model_loader.strategies.emit_step')
 	def test_executes_strategies_until_success(self, mock_emit: Mock, mock_load: Mock) -> None:
 		strategies: list[Strategy] = [PretrainedStrategy(use_safetensors=True)]
 		mock_pipe = Mock()
@@ -208,7 +208,7 @@ class TestExecuteLoadingStrategies:
 		assert result is mock_pipe
 
 	@patch('app.cores.model_loader.strategies._load_strategy_pipeline')
-	@patch('app.cores.model_loader.strategies.emit_progress')
+	@patch('app.cores.model_loader.strategies.emit_step')
 	@patch('app.cores.model_loader.strategies.socket_service')
 	def test_raises_runtime_error_when_all_fail(self, mock_socket: Mock, mock_emit: Mock, mock_load: Mock) -> None:
 		strategies: list[Strategy] = [PretrainedStrategy(use_safetensors=True)]

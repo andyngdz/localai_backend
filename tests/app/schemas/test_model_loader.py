@@ -15,7 +15,6 @@ from pydantic import ValidationError
 
 from app.schemas.model_loader import (
 	ModelLoadCompletedResponse,
-	ModelLoaderProgressStep,
 	ModelLoadFailed,
 	ModelLoadPhase,
 	ModelLoadProgressResponse,
@@ -50,18 +49,18 @@ class TestModelLoadProgressResponse:
 		)
 		assert response.model_id == 'org/model'
 		assert response.step == 3
-		assert response.total == 9
+		assert response.total == 8
 		assert response.phase == ModelLoadPhase.LOADING_MODEL
 		assert response.message == 'Loading weights...'
 
-	def test_default_total_is_nine(self) -> None:
+	def test_default_total_is_eight(self) -> None:
 		response = ModelLoadProgressResponse(
 			model_id='org/model',
 			step=1,
 			phase=ModelLoadPhase.INITIALIZATION,
 			message='Starting...',
 		)
-		assert response.total == 9
+		assert response.total == 8
 
 	def test_total_can_be_overridden(self) -> None:
 		response = ModelLoadProgressResponse(
@@ -115,24 +114,6 @@ class TestModelLoadFailed:
 		response = ModelLoadFailed(model_id='org/model', error='Error message')
 		payload = response.model_dump()
 		assert payload == {'model_id': 'org/model', 'error': 'Error message'}
-
-
-class TestModelLoaderProgressStep:
-	def test_requires_both_fields(self) -> None:
-		with pytest.raises(ValidationError):
-			ModelLoaderProgressStep(id=1)  # type: ignore[call-arg]
-		with pytest.raises(ValidationError):
-			ModelLoaderProgressStep(message='Loading...')  # type: ignore[call-arg]
-
-	def test_accepts_valid_data(self) -> None:
-		step = ModelLoaderProgressStep(id=1, message='Initializing...')
-		assert step.id == 1
-		assert step.message == 'Initializing...'
-
-	def test_serializes_correctly(self) -> None:
-		step = ModelLoaderProgressStep(id=2, message='Loading weights')
-		payload = step.model_dump()
-		assert payload == {'id': 2, 'message': 'Loading weights'}
 
 
 class TestSingleFileStrategy:

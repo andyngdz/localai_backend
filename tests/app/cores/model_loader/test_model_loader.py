@@ -11,20 +11,20 @@ import pytest
 from app.constants.model_loader import ModelLoadingStrategy
 from app.cores.model_loader.cancellation import CancellationException, CancellationToken
 from app.cores.model_loader.model_loader import model_loader
-from app.cores.model_loader.progress import emit_progress, map_step_to_phase
 from app.cores.model_loader.setup import (
 	apply_device_optimizations,
 	cleanup_partial_load,
 	finalize_model_setup,
 	move_to_device,
 )
+from app.cores.model_loader.steps import STEP_CONFIG, TOTAL_STEPS, ModelLoadStep, emit_step
 from app.cores.model_loader.strategies import (
 	build_loading_strategies,
 	execute_loading_strategies,
 	find_checkpoint_in_cache,
 	find_single_file_checkpoint,
 )
-from app.schemas.model_loader import ModelLoadPhase, PretrainedStrategy, SingleFileStrategy
+from app.schemas.model_loader import PretrainedStrategy, SingleFileStrategy
 from app.services.device import DeviceType
 
 
@@ -32,22 +32,23 @@ def return_first_arg(arg: Any, *args: Any, **kwargs: Any) -> Any:
 	return arg
 
 
-class TestProgressHelpers:
-	def test_map_step_to_phase(self) -> None:
-		assert map_step_to_phase(1) == ModelLoadPhase.INITIALIZATION
-		assert map_step_to_phase(4) == ModelLoadPhase.LOADING_MODEL
-		assert map_step_to_phase(6) == ModelLoadPhase.DEVICE_SETUP
-		assert map_step_to_phase(9) == ModelLoadPhase.OPTIMIZATION
+class TestStepsModule:
+	def test_total_steps_is_8(self) -> None:
+		assert TOTAL_STEPS == 8
 
-	@patch('app.cores.model_loader.progress.socket_service')
-	def test_emit_progress_success(self, mock_socket: Mock) -> None:
-		emit_progress('mid', 5, 'msg')
+	def test_step_config_has_all_steps(self) -> None:
+		for step in ModelLoadStep:
+			assert step in STEP_CONFIG
+
+	@patch('app.cores.model_loader.steps.socket_service')
+	def test_emit_step_success(self, mock_socket: Mock) -> None:
+		emit_step('mid', ModelLoadStep.INIT)
 		mock_socket.model_load_progress.assert_called_once()
 
-	@patch('app.cores.model_loader.progress.socket_service')
-	def test_emit_progress_handles_error(self, mock_socket: Mock) -> None:
+	@patch('app.cores.model_loader.steps.socket_service')
+	def test_emit_step_handles_error(self, mock_socket: Mock) -> None:
 		mock_socket.model_load_progress.side_effect = RuntimeError('boom')
-		emit_progress('mid', 5, 'msg')
+		emit_step('mid', ModelLoadStep.INIT)
 		mock_socket.model_load_progress.assert_called_once()
 
 
@@ -78,7 +79,7 @@ class TestStrategyHelpers:
 
 	@patch('app.cores.model_loader.strategies._load_strategy_pipeline', return_value=MagicMock())
 	@patch('app.cores.model_loader.strategies._get_strategy_type', return_value=ModelLoadingStrategy.SINGLE_FILE)
-	@patch('app.cores.model_loader.strategies.emit_progress')
+	@patch('app.cores.model_loader.strategies.emit_step')
 	def test_execute_loading_strategies_success(
 		self,
 		mock_emit: Mock,
@@ -91,12 +92,12 @@ class TestStrategyHelpers:
 			cancel_token=None,
 		)
 		assert pipe is mock_load.return_value
-		mock_emit.assert_called_with('mid', 5, 'Loading model weights...')
+		mock_emit.assert_called_with('mid', ModelLoadStep.LOAD_WEIGHTS, None)
 
 	@patch('app.cores.model_loader.strategies.socket_service')
 	@patch('app.cores.model_loader.strategies._load_strategy_pipeline', side_effect=RuntimeError('boom'))
 	@patch('app.cores.model_loader.strategies._get_strategy_type', return_value=ModelLoadingStrategy.SINGLE_FILE)
-	@patch('app.cores.model_loader.strategies.emit_progress')
+	@patch('app.cores.model_loader.strategies.emit_step')
 	def test_execute_loading_strategies_failure(
 		self,
 		mock_emit: Mock,
@@ -147,7 +148,7 @@ class TestSetupHelpers:
 
 	@patch('app.cores.model_loader.setup.apply_device_optimizations')
 	@patch('app.cores.model_loader.setup.move_to_device', side_effect=return_first_arg)
-	@patch('app.cores.model_loader.setup.emit_progress')
+	@patch('app.cores.model_loader.setup.emit_step')
 	@patch('app.cores.model_loader.setup.device_service')
 	def test_finalize_model_setup(
 		self, mock_device_service: Mock, mock_emit: Mock, mock_move: Mock, mock_optimize: Mock
@@ -157,7 +158,7 @@ class TestSetupHelpers:
 		pipe.reset_device_map = Mock()
 		result = finalize_model_setup(pipe, 'mid', cancel_token=None)
 		assert result is pipe
-		mock_emit.assert_any_call('mid', 6, 'Model loaded successfully')
+		mock_emit.assert_any_call('mid', ModelLoadStep.LOAD_COMPLETE, None)
 		mock_move.assert_called_once()
 		mock_optimize.assert_called_once_with(pipe)
 

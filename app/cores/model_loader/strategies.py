@@ -21,7 +21,7 @@ from app.socket import socket_service
 from config import CACHE_FOLDER
 
 from .cancellation import CancellationToken
-from .progress import emit_progress
+from .steps import ModelLoadStep, emit_step
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
 
@@ -139,10 +139,7 @@ def execute_loading_strategies(
 	last_error: Optional[Exception] = None
 
 	for idx, strategy in enumerate(strategies, 1):
-		if cancel_token:
-			cancel_token.check_cancelled()
-
-		emit_progress(model_id, 5, 'Loading model weights...')
+		emit_step(model_id, ModelLoadStep.LOAD_WEIGHTS, cancel_token)
 
 		try:
 			strategy_type = _get_strategy_type(strategy)
