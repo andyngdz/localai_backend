@@ -135,7 +135,7 @@ class TestClearTensorCache:
 
 		image_processor.clear_tensor_cache()
 
-		mock_clear_cache.assert_called_once()
+		mock_clear_cache.assert_called_once_with(reason='Image processor tensor cache')
 
 
 class TestPilToBgrNumpy:

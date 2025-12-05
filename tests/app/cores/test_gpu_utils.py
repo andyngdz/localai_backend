@@ -112,7 +112,7 @@ class TestClearDeviceCache:
 		with patch('app.cores.gpu_utils.device_service') as mock_device:
 			mock_device.is_available = False
 
-			clear_device_cache()
+			clear_device_cache(reason='unit-test')
 
 		mock_logger.info.assert_called_with('Skipped device cache clear: accelerator not available')
 
@@ -126,7 +126,7 @@ class TestClearDeviceCache:
 			mock_device.is_cuda = False
 			mock_device.is_mps = False
 
-			clear_device_cache()
+			clear_device_cache(reason='unit-test')
 
 		mock_logger.info.assert_called_with('Skipped device cache clear: no supported accelerator detected')
 
@@ -142,7 +142,7 @@ class TestClearDeviceCache:
 			mock_device.is_cuda = True
 			mock_device.is_mps = False
 
-			clear_device_cache()
+			clear_device_cache(reason='cuda-test')
 
 		mock_torch.cuda.empty_cache.assert_called_once()
 
@@ -159,7 +159,7 @@ class TestClearDeviceCache:
 			mock_device.is_cuda = False
 			mock_device.is_mps = True
 
-			clear_device_cache()
+			clear_device_cache(reason='mps-test')
 		mock_torch.mps.empty_cache.assert_called_once()
 
 	@patch('app.cores.gpu_utils.logger')
@@ -176,6 +176,6 @@ class TestClearDeviceCache:
 			mock_device.is_cuda = True
 			mock_device.is_mps = False
 
-			clear_device_cache()
+			clear_device_cache(reason='failure-test')
 
 		mock_logger.warning.assert_called_once()

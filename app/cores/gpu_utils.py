@@ -11,7 +11,7 @@ from app.services import device_service, logger_service
 logger = logger_service.get_logger(__name__, category='GPU')
 
 
-def clear_device_cache() -> None:
+def clear_device_cache(reason: str) -> None:
 	"""Clear CUDA or MPS cache if an accelerator is available."""
 	if not device_service.is_available:
 		logger.info('Skipped device cache clear: accelerator not available')
@@ -20,10 +20,10 @@ def clear_device_cache() -> None:
 	try:
 		if device_service.is_cuda and torch.cuda.is_available():
 			torch.cuda.empty_cache()
-			logger.info('Cleared CUDA cache')
+			logger.info(f'Cleared CUDA cache: {reason}')
 		elif device_service.is_mps and hasattr(torch, 'mps') and hasattr(torch.mps, 'empty_cache'):
 			torch.mps.empty_cache()
-			logger.info('Cleared MPS cache')
+			logger.info(f'Cleared MPS cache: {reason}')
 		else:
 			logger.info('Skipped device cache clear: no supported accelerator detected')
 	except Exception as error:
@@ -49,7 +49,7 @@ def cleanup_gpu_model(model, name: str = 'model') -> CleanupMetrics:
 		del model
 		collected = gc.collect()
 
-		clear_device_cache()
+		clear_device_cache(reason=f'Cleanup GPU model {name}')
 
 		elapsed_ms = (time.time() - start) * 1000
 		logger.info(f'Cleaned up {name}: {elapsed_ms:.1f}ms, {collected} objects collected')

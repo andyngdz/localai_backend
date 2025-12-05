@@ -73,7 +73,8 @@ class ProgressCallback:
 		# Clears every N steps (configured via CACHE_CLEAR_INTERVAL constant)
 		# This ensures cache is cleared even in short generations (e.g., 4 steps = 1 clear at step 3)
 		if self.step_count % CACHE_CLEAR_INTERVAL == 0:
-			clear_device_cache()
+			reason = f'Progress callback step {current_step}'
+			clear_device_cache(reason=reason)
 
 		return callback_kwargs
 

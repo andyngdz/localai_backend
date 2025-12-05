@@ -14,7 +14,7 @@ class MemoryManager:
 
 		This helps prevent out-of-memory errors by freeing unused memory.
 		"""
-		clear_device_cache()
+		clear_device_cache(reason='Memory manager clearing cache')
 
 	def validate_batch_size(self, number_of_images: int, width: int, height: int) -> None:
 		"""Validate batch size and log warnings if it may cause OOM.

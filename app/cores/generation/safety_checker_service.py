@@ -91,7 +91,7 @@ class SafetyCheckerService:
 		self._device = None
 		self._dtype = None
 
-		clear_device_cache()
+		clear_device_cache(reason='Safety checker unload')
 
 	def _run_check(self, images: list[Image.Image]) -> tuple[list[Image.Image], list[bool]]:
 		"""Run NSFW detection on images.

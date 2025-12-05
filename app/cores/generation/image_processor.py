@@ -69,7 +69,7 @@ class ImageProcessor:
 			self.cached_biases.clear()
 
 			# Force GPU/MPS memory cleanup via shared helper
-			clear_device_cache()
+			clear_device_cache(reason='Image processor tensor cache')
 
 	def is_nsfw_content_detected(self, output: StableDiffusionPipelineOutput) -> list[bool]:
 		"""Check if NSFW content was detected in the output.

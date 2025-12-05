@@ -31,7 +31,7 @@ class TestClearCache:
 
 		manager.clear_cache()
 
-		mock_clear_cache.assert_called_once()
+		mock_clear_cache.assert_called_once_with(reason='Memory manager clearing cache')
 
 	def test_invokes_helper_when_mps_available(self, mock_memory_manager):
 		manager, mock_device_service, mock_clear_cache = mock_memory_manager
@@ -39,7 +39,7 @@ class TestClearCache:
 
 		manager.clear_cache()
 
-		mock_clear_cache.assert_called_once()
+		mock_clear_cache.assert_called_once_with(reason='Memory manager clearing cache')
 
 	def test_invokes_helper_even_without_accelerator(self, mock_memory_manager):
 		manager, mock_device_service, mock_clear_cache = mock_memory_manager
@@ -48,7 +48,7 @@ class TestClearCache:
 
 		manager.clear_cache()
 
-		mock_clear_cache.assert_called_once()
+		mock_clear_cache.assert_called_once_with(reason='Memory manager clearing cache')
 
 
 class TestValidateBatchSize:
