@@ -1,7 +1,6 @@
 """Memory management utilities for GPU/CPU resource optimization."""
 
-import torch
-
+from app.cores.gpu_utils import clear_device_cache
 from app.services import device_service, logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
@@ -15,12 +14,7 @@ class MemoryManager:
 
 		This helps prevent out-of-memory errors by freeing unused memory.
 		"""
-		if device_service.is_cuda:
-			torch.cuda.empty_cache()
-			logger.info('Cleared CUDA cache')
-		elif device_service.is_mps:
-			torch.mps.empty_cache()
-			logger.info('Cleared MPS cache')
+		clear_device_cache()
 
 	def validate_batch_size(self, number_of_images: int, width: int, height: int) -> None:
 		"""Validate batch size and log warnings if it may cause OOM.

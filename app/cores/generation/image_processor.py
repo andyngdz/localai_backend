@@ -9,6 +9,7 @@ from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusion
 from numpy.typing import NDArray
 from PIL import Image
 
+from app.cores.gpu_utils import clear_device_cache
 from app.services import logger_service
 from config import GENERATED_IMAGES_FOLDER, GENERATED_IMAGES_STATIC_FOLDER
 
@@ -67,9 +68,8 @@ class ImageProcessor:
 			self.cached_weights.clear()
 			self.cached_biases.clear()
 
-			# Force GPU memory cleanup
-			if torch.cuda.is_available():
-				torch.cuda.empty_cache()
+			# Force GPU/MPS memory cleanup via shared helper
+			clear_device_cache()
 
 	def is_nsfw_content_detected(self, output: StableDiffusionPipelineOutput) -> list[bool]:
 		"""Check if NSFW content was detected in the output.

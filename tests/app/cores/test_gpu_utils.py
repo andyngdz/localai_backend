@@ -101,3 +101,51 @@ class TestCleanupGpuModel:
 		# Verify - 500ms * 1000 = 500 milliseconds
 		assert result.time_ms == 500.0
 		assert result.objects_collected == 10
+
+
+class TestClearDeviceCache:
+	"""Tests for clear_device_cache helper."""
+
+	@patch('app.cores.gpu_utils.logger')
+	def test_skips_when_no_accelerator(self, mock_logger):
+		"""Helper logs and returns None when no accelerator is available."""
+		from app.cores.gpu_utils import clear_device_cache
+
+		with patch('app.cores.gpu_utils.device_service') as mock_device:
+			mock_device.is_available = False
+
+			clear_device_cache()
+
+		mock_logger.info.assert_called_with('Skipped device cache clear: accelerator not available')
+
+	@patch('app.cores.gpu_utils.torch')
+	def test_clears_cuda_cache(self, mock_torch):
+		"""Helper clears CUDA cache."""
+		from app.cores.gpu_utils import clear_device_cache
+
+		mock_torch.cuda.is_available.return_value = True
+
+		with patch('app.cores.gpu_utils.device_service') as mock_device:
+			mock_device.is_available = True
+			mock_device.is_cuda = True
+			mock_device.is_mps = False
+
+			clear_device_cache()
+
+		mock_torch.cuda.empty_cache.assert_called_once()
+
+	@patch('app.cores.gpu_utils.torch')
+	def test_clears_mps_cache(self, mock_torch):
+		"""Helper clears MPS cache when device is Apple Silicon."""
+		from app.cores.gpu_utils import clear_device_cache
+
+		mock_torch.cuda.is_available.return_value = False
+		mock_torch.mps = MagicMock()
+
+		with patch('app.cores.gpu_utils.device_service') as mock_device:
+			mock_device.is_available = True
+			mock_device.is_cuda = False
+			mock_device.is_mps = True
+
+			clear_device_cache()
+		mock_torch.mps.empty_cache.assert_called_once()

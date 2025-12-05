@@ -6,9 +6,28 @@ import time
 import torch
 
 from app.schemas.hardware import CleanupMetrics
-from app.services import logger_service
+from app.services import device_service, logger_service
 
 logger = logger_service.get_logger(__name__, category='GPU')
+
+
+def clear_device_cache() -> None:
+	"""Clear CUDA or MPS cache if an accelerator is available."""
+	if not device_service.is_available:
+		logger.info('Skipped device cache clear: accelerator not available')
+		return
+
+	try:
+		if device_service.is_cuda and torch.cuda.is_available():
+			torch.cuda.empty_cache()
+			logger.info('Cleared CUDA cache')
+		elif device_service.is_mps and hasattr(torch, 'mps') and hasattr(torch.mps, 'empty_cache'):
+			torch.mps.empty_cache()
+			logger.info('Cleared MPS cache')
+		else:
+			logger.info('Skipped device cache clear: no supported accelerator detected')
+	except Exception as error:
+		logger.warning(f'Failed to clear device cache: {error}')
 
 
 def cleanup_gpu_model(model, name: str = 'model') -> CleanupMetrics:
@@ -30,8 +49,7 @@ def cleanup_gpu_model(model, name: str = 'model') -> CleanupMetrics:
 		del model
 		collected = gc.collect()
 
-		if torch.cuda.is_available():
-			torch.cuda.empty_cache()
+		clear_device_cache()
 
 		elapsed_ms = (time.time() - start) * 1000
 		logger.info(f'Cleaned up {name}: {elapsed_ms:.1f}ms, {collected} objects collected')

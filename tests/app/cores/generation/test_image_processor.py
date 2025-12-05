@@ -128,31 +128,14 @@ class TestClearTensorCache:
 		assert len(image_processor.cached_weights) == 0
 		assert len(image_processor.cached_biases) == 0
 
-	@patch('app.cores.generation.image_processor.torch')
-	def test_clears_cuda_cache_when_available(self, mock_torch, image_processor):
-		"""Test CUDA cache clearing when CUDA is available (lines 69-70)."""
-		# Setup
-		mock_torch.cuda.is_available.return_value = True
+	@patch('app.cores.generation.image_processor.clear_device_cache')
+	def test_invokes_shared_cache_helper(self, mock_clear_cache, image_processor):
+		"""Clear tensor cache should route through shared cache helper."""
 		image_processor.cached_weights['test'] = torch.randn(5, 5)
 
-		# Execute
 		image_processor.clear_tensor_cache()
 
-		# Verify CUDA cache was cleared
-		mock_torch.cuda.empty_cache.assert_called_once()
-
-	@patch('app.cores.generation.image_processor.torch')
-	def test_skips_cuda_cache_when_not_available(self, mock_torch, image_processor):
-		"""Test skips CUDA cache clearing when CUDA not available."""
-		# Setup
-		mock_torch.cuda.is_available.return_value = False
-		image_processor.cached_weights['test'] = torch.randn(5, 5)
-
-		# Execute
-		image_processor.clear_tensor_cache()
-
-		# Verify CUDA cache was NOT cleared
-		mock_torch.cuda.empty_cache.assert_not_called()
+		mock_clear_cache.assert_called_once()
 
 
 class TestPilToBgrNumpy:
