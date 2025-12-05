@@ -20,49 +20,47 @@ class TestCleanupGpuModel:
 
 	@patch('app.cores.gpu_utils.time')
 	@patch('app.cores.gpu_utils.gc')
-	@patch('app.cores.gpu_utils.torch')
-	def test_cleanup_with_cuda_available(self, mock_torch, mock_gc, mock_time):
+	def test_cleanup_with_cuda_available(self, mock_gc, mock_time):
 		"""Test cleanup with CUDA available."""
 		from app.cores.gpu_utils import cleanup_gpu_model
 
 		# Setup
 		mock_model = MagicMock()
 		mock_gc.collect.return_value = 42
-		mock_torch.cuda.is_available.return_value = True
 		mock_time.time.side_effect = [0.0, 0.010]  # Start and end time (10ms elapsed)
 
-		# Execute
-		result = cleanup_gpu_model(mock_model, 'test_model')
+		with patch('app.cores.gpu_utils.clear_device_cache') as mock_clear_cache:
+			# Execute
+			result = cleanup_gpu_model(mock_model, 'test_model')
 
-		# Verify
-		assert result.time_ms > 0
-		assert result.objects_collected == 42
-		assert result.error is None
-		mock_gc.collect.assert_called_once()
-		mock_torch.cuda.empty_cache.assert_called_once()
+			# Verify
+			assert result.time_ms > 0
+			assert result.objects_collected == 42
+			assert result.error is None
+			mock_gc.collect.assert_called_once()
+			mock_clear_cache.assert_called_once()
 
 	@patch('app.cores.gpu_utils.time')
 	@patch('app.cores.gpu_utils.gc')
-	@patch('app.cores.gpu_utils.torch')
-	def test_cleanup_without_cuda(self, mock_torch, mock_gc, mock_time):
+	def test_cleanup_without_cuda(self, mock_gc, mock_time):
 		"""Test cleanup without CUDA available."""
 		from app.cores.gpu_utils import cleanup_gpu_model
 
 		# Setup
 		mock_model = MagicMock()
 		mock_gc.collect.return_value = 15
-		mock_torch.cuda.is_available.return_value = False
 		mock_time.time.side_effect = [0.0, 0.005]  # Start and end time (5ms elapsed)
 
-		# Execute
-		result = cleanup_gpu_model(mock_model, 'test_model')
+		with patch('app.cores.gpu_utils.clear_device_cache') as mock_clear_cache:
+			# Execute
+			result = cleanup_gpu_model(mock_model, 'test_model')
 
-		# Verify
-		assert result.time_ms > 0
-		assert result.objects_collected == 15
-		assert result.error is None
-		mock_gc.collect.assert_called_once()
-		mock_torch.cuda.empty_cache.assert_not_called()
+			# Verify
+			assert result.time_ms > 0
+			assert result.objects_collected == 15
+			assert result.error is None
+			mock_gc.collect.assert_called_once()
+			mock_clear_cache.assert_called_once()
 
 	@patch('app.cores.gpu_utils.gc')
 	@patch('app.cores.gpu_utils.torch')
