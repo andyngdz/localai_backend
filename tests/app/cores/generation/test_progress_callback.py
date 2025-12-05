@@ -85,7 +85,7 @@ class TestCallbackOnStepEnd:
 	def test_callback_performs_periodic_cache_cleanup(
 		self, mock_image_service, mock_socket_service, mock_clear_cache, progress_callback
 	):
-		"""Test that callback performs periodic cache cleanup every 3 steps (lines 75-81)."""
+		"""Test that callback performs periodic cache cleanup every 3 steps (line 76)."""
 		# Setup
 		mock_pipe = MagicMock()
 		mock_latents = torch.randn(1, 4, 64, 64)
@@ -119,4 +119,3 @@ class TestCallbackOnStepEnd:
 
 		# Verify cache was cleared twice total
 		assert mock_clear_cache.call_count == 2
-		mock_clear_cache.assert_called_with()

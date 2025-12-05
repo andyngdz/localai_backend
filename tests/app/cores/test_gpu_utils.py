@@ -118,6 +118,20 @@ class TestClearDeviceCache:
 
 		mock_logger.info.assert_called_with('Skipped device cache clear: accelerator not available')
 
+	@patch('app.cores.gpu_utils.logger')
+	def test_skips_when_no_supported_accelerator(self, mock_logger):
+		"""Helper logs when device available but neither CUDA nor MPS active."""
+		from app.cores.gpu_utils import clear_device_cache
+
+		with patch('app.cores.gpu_utils.device_service') as mock_device:
+			mock_device.is_available = True
+			mock_device.is_cuda = False
+			mock_device.is_mps = False
+
+			clear_device_cache()
+
+		mock_logger.info.assert_called_with('Skipped device cache clear: no supported accelerator detected')
+
 	@patch('app.cores.gpu_utils.torch')
 	def test_clears_cuda_cache(self, mock_torch):
 		"""Helper clears CUDA cache."""
@@ -149,3 +163,21 @@ class TestClearDeviceCache:
 
 			clear_device_cache()
 		mock_torch.mps.empty_cache.assert_called_once()
+
+	@patch('app.cores.gpu_utils.logger')
+	@patch('app.cores.gpu_utils.torch')
+	def test_logs_warning_when_clear_fails(self, mock_torch, mock_logger):
+		"""Helper logs warning when accelerator cleanup raises."""
+		from app.cores.gpu_utils import clear_device_cache
+
+		mock_torch.cuda.is_available.return_value = True
+		mock_torch.cuda.empty_cache.side_effect = RuntimeError('boom')
+
+		with patch('app.cores.gpu_utils.device_service') as mock_device:
+			mock_device.is_available = True
+			mock_device.is_cuda = True
+			mock_device.is_mps = False
+
+			clear_device_cache()
+
+		mock_logger.warning.assert_called_once()
