@@ -10,6 +10,7 @@ from PIL import Image
 from transformers import CLIPImageProcessor
 
 from app.constants.model_loader import CLIP_IMAGE_PROCESSOR_MODEL, SAFETY_CHECKER_MODEL
+from app.cores.gpu_utils import clear_device_cache
 from app.cores.model_manager import model_manager
 from app.database import config_crud
 from app.database.service import SessionLocal
@@ -90,8 +91,7 @@ class SafetyCheckerService:
 		self._device = None
 		self._dtype = None
 
-		if torch.cuda.is_available():
-			torch.cuda.empty_cache()
+		clear_device_cache(reason='Safety checker unload')
 
 	def _run_check(self, images: list[Image.Image]) -> tuple[list[Image.Image], list[bool]]:
 		"""Run NSFW detection on images.

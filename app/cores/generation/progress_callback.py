@@ -1,9 +1,8 @@
 """Progress callback handler for step-by-step generation updates."""
 
-import torch
-
 from app.constants.generation import CACHE_CLEAR_INTERVAL
 from app.cores.generation.image_processor import image_processor
+from app.cores.gpu_utils import clear_device_cache
 from app.schemas.generators import ImageGenerationStepEndResponse
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import image_service, logger_service
@@ -74,9 +73,8 @@ class ProgressCallback:
 		# Clears every N steps (configured via CACHE_CLEAR_INTERVAL constant)
 		# This ensures cache is cleared even in short generations (e.g., 4 steps = 1 clear at step 3)
 		if self.step_count % CACHE_CLEAR_INTERVAL == 0:
-			if torch.cuda.is_available():
-				torch.cuda.empty_cache()
-				logger.debug(f'Cleared CUDA cache at step {current_step}')
+			reason = f'Progress callback step {current_step}'
+			clear_device_cache(reason=reason)
 
 		return callback_kwargs
 

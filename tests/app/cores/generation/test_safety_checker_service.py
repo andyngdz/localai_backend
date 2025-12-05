@@ -243,17 +243,35 @@ class TestUnload:
 		assert service._safety_checker is None
 		assert service._feature_extractor is None
 
-	def test_clears_cuda_cache_when_available(self, mock_safety_checker_model, mock_feature_extractor):
-		"""Test that CUDA cache is cleared when CUDA is available."""
+	def test_invokes_shared_cache_helper_on_unload(self, mock_safety_checker_model, mock_feature_extractor):
+		"""Test that unload calls shared cache helper."""
 		from app.cores.generation.safety_checker_service import SafetyCheckerService
 
 		service = SafetyCheckerService()
 		service._load(torch.device('cpu'), torch.float32)
 
-		with patch('torch.cuda.is_available', return_value=True):
-			with patch('torch.cuda.empty_cache') as mock_empty_cache:
-				service._unload()
-				mock_empty_cache.assert_called_once()
+		with patch('app.cores.generation.safety_checker_service.clear_device_cache') as mock_clear_cache:
+			service._unload()
+			mock_clear_cache.assert_called_once()
+
+	def test_unload_handles_missing_components(self):
+		"""_unload should safely handle when models are already cleared."""
+		from app.cores.generation.safety_checker_service import SafetyCheckerService
+
+		service = SafetyCheckerService()
+		service._safety_checker = None
+		service._feature_extractor = None
+		service._device = torch.device('cpu')
+		service._dtype = torch.float32
+
+		with patch('app.cores.generation.safety_checker_service.clear_device_cache') as mock_clear_cache:
+			service._unload()
+
+		assert service._safety_checker is None
+		assert service._feature_extractor is None
+		assert service._device is None
+		assert service._dtype is None
+		mock_clear_cache.assert_called_once()
 
 
 class TestRunCheck:
@@ -342,6 +360,21 @@ class TestRunCheck:
 			service._run_check([pil_image])
 
 		assert 'No NSFW content detected' in caplog.text
+
+	def test_run_check_returns_without_models(self, caplog):
+		"""_run_check should early-exit when models aren't loaded."""
+		from app.cores.generation.safety_checker_service import SafetyCheckerService
+
+		service = SafetyCheckerService()
+
+		pil_image = Image.new('RGB', (64, 64), color='red')
+
+		with caplog.at_level('ERROR'):
+			images, flags = service._run_check([pil_image])
+
+		assert images == [pil_image]
+		assert flags == [False]
+		assert 'Safety checker not loaded' in caplog.text
 
 
 class TestSingleton:
