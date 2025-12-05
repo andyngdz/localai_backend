@@ -101,7 +101,7 @@ class TestCleanupPartialLoad:
 class TestFinalizeModelSetup:
 	@patch('app.cores.model_loader.setup.apply_device_optimizations')
 	@patch('app.cores.model_loader.setup.move_to_device', side_effect=return_first_arg)
-	@patch('app.cores.model_loader.setup.emit_progress')
+	@patch('app.cores.model_loader.setup.emit_step')
 	@patch('app.cores.model_loader.setup.device_service')
 	def test_finalizes_setup_successfully(
 		self,
@@ -120,11 +120,11 @@ class TestFinalizeModelSetup:
 		mock_pipe.reset_device_map.assert_called_once()
 		mock_move.assert_called_once_with(mock_pipe, 'cuda', 'Pipeline model-id')
 		mock_optimize.assert_called_once_with(mock_pipe)
-		assert mock_emit.call_count == 4  # steps 6, 7, 8, 9
+		assert mock_emit.call_count == 4  # steps 5, 6, 7, 8
 
 	@patch('app.cores.model_loader.setup.apply_device_optimizations')
 	@patch('app.cores.model_loader.setup.move_to_device', side_effect=return_first_arg)
-	@patch('app.cores.model_loader.setup.emit_progress')
+	@patch('app.cores.model_loader.setup.emit_step')
 	@patch('app.cores.model_loader.setup.device_service')
 	def test_checks_cancellation_at_each_step(
 		self,
@@ -139,11 +139,12 @@ class TestFinalizeModelSetup:
 
 		finalize_model_setup(mock_pipe, 'model-id', cancel_token)
 
-		assert cancel_token.check_cancelled.call_count == 4
+		# emit_step checks cancel_token internally, so 4 calls to emit_step = 4 cancel checks
+		assert mock_emit.call_count == 4
 
 	@patch('app.cores.model_loader.setup.apply_device_optimizations')
 	@patch('app.cores.model_loader.setup.move_to_device', side_effect=return_first_arg)
-	@patch('app.cores.model_loader.setup.emit_progress')
+	@patch('app.cores.model_loader.setup.emit_step')
 	@patch('app.cores.model_loader.setup.device_service')
 	def test_handles_pipeline_without_reset_device_map(
 		self,

@@ -6,7 +6,7 @@ from app.schemas.model_loader import DiffusersPipeline, DiffusersPipelineProtoco
 from app.services import device_service, logger_service
 
 from .cancellation import CancellationToken
-from .progress import emit_progress
+from .steps import ModelLoadStep, emit_step
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
 
@@ -47,32 +47,20 @@ def finalize_model_setup(
 	model_id: str,
 	cancel_token: Optional[CancellationToken],
 ) -> DiffusersPipeline:
-	if cancel_token:
-		cancel_token.check_cancelled()
-
-	emit_progress(model_id, 6, 'Model loaded successfully')
+	emit_step(model_id, ModelLoadStep.LOAD_COMPLETE, cancel_token)
 
 	if hasattr(pipe, 'reset_device_map'):
 		pipe.reset_device_map()
 		logger.info(f'Reset device map for pipeline {model_id}')
 
-	if cancel_token:
-		cancel_token.check_cancelled()
-
-	emit_progress(model_id, 7, 'Moving model to device...')
+	emit_step(model_id, ModelLoadStep.MOVE_TO_DEVICE, cancel_token)
 
 	pipe = move_to_device(pipe, device_service.device.value, f'Pipeline {model_id}')
 
-	if cancel_token:
-		cancel_token.check_cancelled()
-
-	emit_progress(model_id, 8, 'Applying optimizations...')
+	emit_step(model_id, ModelLoadStep.APPLY_OPTIMIZATIONS, cancel_token)
 	apply_device_optimizations(pipe)
 
-	if cancel_token:
-		cancel_token.check_cancelled()
-
-	emit_progress(model_id, 9, 'Finalizing model setup...')
+	emit_step(model_id, ModelLoadStep.FINALIZE, cancel_token)
 	return pipe
 
 
