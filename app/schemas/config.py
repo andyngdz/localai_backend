@@ -38,6 +38,8 @@ class ConfigResponse(BaseModel):
 	safety_check_enabled: bool = Field(..., description='Whether safety check is enabled for image generation')
 	gpu_scale_factor: float = Field(..., ge=0.1, le=1.0, description='Maximum GPU memory scale factor')
 	ram_scale_factor: float = Field(..., ge=0.1, le=1.0, description='Maximum RAM memory scale factor')
+	total_gpu_memory: int = Field(..., description='Total GPU memory in bytes')
+	total_ram_memory: int = Field(..., description='Total RAM memory in bytes')
 
 
 class SafetyCheckRequest(BaseModel):

@@ -5,6 +5,7 @@ Covers:
 - Response includes upscalers sections grouped by method
 - Safety check toggle endpoint
 - Memory scale factors in config response
+- Total memory info in config response
 """
 
 from unittest.mock import MagicMock, patch
@@ -19,27 +20,57 @@ from app.schemas.config import (
 )
 
 
+def create_mock_config_response(
+	safety_check_enabled: bool = True,
+	gpu_scale_factor: float = 0.5,
+	ram_scale_factor: float = 0.5,
+	total_gpu_memory: int = 8589934592,
+	total_ram_memory: int = 17179869184,
+) -> ConfigResponse:
+	"""Create a mock ConfigResponse with default or custom values."""
+	return ConfigResponse(
+		upscalers=[
+			UpscalerSection(
+				method=UpscalingMethod.TRADITIONAL,
+				title='Traditional',
+				options=[
+					UpscalerItem(
+						value='Lanczos',
+						name='Lanczos (High Quality)',
+						description='High-quality resampling',
+						suggested_denoise_strength=0.4,
+						method=UpscalingMethod.TRADITIONAL,
+						is_recommended=False,
+					)
+				],
+			)
+		],
+		safety_check_enabled=safety_check_enabled,
+		gpu_scale_factor=gpu_scale_factor,
+		ram_scale_factor=ram_scale_factor,
+		total_gpu_memory=total_gpu_memory,
+		total_ram_memory=total_ram_memory,
+	)
+
+
 class TestConfigAPI:
 	"""Test config API endpoints."""
 
-	@patch('app.features.config.api.config_crud')
-	def test_get_config_returns_config_response(self, mock_config_crud):
+	@patch('app.features.config.api.config_service')
+	def test_get_config_returns_config_response(self, mock_config_service):
 		"""Test that get_config returns a ConfigResponse."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response()
 		mock_db = MagicMock()
 
 		result = get_config(mock_db)
 
 		assert isinstance(result, ConfigResponse)
+		mock_config_service.get_config.assert_called_once_with(mock_db)
 
-	@patch('app.features.config.api.config_crud')
-	def test_get_config_includes_upscalers_sections(self, mock_config_crud):
+	@patch('app.features.config.api.config_service')
+	def test_get_config_includes_upscalers_sections(self, mock_config_service):
 		"""Test that get_config response includes upscalers sections."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response()
 		mock_db = MagicMock()
 
 		result = get_config(mock_db)
@@ -48,24 +79,20 @@ class TestConfigAPI:
 		assert isinstance(result.upscalers, list)
 		assert len(result.upscalers) > 0
 
-	@patch('app.features.config.api.config_crud')
-	def test_get_config_upscalers_are_upscaler_sections(self, mock_config_crud):
+	@patch('app.features.config.api.config_service')
+	def test_get_config_upscalers_are_upscaler_sections(self, mock_config_service):
 		"""Test that upscalers in response are UpscalerSection instances."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response()
 		mock_db = MagicMock()
 
 		result = get_config(mock_db)
 
 		assert all(isinstance(section, UpscalerSection) for section in result.upscalers)
 
-	@patch('app.features.config.api.config_crud')
-	def test_get_config_sections_have_options(self, mock_config_crud):
+	@patch('app.features.config.api.config_service')
+	def test_get_config_sections_have_options(self, mock_config_service):
 		"""Test that each section has options that are UpscalerItem instances."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response()
 		mock_db = MagicMock()
 
 		result = get_config(mock_db)
@@ -75,47 +102,14 @@ class TestConfigAPI:
 			assert isinstance(section.options, list)
 			assert all(isinstance(item, UpscalerItem) for item in section.options)
 
-	@patch('app.features.config.api.config_crud')
-	@patch('app.features.config.api.config_service')
-	def test_get_config_calls_service(self, mock_config_service, mock_config_crud):
-		"""Test that get_config calls config_service.get_upscaler_sections."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
-		mock_db = MagicMock()
-		mock_sections = [
-			UpscalerSection(
-				method=UpscalingMethod.TRADITIONAL,
-				title='Traditional',
-				options=[
-					UpscalerItem(
-						value='Test',
-						name='Test Upscaler',
-						description='Test description',
-						suggested_denoise_strength=0.5,
-						method=UpscalingMethod.TRADITIONAL,
-						is_recommended=False,
-					)
-				],
-			)
-		]
-		mock_config_service.get_upscaler_sections.return_value = mock_sections
-
-		result = get_config(mock_db)
-
-		mock_config_service.get_upscaler_sections.assert_called_once()
-		assert result.upscalers == mock_sections
-
 
 class TestSafetyCheckAPI:
 	"""Test safety check toggle API endpoints."""
 
-	@patch('app.features.config.api.config_crud')
-	def test_get_config_includes_safety_check_enabled(self, mock_config_crud):
+	@patch('app.features.config.api.config_service')
+	def test_get_config_includes_safety_check_enabled(self, mock_config_service):
 		"""Test that get_config returns safety_check_enabled field."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response(safety_check_enabled=True)
 		mock_db = MagicMock()
 
 		result = get_config(mock_db)
@@ -123,24 +117,21 @@ class TestSafetyCheckAPI:
 		assert hasattr(result, 'safety_check_enabled')
 		assert result.safety_check_enabled is True
 
-	@patch('app.features.config.api.config_crud')
-	def test_get_config_returns_safety_check_disabled(self, mock_config_crud):
+	@patch('app.features.config.api.config_service')
+	def test_get_config_returns_safety_check_disabled(self, mock_config_service):
 		"""Test that get_config returns safety_check_enabled=False when disabled."""
-		mock_config_crud.get_safety_check_enabled.return_value = False
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response(safety_check_enabled=False)
 		mock_db = MagicMock()
 
 		result = get_config(mock_db)
 
 		assert result.safety_check_enabled is False
 
+	@patch('app.features.config.api.config_service')
 	@patch('app.features.config.api.config_crud')
-	def test_update_safety_check_enables(self, mock_config_crud):
+	def test_update_safety_check_enables(self, mock_config_crud, mock_config_service):
 		"""Test enabling safety check via PUT endpoint."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response(safety_check_enabled=True)
 		mock_db = MagicMock()
 		request = SafetyCheckRequest(enabled=True)
 
@@ -149,12 +140,11 @@ class TestSafetyCheckAPI:
 		mock_config_crud.set_safety_check_enabled.assert_called_once_with(mock_db, True)
 		assert result.safety_check_enabled is True
 
+	@patch('app.features.config.api.config_service')
 	@patch('app.features.config.api.config_crud')
-	def test_update_safety_check_disables(self, mock_config_crud):
+	def test_update_safety_check_disables(self, mock_config_crud, mock_config_service):
 		"""Test disabling safety check via PUT endpoint."""
-		mock_config_crud.get_safety_check_enabled.return_value = False
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response(safety_check_enabled=False)
 		mock_db = MagicMock()
 		request = SafetyCheckRequest(enabled=False)
 
@@ -167,12 +157,12 @@ class TestSafetyCheckAPI:
 class TestMemoryScaleFactorsAPI:
 	"""Test memory scale factors in config response."""
 
-	@patch('app.features.config.api.config_crud')
-	def test_get_config_returns_default_scale_factors(self, mock_config_crud):
+	@patch('app.features.config.api.config_service')
+	def test_get_config_returns_default_scale_factors(self, mock_config_service):
 		"""Test that get_config returns default scale factors (0.5)."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.5
-		mock_config_crud.get_ram_scale_factor.return_value = 0.5
+		mock_config_service.get_config.return_value = create_mock_config_response(
+			gpu_scale_factor=0.5, ram_scale_factor=0.5
+		)
 		mock_db = MagicMock()
 
 		result = get_config(mock_db)
@@ -180,12 +170,12 @@ class TestMemoryScaleFactorsAPI:
 		assert result.gpu_scale_factor == 0.5
 		assert result.ram_scale_factor == 0.5
 
-	@patch('app.features.config.api.config_crud')
-	def test_get_config_returns_custom_scale_factors(self, mock_config_crud):
+	@patch('app.features.config.api.config_service')
+	def test_get_config_returns_custom_scale_factors(self, mock_config_service):
 		"""Test that get_config returns custom scale factors."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.8
-		mock_config_crud.get_ram_scale_factor.return_value = 0.7
+		mock_config_service.get_config.return_value = create_mock_config_response(
+			gpu_scale_factor=0.8, ram_scale_factor=0.7
+		)
 		mock_db = MagicMock()
 
 		result = get_config(mock_db)
@@ -193,12 +183,13 @@ class TestMemoryScaleFactorsAPI:
 		assert result.gpu_scale_factor == 0.8
 		assert result.ram_scale_factor == 0.7
 
+	@patch('app.features.config.api.config_service')
 	@patch('app.features.config.api.config_crud')
-	def test_update_safety_check_includes_scale_factors(self, mock_config_crud):
+	def test_update_safety_check_includes_scale_factors(self, mock_config_crud, mock_config_service):
 		"""Test that update_safety_check response includes scale factors."""
-		mock_config_crud.get_safety_check_enabled.return_value = True
-		mock_config_crud.get_gpu_scale_factor.return_value = 0.6
-		mock_config_crud.get_ram_scale_factor.return_value = 0.4
+		mock_config_service.get_config.return_value = create_mock_config_response(
+			gpu_scale_factor=0.6, ram_scale_factor=0.4
+		)
 		mock_db = MagicMock()
 		request = SafetyCheckRequest(enabled=True)
 
@@ -206,3 +197,48 @@ class TestMemoryScaleFactorsAPI:
 
 		assert result.gpu_scale_factor == 0.6
 		assert result.ram_scale_factor == 0.4
+
+
+class TestTotalMemoryAPI:
+	"""Test total memory info in config response."""
+
+	@patch('app.features.config.api.config_service')
+	def test_get_config_returns_total_memory(self, mock_config_service):
+		"""Test that get_config returns total GPU and RAM memory."""
+		mock_config_service.get_config.return_value = create_mock_config_response(
+			total_gpu_memory=8589934592, total_ram_memory=17179869184
+		)
+		mock_db = MagicMock()
+
+		result = get_config(mock_db)
+
+		assert result.total_gpu_memory == 8589934592  # 8GB
+		assert result.total_ram_memory == 17179869184  # 16GB
+
+	@patch('app.features.config.api.config_service')
+	def test_get_config_returns_custom_memory_values(self, mock_config_service):
+		"""Test that get_config returns actual memory values from system."""
+		mock_config_service.get_config.return_value = create_mock_config_response(
+			total_gpu_memory=12884901888, total_ram_memory=34359738368
+		)
+		mock_db = MagicMock()
+
+		result = get_config(mock_db)
+
+		assert result.total_gpu_memory == 12884901888
+		assert result.total_ram_memory == 34359738368
+
+	@patch('app.features.config.api.config_service')
+	@patch('app.features.config.api.config_crud')
+	def test_update_safety_check_includes_total_memory(self, mock_config_crud, mock_config_service):
+		"""Test that update_safety_check response includes total memory."""
+		mock_config_service.get_config.return_value = create_mock_config_response(
+			total_gpu_memory=8589934592, total_ram_memory=17179869184
+		)
+		mock_db = MagicMock()
+		request = SafetyCheckRequest(enabled=True)
+
+		result = update_safety_check(request, mock_db)
+
+		assert result.total_gpu_memory == 8589934592
+		assert result.total_ram_memory == 17179869184

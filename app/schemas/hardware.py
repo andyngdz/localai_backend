@@ -93,19 +93,6 @@ class MaxMemoryConfigRequest(BaseModel):
 	)
 
 
-class MemoryResponse(BaseModel):
-	"""Response containing the maximum memory configuration."""
-
-	gpu: int = Field(
-		...,
-		description='Maximum GPU memory in bytes.',
-	)
-	ram: int = Field(
-		...,
-		description='Maximum RAM memory in bytes.',
-	)
-
-
 class CleanupMetrics(BaseModel):
 	"""Metrics from GPU model cleanup operation."""
 

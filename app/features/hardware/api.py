@@ -28,22 +28,6 @@ def get_hardware():
 	return driver_info
 
 
-@hardware.get('/memory')
-def get_device_memory(db: Session = Depends(database_service.get_db)):
-	"""
-	Returns the maximum memory configuration for the system.
-	"""
-	try:
-		return hardware_service.get_memory_info(db)
-	except Exception as error:
-		logger.error(f'Error retrieving maximum memory configuration: {error}')
-
-		raise HTTPException(
-			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail=str(error),
-		) from error
-
-
 @hardware.get('/recheck')
 def recheck():
 	"""

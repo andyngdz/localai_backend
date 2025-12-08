@@ -7,10 +7,8 @@ from app.schemas.hardware import (
 	GetCurrentDeviceIndex,
 	GPUDriverInfo,
 	MaxMemoryConfigRequest,
-	MemoryResponse,
 )
 from app.services import logger_service
-from app.services.memory import MemoryService
 
 from .gpu_detector import GPUDetector
 from .info import GPUInfo
@@ -47,22 +45,6 @@ class HardwareService:
 		self.gpu_detector.clear_cache()
 		logger.info('Forcing re-check of GPU driver status by clearing cache.')
 		return self.gpu_detector.detect()
-
-	def get_memory_info(self, db: Session) -> MemoryResponse:
-		"""Get memory configuration.
-
-		Args:
-			db: Database session
-
-		Returns:
-			MemoryResponse with GPU and RAM memory information
-		"""
-		memory_service = MemoryService(db)
-
-		return MemoryResponse(
-			gpu=memory_service.total_gpu,
-			ram=memory_service.total_ram,
-		)
 
 	def set_device(self, db: Session, device_index: int) -> dict:
 		"""Set active device.

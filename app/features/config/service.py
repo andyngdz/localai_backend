@@ -1,5 +1,9 @@
-from app.schemas.config import UpscalerItem, UpscalerSection, UpscalingMethod
+from sqlalchemy.orm import Session
+
+from app.database import config_crud
+from app.schemas.config import ConfigResponse, UpscalerItem, UpscalerSection, UpscalingMethod
 from app.schemas.hires_fix import UpscalerType
+from app.services.memory import MemoryService
 
 UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 	UpscalerType.LANCZOS: UpscalerItem(
@@ -87,6 +91,19 @@ UPSCALER_SECTIONS: list[UpscalerSection] = [
 class ConfigService:
 	def get_upscaler_sections(self) -> list[UpscalerSection]:
 		return UPSCALER_SECTIONS
+
+	def get_config(self, db: Session) -> ConfigResponse:
+		"""Build and return the complete config response."""
+		memory_service = MemoryService(db)
+
+		return ConfigResponse(
+			upscalers=UPSCALER_SECTIONS,
+			safety_check_enabled=config_crud.get_safety_check_enabled(db),
+			gpu_scale_factor=config_crud.get_gpu_scale_factor(db),
+			ram_scale_factor=config_crud.get_ram_scale_factor(db),
+			total_gpu_memory=memory_service.total_gpu,
+			total_ram_memory=memory_service.total_ram,
+		)
 
 
 config_service = ConfigService()

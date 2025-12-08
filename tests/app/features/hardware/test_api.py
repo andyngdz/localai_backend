@@ -114,35 +114,3 @@ class TestHardwareEndpoints:
 		assert abs(result['ram_scale_factor'] - 0.8) < 1e-9
 		assert abs(result['gpu_scale_factor'] - 0.9) < 1e-9
 		mock_set_max_memory.assert_called_once_with(mock_db, config)
-
-	@patch('app.features.hardware.service.hardware_service.get_memory_info')
-	def test_get_device_memory_endpoint(self, mock_get_memory_info):
-		"""Test GET /hardware/memory returns memory info."""
-		from app.features.hardware.api import get_device_memory
-		from app.schemas.hardware import MemoryResponse
-
-		mock_db = MagicMock()
-		mock_get_memory_info.return_value = MemoryResponse(gpu=8192, ram=16384)
-
-		result = get_device_memory(db=mock_db)
-
-		assert result.gpu == 8192
-		assert result.ram == 16384
-		mock_get_memory_info.assert_called_once_with(mock_db)
-
-	@patch('app.features.hardware.service.hardware_service.get_memory_info')
-	def test_get_device_memory_endpoint_error_handling(self, mock_get_memory_info):
-		"""Test GET /hardware/memory handles errors."""
-		from fastapi import HTTPException
-
-		from app.features.hardware.api import get_device_memory
-
-		mock_db = MagicMock()
-		error_msg = 'Memory service error'
-		mock_get_memory_info.side_effect = Exception(error_msg)
-
-		with pytest.raises(HTTPException) as exc_info:
-			get_device_memory(db=mock_db)
-
-		assert exc_info.value.status_code == 500
-		assert error_msg in str(exc_info.value.detail)

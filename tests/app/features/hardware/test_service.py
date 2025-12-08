@@ -9,7 +9,6 @@ from app.schemas.hardware import (
 	GPUDriverInfo,
 	GPUDriverStatusStates,
 	MaxMemoryConfigRequest,
-	MemoryResponse,
 )
 
 
@@ -55,22 +54,6 @@ class TestHardwareService:
 				mock_clear.assert_called_once()
 				mock_detect.assert_called_once()
 				assert result == mock_info
-
-	@patch('app.features.hardware.service.MemoryService')
-	def test_get_memory_info_returns_memory_response(self, mock_memory_service_class):
-		"""Test get_memory_info() returns MemoryResponse."""
-		mock_db = MagicMock()
-		mock_memory_service = MagicMock()
-		mock_memory_service.total_gpu = 8192
-		mock_memory_service.total_ram = 16384
-		mock_memory_service_class.return_value = mock_memory_service
-
-		result = self.service.get_memory_info(mock_db)
-
-		assert isinstance(result, MemoryResponse)
-		assert result.gpu == 8192
-		assert result.ram == 16384
-		mock_memory_service_class.assert_called_once_with(mock_db)
 
 	@patch('app.features.hardware.service.add_device_index')
 	def test_set_device_calls_add_device_index(self, mock_add_device_index):

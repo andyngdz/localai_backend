@@ -12,12 +12,7 @@ config = APIRouter(prefix='/config', tags=['config'])
 @config.get('/', response_model=ConfigResponse)
 def get_config(db: Session = Depends(database_service.get_db)) -> ConfigResponse:
 	"""Returns application configuration for the frontend."""
-	return ConfigResponse(
-		upscalers=config_service.get_upscaler_sections(),
-		safety_check_enabled=config_crud.get_safety_check_enabled(db),
-		gpu_scale_factor=config_crud.get_gpu_scale_factor(db),
-		ram_scale_factor=config_crud.get_ram_scale_factor(db),
-	)
+	return config_service.get_config(db)
 
 
 @config.put('/safety-check', response_model=ConfigResponse)
@@ -25,9 +20,4 @@ def update_safety_check(request: SafetyCheckRequest, db: Session = Depends(datab
 	"""Update safety check setting."""
 	config_crud.set_safety_check_enabled(db, request.enabled)
 
-	return ConfigResponse(
-		upscalers=config_service.get_upscaler_sections(),
-		safety_check_enabled=config_crud.get_safety_check_enabled(db),
-		gpu_scale_factor=config_crud.get_gpu_scale_factor(db),
-		ram_scale_factor=config_crud.get_ram_scale_factor(db),
-	)
+	return config_service.get_config(db)
