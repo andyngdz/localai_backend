@@ -15,6 +15,8 @@ def get_config(db: Session = Depends(database_service.get_db)) -> ConfigResponse
 	return ConfigResponse(
 		upscalers=config_service.get_upscaler_sections(),
 		safety_check_enabled=config_crud.get_safety_check_enabled(db),
+		gpu_scale_factor=config_crud.get_gpu_scale_factor(db),
+		ram_scale_factor=config_crud.get_ram_scale_factor(db),
 	)
 
 
@@ -26,4 +28,6 @@ def update_safety_check(request: SafetyCheckRequest, db: Session = Depends(datab
 	return ConfigResponse(
 		upscalers=config_service.get_upscaler_sections(),
 		safety_check_enabled=config_crud.get_safety_check_enabled(db),
+		gpu_scale_factor=config_crud.get_gpu_scale_factor(db),
+		ram_scale_factor=config_crud.get_ram_scale_factor(db),
 	)

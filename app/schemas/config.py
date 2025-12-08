@@ -36,6 +36,8 @@ class ConfigResponse(BaseModel):
 
 	upscalers: list[UpscalerSection] = Field(..., description='Upscaler sections grouped by method')
 	safety_check_enabled: bool = Field(..., description='Whether safety check is enabled for image generation')
+	gpu_scale_factor: float = Field(..., ge=0.1, le=1.0, description='Maximum GPU memory scale factor')
+	ram_scale_factor: float = Field(..., ge=0.1, le=1.0, description='Maximum RAM memory scale factor')
 
 
 class SafetyCheckRequest(BaseModel):
