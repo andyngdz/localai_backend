@@ -6,13 +6,18 @@ Covers:
 - Safety check toggle endpoint
 - Memory scale factors in config response
 - Total memory info in config response
+- Device index in config response
+- Device selection endpoint
+- Max memory configuration endpoint
 """
 
 from unittest.mock import MagicMock, patch
 
-from app.features.config.api import get_config, update_safety_check
+from app.features.config.api import get_config, update_device, update_max_memory, update_safety_check
 from app.schemas.config import (
 	ConfigResponse,
+	DeviceRequest,
+	MaxMemoryRequest,
 	SafetyCheckRequest,
 	UpscalerItem,
 	UpscalerSection,
@@ -26,6 +31,7 @@ def create_mock_config_response(
 	ram_scale_factor: float = 0.5,
 	total_gpu_memory: int = 8589934592,
 	total_ram_memory: int = 17179869184,
+	device_index: int = 0,
 ) -> ConfigResponse:
 	"""Create a mock ConfigResponse with default or custom values."""
 	return ConfigResponse(
@@ -50,6 +56,7 @@ def create_mock_config_response(
 		ram_scale_factor=ram_scale_factor,
 		total_gpu_memory=total_gpu_memory,
 		total_ram_memory=total_ram_memory,
+		device_index=device_index,
 	)
 
 
@@ -242,3 +249,82 @@ class TestTotalMemoryAPI:
 
 		assert result.total_gpu_memory == 8589934592
 		assert result.total_ram_memory == 17179869184
+
+
+class TestDeviceIndexAPI:
+	"""Test device index in config response."""
+
+	@patch('app.features.config.api.config_service')
+	def test_get_config_returns_device_index(self, mock_config_service):
+		"""Test that get_config returns device_index field."""
+		mock_config_service.get_config.return_value = create_mock_config_response(device_index=0)
+		mock_db = MagicMock()
+
+		result = get_config(mock_db)
+
+		assert hasattr(result, 'device_index')
+		assert result.device_index == 0
+
+	@patch('app.features.config.api.config_service')
+	def test_get_config_returns_cpu_mode_device_index(self, mock_config_service):
+		"""Test that get_config returns device_index=-1 for CPU mode."""
+		mock_config_service.get_config.return_value = create_mock_config_response(device_index=-1)
+		mock_db = MagicMock()
+
+		result = get_config(mock_db)
+
+		assert result.device_index == -1
+
+	@patch('app.features.config.api.config_service')
+	def test_update_device_sets_device_index(self, mock_config_service):
+		"""Test that update_device sets the device index."""
+		mock_config_service.set_device.return_value = create_mock_config_response(device_index=1)
+		mock_db = MagicMock()
+		request = DeviceRequest(device_index=1)
+
+		result = update_device(request, mock_db)
+
+		mock_config_service.set_device.assert_called_once_with(mock_db, 1)
+		assert result.device_index == 1
+
+	@patch('app.features.config.api.config_service')
+	def test_update_device_sets_cpu_mode(self, mock_config_service):
+		"""Test that update_device can set CPU mode (-1)."""
+		mock_config_service.set_device.return_value = create_mock_config_response(device_index=-1)
+		mock_db = MagicMock()
+		request = DeviceRequest(device_index=-1)
+
+		result = update_device(request, mock_db)
+
+		mock_config_service.set_device.assert_called_once_with(mock_db, -1)
+		assert result.device_index == -1
+
+
+class TestMaxMemoryAPI:
+	"""Test max memory configuration endpoint."""
+
+	@patch('app.features.config.api.config_service')
+	def test_update_max_memory_sets_scale_factors(self, mock_config_service):
+		"""Test that update_max_memory sets scale factors."""
+		mock_config_service.set_max_memory.return_value = create_mock_config_response(
+			gpu_scale_factor=0.8, ram_scale_factor=0.7
+		)
+		mock_db = MagicMock()
+		request = MaxMemoryRequest(gpu_scale_factor=0.8, ram_scale_factor=0.7)
+
+		result = update_max_memory(request, mock_db)
+
+		mock_config_service.set_max_memory.assert_called_once_with(mock_db, 0.8, 0.7)
+		assert result.gpu_scale_factor == 0.8
+		assert result.ram_scale_factor == 0.7
+
+	@patch('app.features.config.api.config_service')
+	def test_update_max_memory_returns_config_response(self, mock_config_service):
+		"""Test that update_max_memory returns ConfigResponse."""
+		mock_config_service.set_max_memory.return_value = create_mock_config_response()
+		mock_db = MagicMock()
+		request = MaxMemoryRequest(gpu_scale_factor=0.5, ram_scale_factor=0.5)
+
+		result = update_max_memory(request, mock_db)
+
+		assert isinstance(result, ConfigResponse)

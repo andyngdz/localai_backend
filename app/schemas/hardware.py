@@ -57,42 +57,6 @@ class GPUDriverInfo(BaseModel):
 	)
 
 
-class SelectDeviceRequest(BaseModel):
-	"""Request for selecting a device with index"""
-
-	device_index: int = Field(
-		...,
-		ge=0,
-		description='Index of the device to select. -2 means not found, -1 means CPU mode.',
-	)
-
-
-class GetCurrentDeviceIndex(BaseModel):
-	"""Request to get the current selected device index"""
-
-	device_index: int = Field(
-		...,
-		description='Index of the currently selected device. -2 means not found, -1 means CPU mode.',
-	)
-
-
-class MaxMemoryConfigRequest(BaseModel):
-	"""Configuration for maximum memory usage."""
-
-	ram_scale_factor: float = Field(
-		...,
-		ge=0.1,
-		le=1,
-		description='Maximum RAM memory in percent that can be used by the pipeline.',
-	)
-	gpu_scale_factor: float = Field(
-		...,
-		ge=0.1,
-		le=1,
-		description='Maximum GPU memory in percent that can be used by the pipeline.',
-	)
-
-
 class CleanupMetrics(BaseModel):
 	"""Metrics from GPU model cleanup operation."""
 

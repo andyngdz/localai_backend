@@ -136,6 +136,7 @@ class TestRouterRegistration:
 			ram_scale_factor=0.5,
 			total_gpu_memory=8589934592,
 			total_ram_memory=17179869184,
+			device_index=0,
 		)
 
 		response = client.get('/config/')
