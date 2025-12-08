@@ -92,7 +92,7 @@ class TestBuildLoadingStrategies:
 class TestLoadSingleFile:
 	@patch('app.cores.model_loader.strategies.device_service')
 	def test_loads_single_file_successfully(self, mock_device_service: Mock) -> None:
-		mock_device_service.dtype = 'float16'
+		mock_device_service.torch_dtype = 'float16'
 		checkpoint = '/path/to/checkpoint.safetensors'
 
 		# Define dummy classes to satisfy isinstance checks
@@ -151,7 +151,7 @@ class TestLoadPretrained:
 	@patch('app.cores.model_loader.strategies.AutoPipelineForText2Image')
 	@patch('app.cores.model_loader.strategies.device_service')
 	def test_loads_pretrained_successfully(self, mock_device_service: Mock, mock_auto_pipeline: Mock) -> None:
-		mock_device_service.dtype = 'float16'
+		mock_device_service.torch_dtype = 'float16'
 		model_id = 'test-model'
 		strategy = PretrainedStrategy(use_safetensors=True)
 		mock_pipe = Mock()
