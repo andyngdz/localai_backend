@@ -19,7 +19,7 @@ class TestDeviceServiceInit:
 			service = DeviceService()
 
 			assert service.device == DeviceType.CUDA
-			assert service.torch_dtype == 'float16'
+			assert service.dtype == 'float16'
 
 	def test_initializes_with_mps_when_cuda_unavailable(self):
 		with (
@@ -36,7 +36,7 @@ class TestDeviceServiceInit:
 			service = DeviceService()
 
 			assert service.device == DeviceType.MPS
-			assert service.torch_dtype == 'float32'
+			assert service.dtype == 'float32'
 
 	def test_initializes_with_cpu_when_no_gpu(self):
 		with patch('app.services.device.torch') as mock_torch:
@@ -49,7 +49,7 @@ class TestDeviceServiceInit:
 			service = DeviceService()
 
 			assert service.device == DeviceType.CPU
-			assert service.torch_dtype == 'float32'
+			assert service.dtype == 'float32'
 
 	def test_falls_back_to_cpu_on_exception(self):
 		with patch('app.services.device.torch') as mock_torch:
@@ -61,7 +61,7 @@ class TestDeviceServiceInit:
 			service = DeviceService()
 
 			assert service.device == DeviceType.CPU
-			assert service.torch_dtype == 'float32'
+			assert service.dtype == 'float32'
 
 
 class TestGetDeviceName:

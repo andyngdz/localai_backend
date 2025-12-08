@@ -26,22 +26,22 @@ class DeviceService:
 		try:
 			if torch.cuda.is_available():
 				self.device = DeviceType.CUDA
-				self.torch_dtype = torch.float16
+				self.dtype = torch.float16
 				logger.info(f'CUDA device detected: {torch.cuda.get_device_name(0)}')
 			elif torch.backends.mps.is_available():
 				self.device = DeviceType.MPS
 				# Use float32 for MPS to avoid numerical instability issues that cause NaN values
-				self.torch_dtype = torch.float32
+				self.dtype = torch.float32
 				logger.info(f'MPS device detected: Apple {platform.machine()}')
 			else:
 				self.device = DeviceType.CPU
-				self.torch_dtype = torch.float32
+				self.dtype = torch.float32
 				logger.info('Using CPU device (no GPU acceleration available)')
 		except Exception as error:
 			# Fallback to CPU if there are any issues with device detection
 			logger.warning(f'Device detection failed, falling back to CPU: {error}')
 			self.device = DeviceType.CPU
-			self.torch_dtype = torch.float32
+			self.dtype = torch.float32
 
 	def get_device_name(self, index: int) -> str:
 		if self.is_cuda:

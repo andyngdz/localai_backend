@@ -84,7 +84,7 @@ def _load_single_file(checkpoint: str) -> DiffusersPipeline:
 
 			pipe = pipeline_class.from_single_file(
 				checkpoint,
-				torch_dtype=device_service.torch_dtype,
+				dtype=device_service.dtype,
 			)
 
 			logger.info(f'Successfully loaded with {pipeline_class.__name__}')
@@ -104,7 +104,7 @@ def _load_pretrained(model_id: str, strategy: PretrainedStrategy) -> DiffusersPi
 		model_id,
 		cache_dir=CACHE_FOLDER,
 		low_cpu_mem_usage=True,
-		torch_dtype=device_service.torch_dtype,
+		dtype=device_service.dtype,
 		**load_params,
 	)
 
