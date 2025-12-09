@@ -173,6 +173,15 @@ class SocketService:
 		"""
 		self.emit_sync(SocketEvents.IMAGE_GENERATION_STEP_END, data=data.model_dump())
 
+	def generation_phase(self, data: BaseModel) -> None:
+		"""
+		Emit a generation phase event with the provided data.
+
+		Args:
+			data: The data model to send (GenerationPhaseResponse)
+		"""
+		self.emit_sync(SocketEvents.GENERATION_PHASE, data=data.model_dump())
+
 
 # Singleton instance for application-wide use
 socket_service = SocketService()

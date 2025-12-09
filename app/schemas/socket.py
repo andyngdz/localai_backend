@@ -1,6 +1,14 @@
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class GenerationPhase(str, Enum):
+	"""Enum for major phases during image generation."""
+
+	IMAGE_GENERATION = 'image_generation'
+	UPSCALING = 'upscaling'
+	COMPLETED = 'completed'
 
 
 class SocketEvents(str, Enum):
@@ -18,6 +26,7 @@ class SocketEvents(str, Enum):
 	MODEL_LOAD_COMPLETED = 'model_load_completed'
 	MODEL_LOAD_FAILED = 'model_load_failed'
 	IMAGE_GENERATION_STEP_END = 'image_generation_step_end'
+	GENERATION_PHASE = 'generation_phase'
 
 
 class SocketResponse(BaseModel):
@@ -28,3 +37,10 @@ class SocketResponse(BaseModel):
 	event: SocketEvents
 
 	data: dict
+
+
+class GenerationPhaseResponse(BaseModel):
+	"""Response model for generation phase events."""
+
+	phases: list[GenerationPhase] = Field(..., description='List of phases in the generation pipeline.')
+	current: GenerationPhase = Field(..., description='Current active phase.')
