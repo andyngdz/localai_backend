@@ -1,6 +1,6 @@
 """Tests for the database config_crud module."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from sqlalchemy.orm import Session
 
@@ -25,40 +25,181 @@ from app.database.models import Config
 class TestGetDeviceIndex:
 	"""Tests for the get_device_index function."""
 
-	def test_get_device_index_with_config(self):
-		"""Test get_device_index when config exists."""
+	def test_get_device_index_with_valid_config(self):
+		"""Test get_device_index when config exists with valid index."""
 		# Arrange
 		mock_db = MagicMock(spec=Session)
 		mock_query = MagicMock()
 		mock_db.query.return_value = mock_query
 
 		mock_config = MagicMock()
-		mock_config.device_index = 1
+		mock_config.device_index = 0
 		mock_query.first.return_value = mock_config
 
-		# Act
-		result = get_device_index(mock_db)
+		with (
+			patch('app.database.config_crud.device_service') as mock_device_service,
+			patch('app.database.config_crud.logger') as mock_logger,
+		):
+			mock_device_service.device_count = 2
+			mock_device_service.current_device = 0
 
-		# Assert
-		assert result == 1
-		mock_db.query.assert_called_once_with(Config)
-		mock_query.first.assert_called_once()
+			# Act
+			result = get_device_index(mock_db)
 
-	def test_get_device_index_without_config(self):
-		"""Test get_device_index when config doesn't exist."""
+			# Assert
+			assert result == 0
+			mock_db.query.assert_called_once_with(Config)
+			mock_query.first.assert_called_once()
+			mock_logger.warning.assert_not_called()
+
+	def test_get_device_index_with_last_valid_index(self):
+		"""Test get_device_index when stored index is device_count - 1 (last valid)."""
+		# Arrange
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.device_index = 1  # Last valid index when device_count = 2
+		mock_query.first.return_value = mock_config
+
+		with (
+			patch('app.database.config_crud.device_service') as mock_device_service,
+			patch('app.database.config_crud.logger') as mock_logger,
+		):
+			mock_device_service.device_count = 2
+			mock_device_service.current_device = 0
+
+			# Act
+			result = get_device_index(mock_db)
+
+			# Assert
+			assert result == 1  # Returns stored index
+			mock_logger.warning.assert_not_called()
+
+	def test_get_device_index_without_config_falls_back(self):
+		"""Test get_device_index when config doesn't exist falls back to current device."""
 		# Arrange
 		mock_db = MagicMock(spec=Session)
 		mock_query = MagicMock()
 		mock_db.query.return_value = mock_query
 		mock_query.first.return_value = None
 
-		# Act
-		result = get_device_index(mock_db)
+		with (
+			patch('app.database.config_crud.device_service') as mock_device_service,
+			patch('app.database.config_crud.logger') as mock_logger,
+		):
+			mock_device_service.device_count = 1
+			mock_device_service.current_device = 0
 
-		# Assert
-		assert result == DeviceSelection.NOT_FOUND
-		mock_db.query.assert_called_once_with(Config)
-		mock_query.first.assert_called_once()
+			# Act
+			result = get_device_index(mock_db)
+
+			# Assert
+			assert result == 0  # Falls back to current_device
+			mock_db.query.assert_called_once_with(Config)
+			mock_query.first.assert_called_once()
+			mock_logger.warning.assert_called_once_with('Invalid device index, falling back to device 0')
+
+	def test_get_device_index_with_invalid_index_falls_back(self):
+		"""Test get_device_index when stored index exceeds device count."""
+		# Arrange
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.device_index = 5  # Invalid - exceeds device count
+		mock_query.first.return_value = mock_config
+
+		with (
+			patch('app.database.config_crud.device_service') as mock_device_service,
+			patch('app.database.config_crud.logger') as mock_logger,
+		):
+			mock_device_service.device_count = 2
+			mock_device_service.current_device = 0
+
+			# Act
+			result = get_device_index(mock_db)
+
+			# Assert
+			assert result == 0  # Falls back to current_device
+			mock_logger.warning.assert_called_once_with('Invalid device index, falling back to device 0')
+
+	def test_get_device_index_with_index_equals_device_count_falls_back(self):
+		"""Test get_device_index when stored index equals device count (boundary)."""
+		# Arrange
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.device_index = 2  # Invalid - equals device_count (should be < device_count)
+		mock_query.first.return_value = mock_config
+
+		with (
+			patch('app.database.config_crud.device_service') as mock_device_service,
+			patch('app.database.config_crud.logger') as mock_logger,
+		):
+			mock_device_service.device_count = 2
+			mock_device_service.current_device = 0
+
+			# Act
+			result = get_device_index(mock_db)
+
+			# Assert
+			assert result == 0  # Falls back to current_device
+			mock_logger.warning.assert_called_once_with('Invalid device index, falling back to device 0')
+
+	def test_get_device_index_with_not_found_falls_back(self):
+		"""Test get_device_index when stored index is NOT_FOUND."""
+		# Arrange
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.device_index = DeviceSelection.NOT_FOUND
+		mock_query.first.return_value = mock_config
+
+		with (
+			patch('app.database.config_crud.device_service') as mock_device_service,
+			patch('app.database.config_crud.logger') as mock_logger,
+		):
+			mock_device_service.device_count = 1
+			mock_device_service.current_device = 0
+
+			# Act
+			result = get_device_index(mock_db)
+
+			# Assert
+			assert result == 0  # Falls back to current_device
+			mock_logger.warning.assert_called_once_with('Invalid device index, falling back to device 0')
+
+	def test_get_device_index_with_negative_index_falls_back(self):
+		"""Test get_device_index when stored index is negative (not NOT_FOUND)."""
+		# Arrange
+		mock_db = MagicMock(spec=Session)
+		mock_query = MagicMock()
+		mock_db.query.return_value = mock_query
+
+		mock_config = MagicMock()
+		mock_config.device_index = -1  # Negative but not NOT_FOUND
+		mock_query.first.return_value = mock_config
+
+		with (
+			patch('app.database.config_crud.device_service') as mock_device_service,
+			patch('app.database.config_crud.logger') as mock_logger,
+		):
+			mock_device_service.device_count = 1
+			mock_device_service.current_device = 0
+
+			# Act
+			result = get_device_index(mock_db)
+
+			# Assert
+			assert result == 0  # Falls back to current_device
+			mock_logger.warning.assert_called_once_with('Invalid device index, falling back to device 0')
 
 
 class TestAddDeviceIndex:
