@@ -25,7 +25,7 @@ def get_device_index(db: Session) -> int:
 	config = db.query(Config).first()
 	device_index = config.device_index if config else DeviceSelection.NOT_FOUND
 
-	if device_index == DeviceSelection.NOT_FOUND or device_index >= device_service.device_count:
+	if device_index == DeviceSelection.NOT_FOUND or device_index < 0 or device_index >= device_service.device_count:
 		fallback_index = device_service.current_device
 		logger.warning(f'Invalid device index, falling back to device {fallback_index}')
 		return fallback_index

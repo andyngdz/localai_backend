@@ -18,16 +18,23 @@ The system SHALL validate the device index when retrieving it from the database 
 - **THEN** the function returns the current active device index
 - **AND** logs a warning: "Invalid device index, falling back to device {index}"
 
+#### Scenario: Device index is negative
+
+- **WHEN** `get_device_index` is called
+- **AND** the stored device_index is negative (less than 0)
+- **THEN** the function returns the current active device index
+- **AND** logs a warning: "Invalid device index, falling back to device {index}"
+
 #### Scenario: Device index out of range
 
 - **WHEN** `get_device_index` is called
-- **AND** the stored device_index exceeds available GPU count (`device_service.device_count`)
+- **AND** the stored device_index is greater than or equal to `device_service.device_count`
 - **THEN** the function returns the current active device index
 - **AND** logs a warning: "Invalid device index, falling back to device {index}"
 
 #### Scenario: Valid device index
 
 - **WHEN** `get_device_index` is called
-- **AND** the stored device_index is valid (not NOT_FOUND and within available device range)
+- **AND** the stored device_index is valid (non-negative and less than device_count)
 - **THEN** the function returns the stored device_index
 - **AND** no warning is logged
