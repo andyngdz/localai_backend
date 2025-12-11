@@ -15,5 +15,5 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify build workflow runs successfully
-- [ ] 3.2 Verify release workflow runs successfully
+- [x] 3.1 Verify build workflow runs successfully
+- [x] 3.2 Verify release workflow runs successfully
