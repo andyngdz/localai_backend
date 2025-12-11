@@ -51,7 +51,7 @@ A FastAPI-based backend server for local AI image generation, supporting Stable 
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/andyshand/localai_backend.git
+   git clone https://github.com/andyngdz/localai_backend.git
    cd localai_backend
    ```
 
@@ -152,8 +152,8 @@ See `docs/` for detailed development guidelines.
 
 We welcome contributions and feedback! If you encounter any issues or have suggestions:
 
-- **Report bugs**: [Open an issue](https://github.com/andyshand/localai_backend/issues)
-- **Feature requests**: [Start a discussion](https://github.com/andyshand/localai_backend/discussions)
+- **Report bugs**: [Open an issue](https://github.com/andyngdz/localai_backend/issues)
+- **Feature requests**: [Start a discussion](https://github.com/andyngdz/localai_backend/discussions)
 - **Contribute**: Fork the repo and submit a pull request
 
 ## License
