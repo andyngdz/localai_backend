@@ -85,6 +85,29 @@ class TestMemoryService:
 			expected_gpu = int(total_ram * GPU_MEMORY_ESTIMATE_FACTOR)
 			assert service.total_gpu == expected_gpu
 
+	def test_init_with_mps_device_and_negative_device_index(self):
+		"""Test MPS always estimates GPU memory regardless of device_index.
+
+		MPS has only one GPU (Apple Silicon), so device_index is irrelevant.
+		The stored device_index is used by frontend for device selection UI.
+		"""
+		mock_db = MagicMock(spec=Session)
+		total_ram = 16 * 1024**3  # 16GB RAM
+
+		with (
+			patch('app.services.memory.get_device_index', return_value=-2),
+			patch('app.services.memory.psutil') as mock_psutil,
+			patch('app.services.memory.device_service') as mock_device_service,
+		):
+			mock_psutil.virtual_memory.return_value.total = total_ram
+			mock_device_service.is_cuda = False
+			mock_device_service.is_mps = True
+
+			service = MemoryService(mock_db)
+
+			expected_gpu = int(total_ram * GPU_MEMORY_ESTIMATE_FACTOR)
+			assert service.total_gpu == expected_gpu
+
 	def test_init_with_cpu_only_device(self):
 		"""Test MemoryService returns zero GPU memory for CPU-only systems."""
 		mock_db = MagicMock(spec=Session)
