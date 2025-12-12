@@ -16,7 +16,7 @@ class MemoryService:
 		self.total_ram = total_ram
 
 		# Get GPU memory based on device type
-		if device_service.is_cuda:
+		if device_service.is_cuda and device_index >= 0:
 			properties = torch.cuda.get_device_properties(device_index)
 			self.total_gpu = properties.total_memory
 		elif device_service.is_mps:
@@ -25,5 +25,5 @@ class MemoryService:
 			# Use 80% of system RAM as available GPU memory estimate
 			self.total_gpu = int(total_ram * GPU_MEMORY_ESTIMATE_FACTOR)
 		else:
-			# CPU-only, no dedicated GPU memory
+			# CPU-only, no dedicated GPU memory, or invalid device index
 			self.total_gpu = 0
