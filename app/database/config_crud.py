@@ -3,8 +3,6 @@
 from sqlalchemy.orm import Session
 
 from app.database.models import Config
-from app.services.device import device_service
-from app.services.logger import logger_service
 
 from .constant import (
 	DEFAULT_MAX_GPU_SCALE_FACTOR,
@@ -13,24 +11,14 @@ from .constant import (
 	DeviceSelection,
 )
 
-logger = logger_service.get_logger(__name__, category='Database')
-
 
 def get_device_index(db: Session) -> int:
-	"""Get selected device index from the database with validation.
+	"""Get selected device index from the database.
 
-	Returns a valid device index, falling back to the current device if the stored
-	index is invalid (not configured or out of range).
+	Returns the stored device index, or DeviceSelection.NOT_FOUND (-2) if not configured.
 	"""
 	config = db.query(Config).first()
-	device_index = config.device_index if config else DeviceSelection.NOT_FOUND
-
-	if device_index == DeviceSelection.NOT_FOUND or device_index < 0 or device_index >= device_service.device_count:
-		fallback_index = device_service.current_device
-		logger.warning(f'Invalid device index, falling back to device {fallback_index}')
-		return fallback_index
-
-	return device_index
+	return config.device_index if config else DeviceSelection.NOT_FOUND
 
 
 def add_device_index(db: Session, device_index: int):
