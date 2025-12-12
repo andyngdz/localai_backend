@@ -4,10 +4,8 @@ from typing import Any, Optional
 
 from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
-from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import StableDiffusion3Pipeline
 from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipeline
-from transformers import CLIPImageProcessor
 
 from app.constants.model_loader import ModelLoadingStrategy
 from app.schemas.model_loader import (
@@ -23,7 +21,7 @@ from app.socket import socket_service
 from config import CACHE_FOLDER
 
 from .cancellation import CancellationToken
-from .progress import emit_progress
+from .steps import ModelLoadStep, emit_step
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
 
@@ -70,11 +68,7 @@ def build_loading_strategies(checkpoint_path: Optional[str]) -> list[Strategy]:
 	return strategies
 
 
-def _load_single_file(
-	checkpoint: str,
-	safety_checker: StableDiffusionSafetyChecker,
-	feature_extractor: CLIPImageProcessor,
-) -> DiffusersPipeline:
+def _load_single_file(checkpoint: str) -> DiffusersPipeline:
 	errors = []
 
 	# Try pipelines in order: SD 1.5 (most common), SDXL, SD3
@@ -91,8 +85,6 @@ def _load_single_file(
 			pipe = pipeline_class.from_single_file(
 				checkpoint,
 				torch_dtype=device_service.torch_dtype,
-				safety_checker=safety_checker,
-				feature_extractor=feature_extractor,
 			)
 
 			logger.info(f'Successfully loaded with {pipeline_class.__name__}')
@@ -103,12 +95,7 @@ def _load_single_file(
 	raise ValueError(f'Failed to load single-file checkpoint {checkpoint}. Tried: {", ".join(errors)}')
 
 
-def _load_pretrained(
-	model_id: str,
-	strategy: PretrainedStrategy,
-	safety_checker: StableDiffusionSafetyChecker,
-	feature_extractor: CLIPImageProcessor,
-) -> DiffusersPipeline:
+def _load_pretrained(model_id: str, strategy: PretrainedStrategy) -> DiffusersPipeline:
 	load_params: dict[str, Any] = {'use_safetensors': strategy.use_safetensors}
 	if strategy.variant:
 		load_params['variant'] = strategy.variant
@@ -118,8 +105,6 @@ def _load_pretrained(
 		cache_dir=CACHE_FOLDER,
 		low_cpu_mem_usage=True,
 		torch_dtype=device_service.torch_dtype,
-		safety_checker=safety_checker,
-		feature_extractor=feature_extractor,
 		**load_params,
 	)
 
@@ -132,23 +117,16 @@ def _load_strategy_pipeline(
 	model_id: str,
 	strategy: Strategy,
 	strategy_type: ModelLoadingStrategy,
-	safety_checker: StableDiffusionSafetyChecker,
-	feature_extractor: CLIPImageProcessor,
 ) -> DiffusersPipeline:
 	if strategy_type == ModelLoadingStrategy.SINGLE_FILE:
 		if isinstance(strategy, SingleFileStrategy):
 			if not strategy.checkpoint_path:
 				raise ValueError('Missing checkpoint path for single-file strategy')
 
-			return _load_single_file(strategy.checkpoint_path, safety_checker, feature_extractor)
+			return _load_single_file(strategy.checkpoint_path)
 
 	if isinstance(strategy, PretrainedStrategy):
-		return _load_pretrained(
-			model_id,
-			strategy,
-			safety_checker,
-			feature_extractor,
-		)
+		return _load_pretrained(model_id, strategy)
 
 	raise ValueError(f'Unknown strategy type: {strategy}')
 
@@ -156,29 +134,18 @@ def _load_strategy_pipeline(
 def execute_loading_strategies(
 	model_id: str,
 	strategies: list[Strategy],
-	safety_checker: StableDiffusionSafetyChecker,
-	feature_extractor: CLIPImageProcessor,
 	cancel_token: Optional[CancellationToken],
 ) -> DiffusersPipeline:
 	last_error: Optional[Exception] = None
 
 	for idx, strategy in enumerate(strategies, 1):
-		if cancel_token:
-			cancel_token.check_cancelled()
-
-		emit_progress(model_id, 5, 'Loading model weights...')
+		emit_step(model_id, ModelLoadStep.LOAD_WEIGHTS, cancel_token)
 
 		try:
 			strategy_type = _get_strategy_type(strategy)
 			logger.info(f'Trying loading strategy {idx}/{len(strategies)} ({strategy_type}): {strategy}')
 
-			pipe = _load_strategy_pipeline(
-				model_id,
-				strategy,
-				strategy_type,
-				safety_checker,
-				feature_extractor,
-			)
+			pipe = _load_strategy_pipeline(model_id, strategy, strategy_type)
 
 			logger.info(f'Successfully loaded model using strategy {idx}')
 			return pipe

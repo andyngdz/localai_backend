@@ -109,13 +109,41 @@ class TestRouterRegistration:
 		# Should work or return specific error
 		assert response.status_code != status.HTTP_404_NOT_FOUND
 
-	def test_config_router_registered(self):
+	@patch('app.features.config.api.config_service')
+	def test_config_router_registered(self, mock_config_service):
 		"""Test config router is accessible."""
+		from app.schemas.config import ConfigResponse, UpscalerItem, UpscalerSection, UpscalingMethod
+
+		mock_config_service.get_config.return_value = ConfigResponse(
+			upscalers=[
+				UpscalerSection(
+					method=UpscalingMethod.TRADITIONAL,
+					title='Traditional',
+					options=[
+						UpscalerItem(
+							value='Lanczos',
+							name='Lanczos',
+							description='Test',
+							suggested_denoise_strength=0.4,
+							method=UpscalingMethod.TRADITIONAL,
+							is_recommended=False,
+						)
+					],
+				)
+			],
+			safety_check_enabled=True,
+			gpu_scale_factor=0.5,
+			ram_scale_factor=0.5,
+			total_gpu_memory=8589934592,
+			total_ram_memory=17179869184,
+			device_index=0,
+		)
+
 		response = client.get('/config/')
-		# Should return config data
 		assert response.status_code == status.HTTP_200_OK
 		data = response.json()
 		assert 'upscalers' in data
+		assert 'safety_check_enabled' in data
 
 
 class TestLifespan:

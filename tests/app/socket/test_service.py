@@ -22,6 +22,8 @@ class PayloadModel(BaseModel):
 	step: int | None = None
 	of: int | None = None
 	status: str | None = None
+	phases: list[str] | None = None
+	current: str | None = None
 
 
 @pytest.mark.asyncio
@@ -227,6 +229,23 @@ def test_image_generation_step_end_emits_sync(monkeypatch: pytest.MonkeyPatch) -
 
 	# Assert
 	mock_emit_sync.assert_called_once_with(SocketEvents.IMAGE_GENERATION_STEP_END, data=payload.model_dump())
+	test_loop.close()
+
+
+def test_generation_phase_emits_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+	# Arrange
+	test_loop = asyncio.new_event_loop()
+	monkeypatch.setattr(asyncio, 'get_event_loop', lambda: test_loop)
+	service = SocketService()
+	mock_emit_sync = Mock()
+	monkeypatch.setattr(service, 'emit_sync', mock_emit_sync)
+	payload = PayloadModel(phases=['image_generation'], current='image_generation')
+
+	# Act
+	service.generation_phase(payload)
+
+	# Assert
+	mock_emit_sync.assert_called_once_with(SocketEvents.GENERATION_PHASE, data=payload.model_dump())
 	test_loop.close()
 
 

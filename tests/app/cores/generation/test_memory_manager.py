@@ -1,6 +1,6 @@
 """Tests for memory_manager module."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -10,50 +10,45 @@ def mock_memory_manager():
 	"""Create MemoryManager with mocked dependencies."""
 	with (
 		patch('app.cores.generation.memory_manager.device_service') as mock_device_service,
-		patch('app.cores.generation.memory_manager.torch') as mock_torch,
+		patch('app.cores.generation.memory_manager.clear_device_cache') as mock_clear_cache,
 	):
 		# Configure device_service
 		mock_device_service.is_cuda = False
 		mock_device_service.is_mps = False
 		mock_device_service.get_recommended_batch_size.return_value = 3
 
-		# Configure torch
-		mock_torch.cuda.empty_cache = Mock()
-		mock_torch.mps.empty_cache = Mock()
-
 		from app.cores.generation.memory_manager import MemoryManager
 
 		manager = MemoryManager()
 
-		yield manager, mock_device_service, mock_torch
+		yield manager, mock_device_service, mock_clear_cache
 
 
 class TestClearCache:
-	def test_clears_cuda_cache_when_cuda_available(self, mock_memory_manager):
-		manager, mock_device_service, mock_torch = mock_memory_manager
+	def test_invokes_helper_when_cuda_available(self, mock_memory_manager):
+		manager, mock_device_service, mock_clear_cache = mock_memory_manager
 		mock_device_service.is_cuda = True
 
 		manager.clear_cache()
 
-		mock_torch.cuda.empty_cache.assert_called_once()
+		mock_clear_cache.assert_called_once_with(reason='Memory manager clearing cache')
 
-	def test_clears_mps_cache_when_mps_available(self, mock_memory_manager):
-		manager, mock_device_service, mock_torch = mock_memory_manager
+	def test_invokes_helper_when_mps_available(self, mock_memory_manager):
+		manager, mock_device_service, mock_clear_cache = mock_memory_manager
 		mock_device_service.is_mps = True
 
 		manager.clear_cache()
 
-		mock_torch.mps.empty_cache.assert_called_once()
+		mock_clear_cache.assert_called_once_with(reason='Memory manager clearing cache')
 
-	def test_does_nothing_when_no_accelerator(self, mock_memory_manager):
-		manager, mock_device_service, mock_torch = mock_memory_manager
+	def test_invokes_helper_even_without_accelerator(self, mock_memory_manager):
+		manager, mock_device_service, mock_clear_cache = mock_memory_manager
 		mock_device_service.is_cuda = False
 		mock_device_service.is_mps = False
 
 		manager.clear_cache()
 
-		mock_torch.cuda.empty_cache.assert_not_called()
-		mock_torch.mps.empty_cache.assert_not_called()
+		mock_clear_cache.assert_called_once_with(reason='Memory manager clearing cache')
 
 
 class TestValidateBatchSize:

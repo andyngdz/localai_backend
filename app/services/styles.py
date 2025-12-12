@@ -34,7 +34,7 @@ class StylesService:
 		if self._clip_tokenizer:
 			return self._clip_tokenizer
 
-		self._clip_tokenizer = CLIPTokenizer.from_pretrained(CLIP_MODEL_NAME, local_files_only=True)
+		self._clip_tokenizer = CLIPTokenizer.from_pretrained(CLIP_MODEL_NAME)
 		return self._clip_tokenizer
 
 	@property

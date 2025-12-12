@@ -10,6 +10,8 @@ from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusion
 from app.cores.generation import progress_callback, seed_manager
 from app.cores.generation.hires_fix import hires_fix_processor
 from app.cores.generation.latent_decoder import latent_decoder
+from app.cores.generation.phase_tracker import GenerationPhaseTracker
+from app.cores.generation.safety_checker_service import safety_checker_service
 from app.cores.model_manager import model_manager
 from app.schemas.generators import GeneratorConfig, OutputType, Text2ImgParams
 from app.schemas.model_loader import DiffusersPipeline
@@ -55,6 +57,10 @@ class BaseGenerator:
 
 		logger.info(f"Generating: '{config.prompt}'\n{logger_service.format_config(config)}")
 
+		# Initialize phase tracker and emit start phase
+		phase_tracker = GenerationPhaseTracker(config)
+		phase_tracker.start()
+
 		# Set sampler
 		model_manager.set_sampler(config.sampler)
 
@@ -96,11 +102,15 @@ class BaseGenerator:
 		images = latent_decoder.decode_latents(pipe, base_latents)
 
 		# Run safety checker on base resolution images
-		images, nsfw_detected = latent_decoder.run_safety_checker(pipe, images)
+		# SafetyCheckerService handles: database config check, model load/unload, NSFW detection
+		images, nsfw_detected = safety_checker_service.check_images(images)
 
 		# Apply hires fix to safe images if configured
 		if config.hires_fix:
-			images = await self._apply_hires_fix(config, pipe, generator, images, nsfw_detected, loop)
+			images = await self._apply_hires_fix(config, pipe, generator, images, nsfw_detected, loop, phase_tracker)
+
+		# Emit completion phase
+		phase_tracker.complete()
 
 		logger.info('Image generation completed successfully')
 
@@ -117,6 +127,7 @@ class BaseGenerator:
 		images: list,
 		nsfw_detected: list[bool],
 		loop: asyncio.AbstractEventLoop,
+		phase_tracker: GenerationPhaseTracker,
 	) -> list:
 		"""Apply hires fix to safe images only.
 
@@ -127,10 +138,14 @@ class BaseGenerator:
 			nsfw_detected: NSFW detection results for each image
 			generator: Torch generator for reproducibility
 			loop: Event loop for async execution
+			phase_tracker: Phase tracker to emit upscaling phase
 
 		Returns:
 			Images with hires fix applied to safe ones
 		"""
+		# Emit upscaling phase
+		phase_tracker.upscaling()
+
 		safe_indices = [idx for idx, nsfw in enumerate(nsfw_detected) if not nsfw]
 
 		if not safe_indices:

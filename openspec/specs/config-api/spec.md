@@ -48,6 +48,29 @@ The system SHALL return upscaler options grouped by method with section metadata
 - **THEN** RealESRGAN upscalers (x2plus, x4plus, x4plus_anime) have is_recommended=true
 - **AND** traditional upscalers (Lanczos, Bicubic, Bilinear, Nearest) have is_recommended=false
 
+### Requirement: Safety Check Setting
+
+The system SHALL expose safety check setting via config API.
+
+#### Scenario: Get safety check status
+
+- **WHEN** GET /config is called
+- **THEN** response contains `safety_check_enabled` boolean field
+- **AND** value reflects current database setting (default: true)
+
+#### Scenario: Toggle safety check
+
+- **WHEN** PUT /config/safety-check is called with `{"enabled": false}`
+- **THEN** safety check setting is saved to database
+- **AND** response confirms the new value
+
+#### Scenario: Safety check affects generation
+
+- **WHEN** safety_check_enabled is false
+- **AND** image generation runs
+- **THEN** safety checker is skipped
+- **AND** nsfw_content_detected returns [false] for all images
+
 ### Requirement: Extensible Schema
 
 The system SHALL use extensible schema for future config items.
@@ -61,4 +84,5 @@ The system SHALL use extensible schema for future config items.
 
 - **UpscalerSection**: method (enum), title (string), options (list of UpscalerItem)
 - **UpscalerItem**: value, name, description, suggested_denoise_strength, method, is_recommended
-- **ConfigResponse**: upscalers (list of UpscalerSection)
+- **ConfigResponse**: upscalers (list of UpscalerSection), safety_check_enabled (bool)
+- **SafetyCheckRequest**: enabled (bool)

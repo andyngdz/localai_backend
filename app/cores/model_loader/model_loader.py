@@ -1,14 +1,5 @@
 from typing import Optional
 
-import pydash
-from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
-from transformers import CLIPImageProcessor
-
-from app.constants.model_loader import (
-	CLIP_IMAGE_PROCESSOR_MODEL,
-	MODEL_LOADING_PROGRESS_STEPS,
-	SAFETY_CHECKER_MODEL,
-)
 from app.cores.max_memory import MaxMemoryConfig
 from app.database.service import SessionLocal
 from app.schemas.model_loader import DiffusersPipeline, ModelLoadCompletedResponse
@@ -16,51 +7,18 @@ from app.services import device_service, logger_service, storage_service
 from app.socket import socket_service
 
 from .cancellation import CancellationException, CancellationToken
-from .progress import emit_progress, map_step_to_phase
 from .setup import (
-	apply_device_optimizations,
 	cleanup_partial_load,
 	finalize_model_setup,
-	move_to_device,
 )
+from .steps import ModelLoadStep, emit_step
 from .strategies import (
-	AutoPipelineForText2Image,
 	build_loading_strategies,
 	execute_loading_strategies,
 	find_checkpoint_in_cache,
-	find_single_file_checkpoint,
 )
 
 logger = logger_service.get_logger(__name__, category='ModelLoad')
-
-
-__all__ = [
-	'model_loader',
-	'emit_progress',
-	'map_step_to_phase',
-	'cleanup_partial_load',
-	'finalize_model_setup',
-	'apply_device_optimizations',
-	'move_to_device',
-	'build_loading_strategies',
-	'execute_loading_strategies',
-	'find_checkpoint_in_cache',
-	'find_single_file_checkpoint',
-	'AutoPipelineForText2Image',
-]
-
-
-def _emit_progress_step(
-	model_id: str,
-	step_id: int,
-	cancel_token: Optional[CancellationToken],
-) -> None:
-	if cancel_token:
-		cancel_token.check_cancelled()
-
-	step = pydash.find(MODEL_LOADING_PROGRESS_STEPS, lambda entry: entry.id == step_id)
-	if step:
-		emit_progress(model_id, step_id, step.message)
 
 
 def model_loader(model_id: str, cancel_token: Optional[CancellationToken] = None) -> DiffusersPipeline:
@@ -91,37 +49,25 @@ def model_loader(model_id: str, cancel_token: Optional[CancellationToken] = None
 		# Emit start event for frontend lifecycle management
 		socket_service.model_load_started(ModelLoadCompletedResponse(model_id=model_id))
 
-		# Checkpoint 1: Before initialization
-		_emit_progress_step(model_id, 1, cancel_token)
+		emit_step(model_id, ModelLoadStep.INIT, cancel_token)
 
 		max_memory = MaxMemoryConfig(db).to_dict()
 		logger.info(f'Max memory configuration: {max_memory}')
 
-		# Checkpoint 2: Before loading feature extractor
-		_emit_progress_step(model_id, 2, cancel_token)
-
-		feature_extractor = CLIPImageProcessor.from_pretrained(CLIP_IMAGE_PROCESSOR_MODEL)
-
-		safety_checker_instance = StableDiffusionSafetyChecker.from_pretrained(SAFETY_CHECKER_MODEL)
-
-		# Checkpoint 3: Before cache lookup
-		_emit_progress_step(model_id, 3, cancel_token)
+		emit_step(model_id, ModelLoadStep.CACHE_CHECK, cancel_token)
 
 		# Check if the model exists in cache and look for single-file checkpoints
 		model_cache_path = storage_service.get_model_dir(model_id)
 
 		checkpoint_path = find_checkpoint_in_cache(model_cache_path)
 
-		# Checkpoint 4: Before building strategies
-		_emit_progress_step(model_id, 4, cancel_token)
+		emit_step(model_id, ModelLoadStep.BUILD_STRATEGIES, cancel_token)
 
 		strategies = build_loading_strategies(checkpoint_path)
 
 		pipe = execute_loading_strategies(
 			model_id,
 			strategies,
-			safety_checker_instance,
-			feature_extractor,
 			cancel_token,
 		)
 

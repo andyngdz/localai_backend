@@ -1,5 +1,9 @@
-from app.schemas.config import UpscalerItem, UpscalerSection, UpscalingMethod
+from sqlalchemy.orm import Session
+
+from app.database import config_crud
+from app.schemas.config import ConfigResponse, UpscalerItem, UpscalerSection, UpscalingMethod
 from app.schemas.hires_fix import UpscalerType
+from app.services.memory import MemoryService
 
 UPSCALER_METADATA: dict[UpscalerType, UpscalerItem] = {
 	UpscalerType.LANCZOS: UpscalerItem(
@@ -87,6 +91,30 @@ UPSCALER_SECTIONS: list[UpscalerSection] = [
 class ConfigService:
 	def get_upscaler_sections(self) -> list[UpscalerSection]:
 		return UPSCALER_SECTIONS
+
+	def get_config(self, db: Session) -> ConfigResponse:
+		"""Build and return the complete config response."""
+		memory_service = MemoryService(db)
+
+		return ConfigResponse(
+			upscalers=UPSCALER_SECTIONS,
+			safety_check_enabled=config_crud.get_safety_check_enabled(db),
+			gpu_scale_factor=config_crud.get_gpu_scale_factor(db),
+			ram_scale_factor=config_crud.get_ram_scale_factor(db),
+			total_gpu_memory=memory_service.total_gpu,
+			total_ram_memory=memory_service.total_ram,
+			device_index=config_crud.get_device_index(db),
+		)
+
+	def set_device(self, db: Session, device_index: int) -> ConfigResponse:
+		"""Set the active device and return updated config."""
+		config_crud.add_device_index(db, device_index=device_index)
+		return self.get_config(db)
+
+	def set_max_memory(self, db: Session, gpu_scale_factor: float, ram_scale_factor: float) -> ConfigResponse:
+		"""Set memory scale factors and return updated config."""
+		config_crud.add_max_memory(db, ram_scale_factor=ram_scale_factor, gpu_scale_factor=gpu_scale_factor)
+		return self.get_config(db)
 
 
 config_service = ConfigService()

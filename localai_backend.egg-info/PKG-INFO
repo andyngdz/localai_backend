@@ -141,7 +141,7 @@ Requires-Dist: triton==3.2.0; sys_platform == "linux"
 Requires-Dist: ty>=0.0.1a28
 Requires-Dist: typing-extensions==4.15.0
 Requires-Dist: typing-inspection==0.4.1
-Requires-Dist: urllib3==2.5.0
+Requires-Dist: urllib3==2.6.0
 Requires-Dist: urllib3-secure-extra==0.1.0
 Requires-Dist: uvicorn==0.35.0
 Requires-Dist: wcwidth==0.2.13
