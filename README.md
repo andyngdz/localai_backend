@@ -73,13 +73,9 @@ A FastAPI-based backend server for local AI image generation, supporting Stable 
    uv sync
    ```
 
-4. **Initialize database**
-
-   ```bash
-   uv run alembic upgrade head
-   ```
-
 ## Running the Server
+
+> **Note:** Database migrations run automatically on startup. No manual database initialization is required.
 
 **Development mode** (with auto-reload):
 
@@ -117,10 +113,11 @@ Pre-commit hooks run these automatically on commit.
 
 ### Database migrations
 
+Migrations run automatically on startup. These commands are for development only:
+
 ```bash
-uv run alembic revision --autogenerate -m "description"  # Create migration
-uv run alembic upgrade head                              # Apply migrations
-uv run alembic downgrade -1                              # Rollback
+uv run alembic revision --autogenerate -m "description"  # Create new migration
+uv run alembic downgrade -1                              # Rollback last migration
 ```
 
 ## Configuration

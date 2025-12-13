@@ -33,8 +33,7 @@ uv run pytest tests/path/to/test_file.py::TestClass::test_method  # Single test
 # Code quality (pre-commit runs these automatically)
 uv run ruff format && uv run ruff check --fix && uv run ty check
 
-# Run application
-uv run alembic upgrade head  # Run migrations first
+# Run application (migrations run automatically on startup)
 uv run python main.py        # Start server
 ```
 
