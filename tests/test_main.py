@@ -21,7 +21,7 @@ class TestHealthCheck:
 		assert response.status_code == status.HTTP_200_OK
 		data = response.json()
 		assert data['status'] == 'healthy'
-		assert 'LocalAI Backend is running!' in data['message']
+		assert 'Exogen Backend is running!' in data['message']
 
 
 class TestFavicon:

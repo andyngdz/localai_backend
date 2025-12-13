@@ -1,5 +1,5 @@
 """
-Global pytest configuration for the LocalAI backend tests.
+Global pytest configuration for the Exogen backend tests.
 
 This file is automatically loaded by pytest before any tests are run.
 """

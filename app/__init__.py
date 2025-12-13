@@ -1,1 +1,1 @@
-"""LocalAI Backend Application Package."""
+"""Exogen Backend Application Package."""
