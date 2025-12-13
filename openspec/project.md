@@ -2,7 +2,7 @@
 
 ## Purpose
 
-LocalAI Backend is the Python FastAPI backend service for LocalAI desktop application. It provides AI image generation APIs using Stable Diffusion models, with features like model management, LoRA integration, style presets, and generation history.
+Exogen Backend is the Python FastAPI backend service for Exogen desktop application. It provides AI image generation APIs using Stable Diffusion models, with features like model management, LoRA integration, style presets, and generation history.
 
 ## Tech Stack
 

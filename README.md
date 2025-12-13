@@ -1,4 +1,4 @@
-# LocalAI Backend
+# Exogen Backend
 
 A FastAPI-based backend server for local AI image generation, supporting Stable Diffusion models (SD 1.5, SDXL, SD3), LoRA adapters, AI upscaling, and real-time generation updates via WebSocket.
 
@@ -51,8 +51,8 @@ A FastAPI-based backend server for local AI image generation, supporting Stable 
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/andyngdz/localai_backend.git
-   cd localai_backend
+   git clone https://github.com/andyngdz/exogen_backend.git
+   cd exogen_backend
    ```
 
 2. **Install uv** (Python package manager)
@@ -73,13 +73,9 @@ A FastAPI-based backend server for local AI image generation, supporting Stable 
    uv sync
    ```
 
-4. **Initialize database**
-
-   ```bash
-   uv run alembic upgrade head
-   ```
-
 ## Running the Server
+
+> **Note:** Database migrations run automatically on startup. No manual database initialization is required.
 
 **Development mode** (with auto-reload):
 
@@ -117,10 +113,11 @@ Pre-commit hooks run these automatically on commit.
 
 ### Database migrations
 
+Migrations run automatically on startup. These commands are for development only:
+
 ```bash
-uv run alembic revision --autogenerate -m "description"  # Create migration
-uv run alembic upgrade head                              # Apply migrations
-uv run alembic downgrade -1                              # Rollback
+uv run alembic revision --autogenerate -m "description"  # Create new migration
+uv run alembic downgrade -1                              # Rollback last migration
 ```
 
 ## Configuration
@@ -152,8 +149,8 @@ See `docs/` for detailed development guidelines.
 
 We welcome contributions and feedback! If you encounter any issues or have suggestions:
 
-- **Report bugs**: [Open an issue](https://github.com/andyngdz/localai_backend/issues)
-- **Feature requests**: [Start a discussion](https://github.com/andyngdz/localai_backend/discussions)
+- **Report bugs**: [Open an issue](https://github.com/andyngdz/exogen_backend/issues)
+- **Feature requests**: [Start a discussion](https://github.com/andyngdz/exogen_backend/discussions)
 - **Contribute**: Fork the repo and submit a pull request
 
 ## License

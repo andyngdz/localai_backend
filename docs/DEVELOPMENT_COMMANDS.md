@@ -1,9 +1,8 @@
 # Development Commands
 
-**Database migrations (run BEFORE starting the app):**
+**Database migrations (run automatically on startup):**
 
 ```bash
-uv run alembic upgrade head                           # Apply pending migrations
 uv run alembic revision --autogenerate -m "message"   # Create new migration
 uv run alembic downgrade -1                           # Rollback last migration
 ```

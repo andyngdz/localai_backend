@@ -7,6 +7,6 @@
   "python.testing.pytestPath": "${workspaceFolder}/.venv/bin/pytest",
   "sonarlint.connectedMode.project": {
     "connectionId": "andyngdz",
-    "projectKey": "andyngdz_localai_backend"
+    "projectKey": "andyngdz_exogen_backend"
   }
 }

@@ -1,4 +1,4 @@
-"""Main entry point for the LocalAI Backend application."""
+"""Main entry point for the Exogen Backend application."""
 
 import asyncio
 import os
@@ -55,7 +55,7 @@ async def lifespan(app: FastAPI):
 
 fastapi_app = FastAPI(
 	description='Backend for Local AI operations.',
-	title='LocalAI Backend',
+	title='Exogen Backend',
 	version='0.1.0',
 	lifespan=lifespan,
 )
@@ -84,7 +84,7 @@ async def favicon():
 @fastapi_app.get('/')
 def health_check():
 	"""Health check endpoint to verify if the server is running."""
-	return {'status': 'healthy', 'message': 'LocalAI Backend is running!'}
+	return {'status': 'healthy', 'message': 'Exogen Backend is running!'}
 
 
 # Wrap with CORS middleware to ensure headers on all responses including errors
