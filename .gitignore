@@ -16,7 +16,7 @@
 # Log files
 *.log
 logs.txt
-localai_backend.db
+exogen_backend.db
 .coverage
 coverage.xml
 *.xlsx
