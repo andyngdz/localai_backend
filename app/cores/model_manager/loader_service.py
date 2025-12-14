@@ -4,7 +4,12 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
-from app.cores.model_loader import CancellationException, CancellationToken, model_loader
+from app.cores.model_loader import (
+	CancellationException,
+	CancellationToken,
+	DuplicateLoadRequestError,
+	model_loader,
+)
 from app.schemas.model_loader import ModelLoadCompletedResponse
 from app.services import logger_service
 from app.socket import socket_service
@@ -54,8 +59,14 @@ class LoaderService:
 		Raises:
 			ValueError: If model loading fails or is in invalid state
 			CancellationException: If loading is cancelled
+			DuplicateLoadRequestError: If same model is already loading
 		"""
 		async with self.lock:
+			# If same model is already loading, skip the duplicate request
+			if self.pipeline_manager.model_id == model_id and self.state_manager.current_state == ModelState.LOADING:
+				logger.info(f'Model {model_id} is already loading, skipping duplicate request')
+				raise DuplicateLoadRequestError(f'Model {model_id} is already loading')
+
 			if self.state_manager.current_state == ModelState.LOADING:
 				logger.info(f'Another load in progress, need to cancel for new load: {model_id}')
 

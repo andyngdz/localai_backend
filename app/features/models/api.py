@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from huggingface_hub import HfApi
 from sqlalchemy.orm import Session
 
-from app.cores.model_loader.cancellation import CancellationException
+from app.cores.model_loader.cancellation import CancellationException, DuplicateLoadRequestError
 from app.cores.model_manager import ModelState, model_manager
 from app.database import database_service
 from app.schemas.models import (
@@ -127,6 +127,11 @@ async def load_model(request: LoadModelRequest):
 	except CancellationException:
 		# Model loading was cancelled (expected behavior during React double-mount)
 		logger.info(f'Model load cancelled for {model_id}')
+		return Response(status_code=204)  # No Content
+
+	except DuplicateLoadRequestError:
+		# Same model is already loading, skip the duplicate request
+		logger.info(f'Model {model_id} is already loading, skipping duplicate request')
 		return Response(status_code=204)  # No Content
 
 	except FileNotFoundError as error:
