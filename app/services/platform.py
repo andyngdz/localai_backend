@@ -35,8 +35,8 @@ class PlatformService:
 		print Unicode characters that the default cp1252 encoding cannot display.
 		"""
 		try:
-			sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-			sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+			sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+			sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
 			logger.info('Console encoding configured for UTF-8.')
 		except Exception as error:
 			logger.warning(f'Failed to configure UTF-8 console encoding: {error}')

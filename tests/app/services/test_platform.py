@@ -69,6 +69,12 @@ class TestConfigureUtf8Console:
 			assert sys.stdout.encoding == 'utf-8'
 			assert sys.stderr.encoding == 'utf-8'
 		finally:
+			# Close the TextIOWrapper instances to prevent resource leaks
+			if isinstance(sys.stdout, io.TextIOWrapper) and sys.stdout is not original_stdout:
+				sys.stdout.close()
+			if isinstance(sys.stderr, io.TextIOWrapper) and sys.stderr is not original_stderr:
+				sys.stderr.close()
+
 			# Restore originals to avoid breaking pytest
 			sys.stdout = original_stdout
 			sys.stderr = original_stderr
