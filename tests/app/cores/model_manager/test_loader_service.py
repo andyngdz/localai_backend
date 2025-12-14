@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.cores.model_loader import CancellationException
+from app.cores.model_loader import CancellationException, DuplicateLoadRequestError
 from app.cores.model_manager.loader_service import LoaderService
 from app.cores.model_manager.pipeline_manager import PipelineManager
 from app.cores.model_manager.resource_manager import ResourceManager
@@ -146,6 +146,20 @@ class TestLoadModelAsync:
 
 				# Verify cancel was called
 				mock_cancel.assert_called_once()
+
+	@pytest.mark.asyncio
+	async def test_load_model_async_raises_duplicate_error_when_same_model_loading(self):
+		"""Test load_model_async raises DuplicateLoadRequestError when same model is already loading."""
+		# Setup - set state to LOADING and set the same model_id
+		self.state_manager._state = ModelState.LOADING
+		self.pipeline_manager.model_id = 'test/model'
+
+		# Execute & Verify
+		with pytest.raises(DuplicateLoadRequestError, match='is already loading'):
+			await self.loader_service.load_model_async('test/model')
+
+		# State should remain LOADING
+		assert self.state_manager.current_state == ModelState.LOADING
 
 
 class TestUnloadModelAsync:

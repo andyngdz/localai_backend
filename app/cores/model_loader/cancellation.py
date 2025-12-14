@@ -10,6 +10,12 @@ class CancellationException(Exception):
 	pass
 
 
+class DuplicateLoadRequestError(Exception):
+	"""Raised when the same model is already being loaded."""
+
+	pass
+
+
 @dataclass
 class CancellationToken:
 	"""Thread-safe token for cancelling long-running operations.

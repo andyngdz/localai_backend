@@ -19,7 +19,7 @@ import pytest
 from fastapi import HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from app.cores.model_loader.cancellation import CancellationException
+from app.cores.model_loader.cancellation import CancellationException, DuplicateLoadRequestError
 from app.features.models.api import (
 	delete_model_by_id,
 	get_model_recommendations,
@@ -168,6 +168,22 @@ class TestLoadModelEndpoint:
 		"""Test model loading cancelled (returns 204 No Content)."""
 		# Arrange
 		mock_model_manager.load_model_async = AsyncMock(side_effect=CancellationException('Cancelled'))
+
+		# Act
+		result = await load_model(self.request)
+
+		# Assert
+		assert isinstance(result, Response)
+		assert result.status_code == 204
+
+	@pytest.mark.asyncio
+	@patch('app.features.models.api.model_manager')
+	async def test_load_model_duplicate_request_skipped(self, mock_model_manager):
+		"""Test duplicate model load request is skipped (returns 204 No Content)."""
+		# Arrange
+		mock_model_manager.load_model_async = AsyncMock(
+			side_effect=DuplicateLoadRequestError('Model test/model is already being loaded')
+		)
 
 		# Act
 		result = await load_model(self.request)
