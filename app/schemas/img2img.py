@@ -8,6 +8,7 @@ from app.schemas.generators import (
 	ImageGenerationResponse,
 	ImageGenerationStepEndResponse,
 )
+from app.schemas.loras import LoRAConfigItem
 from app.services.styles import DEFAULT_NEGATIVE_PROMPT
 
 
@@ -41,6 +42,16 @@ class Img2ImgConfig(BaseModel):
 	styles: list[str] = Field(
 		default_factory=make_default_list_factory(str),
 		description='List of styles to apply.',
+	)
+	loras: list[LoRAConfigItem] = Field(
+		default_factory=make_default_list_factory(LoRAConfigItem),
+		description='List of LoRAs to apply during generation with individual weights.',
+	)
+	clip_skip: int = Field(
+		default=1,
+		ge=1,
+		le=12,
+		description='Number of CLIP layers to skip (1=no skip, 2=skip last layer). Required for some LoRAs.',
 	)
 
 

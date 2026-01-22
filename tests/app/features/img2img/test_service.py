@@ -1,86 +1,69 @@
-"""Tests for img2img service."""
+"""Tests for Img2ImgService after modular refactoring."""
 
-from typing import Tuple
-from unittest.mock import Mock, patch
+from collections.abc import Generator
+from typing import TypeAlias
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import torch
-from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import StableDiffusionPipelineOutput
 from PIL import Image
 
 from app.cores.samplers import SamplerType
 from app.features.img2img.service import Img2ImgService
 from app.schemas.img2img import ImageGenerationItem, ImageGenerationResponse, Img2ImgConfig
 
-MockImg2ImgServiceFixture = Tuple[
-	Img2ImgService,
-	Mock,  # mock_model_manager
-	Mock,  # mock_pipeline_converter
-	Mock,  # mock_seed_manager
-	Mock,  # mock_image_processor
-	Mock,  # mock_memory_manager
-	Mock,  # mock_progress_callback
-	Mock,  # mock_image_service
-	Mock,  # mock_styles_service
-	Mock,  # mock_torch
-]
+MockServiceFixture: TypeAlias = tuple[Img2ImgService, Mock, Mock, Mock, Mock, Mock, Mock, Mock]
 
 
 @pytest.fixture
-def mock_img2img_service():
-	"""Create Img2ImgService with mocked dependencies."""
+def mock_service() -> Generator[MockServiceFixture, None, None]:
+	"""Create Img2ImgService with mocked module dependencies."""
 	with (
 		patch('app.features.img2img.service.model_manager') as mock_model_manager,
-		patch('app.features.img2img.service.pipeline_converter') as mock_pipeline_converter,
-		patch('app.features.img2img.service.seed_manager') as mock_seed_manager,
-		patch('app.features.img2img.service.memory_manager') as mock_memory_manager,
-		patch('app.features.img2img.service.progress_callback') as mock_progress_callback,
+		patch('app.features.img2img.service.config_validator') as mock_config_validator,
+		patch('app.features.img2img.service.resource_manager') as mock_resource_manager,
+		patch('app.features.img2img.service.lora_loader') as mock_lora_loader,
+		patch('app.features.img2img.service.prompt_processor') as mock_prompt_processor,
+		patch('app.features.img2img.service.response_builder') as mock_response_builder,
 		patch('app.features.img2img.service.image_service') as mock_image_service,
-		patch('app.features.img2img.service.styles_service') as mock_styles_service,
-		patch('app.features.img2img.service.torch') as mock_torch,
-		patch('app.cores.generation.image_utils.image_processor') as mock_image_processor,
-		patch('app.cores.generation.image_utils.memory_manager') as mock_image_utils_memory,
 	):
-		# Configure seed_manager
-		mock_seed_manager.get_seed.return_value = 12345
+		# Configure mocks
+		mock_model_manager.has_model = True
+		mock_config_validator.validate_config = Mock()
+		mock_resource_manager.prepare_for_generation = Mock()
+		mock_resource_manager.cleanup_after_generation = Mock()
+		mock_resource_manager.handle_oom_error = Mock()
+		mock_lora_loader.load_loras_for_generation = Mock(return_value=False)
+		mock_lora_loader.unload_loras = Mock()
+		mock_prompt_processor.prepare_prompts = Mock(return_value=('positive', 'negative'))
+		mock_response_builder.build_response = Mock(
+			return_value=ImageGenerationResponse(
+				items=[ImageGenerationItem(path='/static/test.png', file_name='test')],
+				nsfw_content_detected=[False],
+			)
+		)
 
-		# Configure image_processor
-		mock_image_processor.is_nsfw_content_detected.return_value = [False]
-		mock_image_processor.save_image.return_value = ('/static/test.png', 'test')
-		mock_image_processor.clear_tensor_cache = Mock()
-
-		# Configure memory_manager
-		mock_memory_manager.clear_cache = Mock()
-		mock_memory_manager.validate_batch_size = Mock()
-		mock_image_utils_memory.clear_cache = mock_memory_manager.clear_cache
-
-		# Configure progress_callback
-		mock_progress_callback.callback_on_step_end = Mock()
-
-		# Configure torch
-		mock_torch.cuda.OutOfMemoryError = torch.cuda.OutOfMemoryError
-		mock_torch.Generator = Mock(return_value=Mock())
-
-		from app.features.img2img.service import Img2ImgService
+		# Configure image service
+		test_image = Image.new('RGB', (512, 512), color='blue')
+		mock_image_service.from_base64.return_value = test_image
+		mock_image_service.resize_image.return_value = test_image
 
 		service = Img2ImgService()
 
 		yield (
 			service,
 			mock_model_manager,
-			mock_pipeline_converter,
-			mock_seed_manager,
-			mock_image_processor,
-			mock_memory_manager,
-			mock_progress_callback,
+			mock_config_validator,
+			mock_resource_manager,
+			mock_lora_loader,
+			mock_prompt_processor,
+			mock_response_builder,
 			mock_image_service,
-			mock_styles_service,
-			mock_torch,
 		)
 
 
 @pytest.fixture
-def sample_img2img_config():
+def sample_config() -> Img2ImgConfig:
 	"""Create sample Img2ImgConfig for testing."""
 	return Img2ImgConfig(
 		init_image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -98,225 +81,249 @@ def sample_img2img_config():
 	)
 
 
+@pytest.fixture
+def mock_db() -> Mock:
+	"""Create mock database session."""
+	return Mock()
+
+
 class TestImg2ImgServiceInit:
-	def test_creates_executor(self, mock_img2img_service: MockImg2ImgServiceFixture):
-		service, *_ = mock_img2img_service
+	"""Tests for Img2ImgService initialization."""
+
+	def test_creates_executor(self, mock_service: MockServiceFixture) -> None:
+		"""Test that service creates ThreadPoolExecutor."""
+		service, *_ = mock_service
 		assert service.executor is not None
 		assert hasattr(service.executor, 'submit')
 
+	def test_creates_base_generator(self, mock_service: MockServiceFixture) -> None:
+		"""Test that service creates BaseImg2Img instance."""
+		service, *_ = mock_service
+		assert service.generator is not None
+		assert hasattr(service.generator, 'execute_pipeline')
 
-class TestGenerateImageFromImage:
-	@pytest.mark.asyncio
-	async def test_raises_error_when_no_model_loaded(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		service, mock_model_manager, *_ = mock_img2img_service
-		mock_model_manager.pipe = None
 
-		with pytest.raises(ValueError, match='No model is currently loaded'):
-			await service.generate_image_from_image(sample_img2img_config)
+class TestGenerateImageFromImageOrchestration:
+	"""Tests for generate_image_from_image orchestration flow."""
 
 	@pytest.mark.asyncio
-	async def test_converts_pipeline_to_img2img(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		service, mock_model_manager, mock_pipeline_converter, *_ = mock_img2img_service
-		mock_model_manager.pipe = Mock()
-		mock_converted_pipe = Mock()
-		mock_pipeline_converter.convert_to_img2img.return_value = mock_converted_pipe
+	async def test_validates_config_before_generation(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that config validation is called first."""
+		service, _, mock_config_validator, *_ = mock_service
 
-		# Mock to stop execution after conversion
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
 
-		try:
-			await service.generate_image_from_image(sample_img2img_config)
-		except Exception:
-			pass
-
-		mock_pipeline_converter.convert_to_img2img.assert_called_once()
-		assert mock_model_manager.pipe == mock_converted_pipe
+		mock_config_validator.validate_config.assert_called_once_with(sample_config)
 
 	@pytest.mark.asyncio
-	async def test_clears_cache_before_generation(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		service, mock_model_manager, _, _, _, mock_memory_manager, *_ = mock_img2img_service
-		mock_model_manager.pipe = Mock()
+	async def test_prepares_resources_before_generation(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that resource preparation is called."""
+		service, _, _, mock_resource_manager, *_ = mock_service
 
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
 
-		try:
-			await service.generate_image_from_image(sample_img2img_config)
-		except Exception:
-			pass
-
-		mock_memory_manager.clear_cache.assert_called()
+		mock_resource_manager.prepare_for_generation.assert_called_once()
 
 	@pytest.mark.asyncio
-	async def test_validates_batch_size(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		service, mock_model_manager, _, _, _, mock_memory_manager, *_ = mock_img2img_service
-		mock_model_manager.pipe = Mock()
+	async def test_loads_loras_when_specified(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that LoRAs are loaded when configured."""
+		service, _, _, _, mock_lora_loader, *_ = mock_service
+		mock_lora_loader.load_loras_for_generation.return_value = True
 
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
 
-		try:
-			await service.generate_image_from_image(sample_img2img_config)
-		except Exception:
-			pass
-
-		mock_memory_manager.validate_batch_size.assert_called_once_with(1, 512, 512)
+		mock_lora_loader.load_loras_for_generation.assert_called_once_with(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_decodes_base64_image(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		service, mock_model_manager, _, _, _, _, _, mock_image_service, _, _ = mock_img2img_service
-		mock_model_manager.pipe = Mock()
-		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_image_service.from_base64.return_value = test_image
-		mock_image_service.resize_image.return_value = test_image
+	async def test_processes_prompts_with_styles(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that prompts are processed through prompt_processor."""
+		service, _, _, _, _, mock_prompt_processor, _, _ = mock_service
 
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
 
-		try:
-			await service.generate_image_from_image(sample_img2img_config)
-		except Exception:
-			pass
+		mock_prompt_processor.prepare_prompts.assert_called_once_with(sample_config)
 
-		mock_image_service.from_base64.assert_called_once()
+	@pytest.mark.asyncio
+	async def test_decodes_and_resizes_image(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that source image is decoded and resized."""
+		service, _, _, _, _, _, _, mock_image_service = mock_service
+
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
+
+		mock_image_service.from_base64.assert_called_once_with(sample_config.init_image)
 		mock_image_service.resize_image.assert_called_once()
 
 	@pytest.mark.asyncio
-	async def test_applies_styles(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		service, mock_model_manager, _, _, _, _, _, _, mock_styles_service, _ = mock_img2img_service
-		mock_model_manager.pipe = Mock()
-		mock_styles_service.apply_styles.return_value = ('positive', 'negative')
-
-		service.executor = Mock()
-		service.executor.submit = Mock(side_effect=Exception('Stop'))
-
-		try:
-			await service.generate_image_from_image(sample_img2img_config)
-		except Exception:
-			pass
-
-		mock_styles_service.apply_styles.assert_called_once()
-
-	@pytest.mark.asyncio
-	async def test_successful_generation(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		(
-			service,
-			mock_model_manager,
-			mock_pipeline_converter,
-			_,
-			_,
-			_,
-			_,
-			mock_image_service,
-			mock_styles_service,
-			_,
-		) = mock_img2img_service
-
-		# Mock the pipe
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_pipe.return_value = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=[False])
-		mock_model_manager.pipe = mock_pipe
-		mock_pipeline_converter.convert_to_img2img.return_value = mock_pipe
-
-		# Mock image service
-		mock_image_service.from_base64.return_value = test_image
+	async def test_executes_pipeline_with_processed_prompts(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that pipeline execution receives processed prompts and image."""
+		service, _, _, _, _, mock_prompt_processor, _, mock_image_service = mock_service
+		mock_prompt_processor.prepare_prompts.return_value = ('positive_test', 'negative_test')
+		test_image = Image.new('RGB', (512, 512))
 		mock_image_service.resize_image.return_value = test_image
 
-		# Mock styles
-		mock_styles_service.apply_styles.return_value = ('positive', 'negative')
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
 
-		result = await service.generate_image_from_image(sample_img2img_config)
+			mock_execute.assert_called_once_with(sample_config, 'positive_test', 'negative_test', test_image)
+
+	@pytest.mark.asyncio
+	async def test_builds_response_from_output(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that response is built from pipeline output."""
+		service, _, _, _, _, _, mock_response_builder, _ = mock_service
+
+		mock_output = Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False])
+		mock_execute = AsyncMock(return_value=mock_output)
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
+
+		mock_response_builder.build_response.assert_called_once()
+
+	@pytest.mark.asyncio
+	async def test_returns_image_generation_response(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that method returns ImageGenerationResponse."""
+		service, *_ = mock_service
+
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			result = await service.generate_image_from_image(sample_config, mock_db)
 
 		assert isinstance(result, ImageGenerationResponse)
 		assert len(result.items) == 1
-		assert isinstance(result.items[0], ImageGenerationItem)
 		assert result.items[0].path == '/static/test.png'
-		assert result.nsfw_content_detected == [False]
+
+
+class TestGenerateImageFromImageErrorHandling:
+	"""Tests for error handling in generate_image_from_image."""
 
 	@pytest.mark.asyncio
-	async def test_handles_oom_error(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		(
-			service,
-			mock_model_manager,
-			mock_pipeline_converter,
-			_,
-			_,
-			mock_memory_manager,
-			_,
-			mock_image_service,
-			mock_styles_service,
-			_,
-		) = mock_img2img_service
+	async def test_raises_error_when_no_model_loaded(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that error is raised when no model is loaded."""
+		service, mock_model_manager, *_ = mock_service
+		mock_model_manager.has_model = False
 
-		mock_pipe = Mock()
-		mock_pipe.device = 'cuda'
-		mock_pipe.side_effect = torch.cuda.OutOfMemoryError('CUDA out of memory')
-		mock_model_manager.pipe = mock_pipe
-		mock_pipeline_converter.convert_to_img2img.return_value = mock_pipe
-
-		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_image_service.from_base64.return_value = test_image
-		mock_image_service.resize_image.return_value = test_image
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
-
-		with pytest.raises(ValueError, match='Out of memory'):
-			await service.generate_image_from_image(sample_img2img_config)
-
-		# Verify cache was cleared
-		assert mock_memory_manager.clear_cache.call_count >= 2
+		with pytest.raises(ValueError, match='No model is currently loaded'):
+			await service.generate_image_from_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_handles_invalid_base64_image(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		service, mock_model_manager, _, _, _, _, _, mock_image_service, *_ = mock_img2img_service
-		mock_model_manager.pipe = Mock()
-		mock_image_service.from_base64.side_effect = ValueError('Invalid base64')
+	async def test_raises_error_when_validation_fails(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that validation errors are propagated."""
+		service, _, mock_config_validator, *_ = mock_service
+		mock_config_validator.validate_config.side_effect = ValueError('Invalid config')
 
-		with pytest.raises(ValueError, match='Invalid base64'):
-			await service.generate_image_from_image(sample_img2img_config)
+		with pytest.raises(ValueError, match='Invalid config'):
+			await service.generate_image_from_image(sample_config, mock_db)
 
 	@pytest.mark.asyncio
-	async def test_clears_cache_in_finally_block(
-		self, mock_img2img_service: MockImg2ImgServiceFixture, sample_img2img_config: Img2ImgConfig
-	):
-		service, mock_model_manager, _, _, _, mock_memory_manager, _, mock_image_service, mock_styles_service, _ = (
-			mock_img2img_service
-		)
+	async def test_handles_file_not_found_error(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test FileNotFoundError handling."""
+		service, *_ = mock_service
+		mock_execute = AsyncMock(side_effect=FileNotFoundError('Model files missing'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Required files not found'):
+				await service.generate_image_from_image(sample_config, mock_db)
 
-		mock_pipe = Mock()
-		mock_pipe.device = 'cpu'
-		mock_pipe.side_effect = RuntimeError('Test error')
-		mock_model_manager.pipe = mock_pipe
+	@pytest.mark.asyncio
+	async def test_handles_oom_error_and_calls_cleanup(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test OOM error handling."""
+		service, _, _, mock_resource_manager, *_ = mock_service
+		mock_execute = AsyncMock(side_effect=torch.cuda.OutOfMemoryError('CUDA OOM'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Out of memory'):
+				await service.generate_image_from_image(sample_config, mock_db)
 
-		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_image_service.from_base64.return_value = test_image
-		mock_image_service.resize_image.return_value = test_image
-		mock_styles_service.apply_styles.return_value = ('pos', 'neg')
+		mock_resource_manager.handle_oom_error.assert_called_once()
 
-		try:
-			await service.generate_image_from_image(sample_img2img_config)
-		except Exception:
-			pass
+	@pytest.mark.asyncio
+	async def test_handles_general_exception(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test general exception handling."""
+		service, *_ = mock_service
+		mock_execute = AsyncMock(side_effect=RuntimeError('Something went wrong'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			with pytest.raises(ValueError, match='Failed to generate img2img'):
+				await service.generate_image_from_image(sample_config, mock_db)
 
-		# Verify cache was cleared in finally block
-		mock_memory_manager.clear_cache.assert_called()
+
+class TestGenerateImageFromImageCleanup:
+	"""Tests for resource cleanup in finally block."""
+
+	@pytest.mark.asyncio
+	async def test_cleans_up_resources_after_success(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that cleanup is called after successful generation."""
+		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
+
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
+
+		mock_lora_loader.unload_loras.assert_called_once()
+		mock_resource_manager.cleanup_after_generation.assert_called_once()
+
+	@pytest.mark.asyncio
+	async def test_cleans_up_resources_after_error(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that cleanup is called even after errors."""
+		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
+		mock_execute = AsyncMock(side_effect=RuntimeError('Test error'))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			try:
+				await service.generate_image_from_image(sample_config, mock_db)
+			except ValueError:
+				pass
+
+		mock_lora_loader.unload_loras.assert_called_once()
+		mock_resource_manager.cleanup_after_generation.assert_called_once()
+
+	@pytest.mark.asyncio
+	async def test_unloads_loras_even_when_not_loaded(
+		self, mock_service: MockServiceFixture, sample_config: Img2ImgConfig, mock_db: Mock
+	) -> None:
+		"""Test that unload_loras is always called regardless of LoRA state."""
+		service, _, _, mock_resource_manager, mock_lora_loader, *_ = mock_service
+		mock_lora_loader.load_loras_for_generation.return_value = False
+
+		mock_execute = AsyncMock(return_value=Mock(images=[Image.new('RGB', (64, 64))], nsfw_content_detected=[False]))
+		with patch.object(service.generator, 'execute_pipeline', mock_execute):
+			await service.generate_image_from_image(sample_config, mock_db)
+
+		mock_lora_loader.unload_loras.assert_called_once()
+		mock_resource_manager.cleanup_after_generation.assert_called_once()

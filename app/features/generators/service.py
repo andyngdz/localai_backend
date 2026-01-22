@@ -5,13 +5,13 @@ from concurrent.futures import ThreadPoolExecutor
 import torch
 from sqlalchemy.orm import Session
 
+from app.cores.generation.lora_loader import lora_loader
+from app.cores.generation.prompt_processor import prompt_processor
+from app.cores.generation.resource_manager import resource_manager
+from app.cores.generation.response_builder import response_builder
 from app.cores.model_manager import model_manager
 from app.features.generators.base_generator import BaseGenerator
 from app.features.generators.config_validator import config_validator
-from app.features.generators.lora_loader import lora_loader
-from app.features.generators.prompt_processor import prompt_processor
-from app.features.generators.resource_manager import resource_manager
-from app.features.generators.response_builder import response_builder
 from app.schemas.generators import GeneratorConfig, ImageGenerationResponse
 from app.services import logger_service
 

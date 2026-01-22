@@ -1,4 +1,4 @@
-"""Resource management and cleanup for image generation."""
+"""Resource management and cleanup shared by generation features."""
 
 from app.cores.generation import image_processor, memory_manager, progress_callback
 from app.services import logger_service
@@ -14,10 +14,7 @@ class ResourceManager:
 
 		Clears caches and resets progress tracking.
 		"""
-		# Clear CUDA cache before generation to maximize available memory
 		memory_manager.clear_cache()
-
-		# Reset progress callback state for new generation
 		progress_callback.reset()
 
 	def cleanup_after_generation(self) -> None:
@@ -25,24 +22,13 @@ class ResourceManager:
 
 		Clears GPU cache and resets progress tracking state.
 		"""
-		# Final safety cleanup
 		memory_manager.clear_cache()
-
-		# Reset callback state
 		progress_callback.reset()
 
 	def handle_oom_error(self) -> None:
-		"""Handle out-of-memory errors by clearing caches.
-
-		Clears both GPU cache and tensor cache if available.
-		Logs the error for monitoring.
-		"""
+		"""Handle out-of-memory errors by clearing caches."""
 		logger.error('Out of memory error during image generation - clearing all caches to recover')
-
-		# Clear cache to recover from OOM
 		memory_manager.clear_cache()
-
-		# Clear tensor cache
 		image_processor.clear_tensor_cache()
 
 

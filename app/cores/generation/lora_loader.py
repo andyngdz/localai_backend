@@ -1,24 +1,31 @@
-"""LoRA loading and management for image generation."""
+"""LoRA loading and management shared by generation features."""
+
+from typing import Protocol
 
 from sqlalchemy.orm import Session
 
 from app.cores.model_manager import model_manager
 from app.database import crud as database_service
-from app.schemas.generators import GeneratorConfig
-from app.schemas.loras import LoRAData
+from app.schemas.loras import LoRAConfigItem, LoRAData
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
 
 
+class SupportsLoras(Protocol):
+	"""Protocol for configs that support LoRA application."""
+
+	loras: list[LoRAConfigItem]
+
+
 class LoRALoader:
 	"""Handles LoRA loading and unloading for generation."""
 
-	def load_loras_for_generation(self, config: GeneratorConfig, db: Session) -> bool:
-		"""Load LoRAs for image generation if specified in config.
+	def load_loras_for_generation(self, config: SupportsLoras, db: Session) -> bool:
+		"""Load LoRAs for generation if specified in config.
 
 		Args:
-			config: Generation configuration with LoRA settings
+			config: Configuration object that contains LoRA settings
 			db: Database session for loading LoRA information
 
 		Returns:

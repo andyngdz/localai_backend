@@ -1,19 +1,28 @@
-"""Prompt processing and style application for image generation."""
+"""Prompt processing and style application shared by generation features."""
 
-from app.schemas.generators import GeneratorConfig
+from typing import Protocol
+
 from app.services import logger_service, styles_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
 
 
+class SupportsPrompts(Protocol):
+	"""Protocol for configs that contain prompt information."""
+
+	prompt: str
+	negative_prompt: str
+	styles: list[str]
+
+
 class PromptProcessor:
 	"""Handles prompt preparation and style application."""
 
-	def prepare_prompts(self, config: GeneratorConfig) -> tuple[str, str]:
+	def prepare_prompts(self, config: SupportsPrompts) -> tuple[str, str]:
 		"""Prepare positive and negative prompts by applying styles.
 
 		Args:
-			config: Generation configuration with prompt and styles
+			config: Configuration object with prompt and styles
 
 		Returns:
 			Tuple of (positive_prompt, negative_prompt)
