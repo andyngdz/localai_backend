@@ -1,18 +1,9 @@
 """Prompt processing and style application shared by generation features."""
 
-from typing import Protocol
-
+from app.schemas.generators import SupportsPrompts
 from app.services import logger_service, styles_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
-
-
-class SupportsPrompts(Protocol):
-	"""Protocol for configs that contain prompt information."""
-
-	prompt: str
-	negative_prompt: str
-	styles: list[str]
 
 
 class PromptProcessor:

@@ -1,21 +1,13 @@
 """LoRA loading and management shared by generation features."""
 
-from typing import Protocol
-
 from sqlalchemy.orm import Session
 
 from app.cores.model_manager import model_manager
 from app.database import crud as database_service
-from app.schemas.loras import LoRAConfigItem, LoRAData
+from app.schemas.loras import LoRAData, SupportsLoras
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
-
-
-class SupportsLoras(Protocol):
-	"""Protocol for configs that support LoRA application."""
-
-	loras: list[LoRAConfigItem]
 
 
 class LoRALoader:
