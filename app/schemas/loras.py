@@ -1,6 +1,7 @@
 """LoRA schemas for API requests, responses, and configuration."""
 
 from datetime import datetime
+from typing import Protocol
 
 from pydantic import BaseModel, Field
 
@@ -10,6 +11,12 @@ class LoRAConfigItem(BaseModel):
 
 	lora_id: int = Field(..., description='Database ID of the LoRA to apply.')
 	weight: float = Field(default=1.0, ge=0.0, le=2.0, description='Weight/strength of the LoRA (0.0-2.0).')
+
+
+class SupportsLoras(Protocol):
+	"""Protocol for configs that support LoRA application."""
+
+	loras: list[LoRAConfigItem]
 
 
 class LoRAData(BaseModel):
