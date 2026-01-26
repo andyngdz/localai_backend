@@ -206,6 +206,7 @@ dev = [
     "pytest==8.3.3",
     "pytest-asyncio==0.24.0",
     "pytest-cov==5.0.0",
+    "ruff>=0.14.13",
     "ty>=0.0.1a28",
     "types-pillow>=10.2.0.20240822",
     "types-psutil>=7.0.0.20251116",

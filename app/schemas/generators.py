@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional
+from typing import Callable, Optional, Protocol
 
 import torch
 from PIL import Image
@@ -19,6 +19,14 @@ class OutputType(str, Enum):
 	LATENT = 'latent'
 	NUMPY = 'np'
 	TENSOR = 'pt'
+
+
+class SupportsPrompts(Protocol):
+	"""Protocol for configs that contain prompt information."""
+
+	prompt: str
+	negative_prompt: str
+	styles: list[str]
 
 
 @dataclass
