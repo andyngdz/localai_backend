@@ -1,41 +1,45 @@
-import asyncio
+"""Service for image-to-image generation."""
+
 from concurrent.futures import ThreadPoolExecutor
 
 import torch
-from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
+from sqlalchemy.orm import Session
 
-from app.cores.generation import memory_manager, progress_callback, seed_manager
-from app.cores.generation.image_utils import process_generated_images
+from app.cores.generation.lora_loader import lora_loader
+from app.cores.generation.prompt_processor import prompt_processor
+from app.cores.generation.resource_manager import resource_manager
+from app.cores.generation.response_builder import response_builder
 from app.cores.model_manager import model_manager
-from app.cores.pipeline_converter import pipeline_converter
-from app.schemas.img2img import (
-	ImageGenerationItem,
-	ImageGenerationResponse,
-	Img2ImgConfig,
-)
-from app.services import image_service, logger_service, styles_service
+from app.features.img2img.base_img2img import BaseImg2Img
+from app.features.img2img.config_validator import config_validator
+from app.schemas.img2img import ImageGenerationResponse, Img2ImgConfig
+from app.services import image_service, logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
 
 
 class Img2ImgService:
-	"""Service for image-to-image generation."""
+	"""Service for image-to-image generation.
+
+	Orchestrates the img2img generation process by coordinating between:
+	- Configuration validation
+	- LoRA loading
+	- Prompt processing
+	- Image preprocessing
+	- Pipeline execution
+	- Resource cleanup
+	"""
 
 	def __init__(self):
 		self.executor = ThreadPoolExecutor()
+		self.generator = BaseImg2Img(self.executor)
 
-	def _process_generated_images(
-		self, output: StableDiffusionPipelineOutput
-	) -> tuple[list[ImageGenerationItem], list[bool]]:
-		"""Process generated images and save them to disk."""
-		return process_generated_images(output)
-
-	async def generate_image_from_image(self, config: Img2ImgConfig):
-		"""
-		Generate images from an input image using img2img pipeline.
+	async def generate_image_from_image(self, config: Img2ImgConfig, db: Session) -> ImageGenerationResponse:
+		"""Generate images from an input image using img2img pipeline.
 
 		Args:
 			config: Img2img configuration with source image and parameters.
+			db: Database session for loading LoRA information.
 
 		Returns:
 			ImageGenerationResponse with generated images.
@@ -45,107 +49,62 @@ class Img2ImgService:
 		"""
 		logger.info(f'Received img2img request: prompt="{config.prompt}", strength={config.strength}')
 
-		if model_manager.pipe is None:
-			logger.warning('Attempted img2img generation, but no model is loaded.')
+		# Validate model is loaded
+		if not model_manager.has_model:
 			raise ValueError('No model is currently loaded')
 
-		# Convert pipeline to img2img mode
-		pipe = pipeline_converter.convert_to_img2img(model_manager.pipe)
-		model_manager.pipe = pipe
-		assert callable(pipe)
+		# Step 1: Validate configuration
+		config_validator.validate_config(config)
 
-		# Clear CUDA cache before generation
-		memory_manager.clear_cache()
+		# Step 2: Prepare resources for generation
+		resource_manager.prepare_for_generation()
 
-		# Validate batch size
-		memory_manager.validate_batch_size(config.number_of_images, config.width, config.height)
+		# Step 3: Load LoRAs if specified
+		lora_loader.load_loras_for_generation(config, db)
 
 		try:
-			# Decode source image from base64
-			logger.info('Decoding source image from base64')
+			# Step 4: Process prompts with styles
+			positive_prompt, negative_prompt = prompt_processor.prepare_prompts(config)
+
+			# Step 5: Decode and preprocess source image
 			init_image = image_service.from_base64(config.init_image)
 			logger.info(f'Source image size: {init_image.size}')
 
-			# Resize source image to target dimensions
 			init_image = image_service.resize_image(init_image, config.width, config.height, config.resize_mode)
 			logger.info(f'Resized source image to: {init_image.size}')
 
-			logger.info(
-				f'Generating img2img: prompt="{config.prompt}", '
-				+ f'strength={config.strength}, steps={config.steps}, '
-				+ f'CFG={config.cfg_scale}, size={config.width}x{config.height}'
-			)
+			# Step 6: Execute pipeline
+			output = await self.generator.execute_pipeline(config, positive_prompt, negative_prompt, init_image)
 
-			# Set sampler
-			model_manager.set_sampler(config.sampler)
+			# Step 7: Build response from output
+			response = response_builder.build_response(output)
 
-			# Get seed
-			random_seed = seed_manager.get_seed(config.seed)
-
-			# Apply styles to prompts
-			positive_prompt, negative_prompt = styles_service.apply_styles(
-				config.prompt,
-				config.negative_prompt,
-				config.styles,
-			)
-			final_positive_prompt = positive_prompt
-			final_negative_prompt = negative_prompt
-
-			logger.info(f'Positive prompt: {final_positive_prompt}')
-			logger.info(f'Negative prompt: {final_negative_prompt}')
-
-			# Run img2img generation in thread pool
-			logger.info('Starting img2img generation in separate thread')
-			loop = asyncio.get_event_loop()
-
-			output = await loop.run_in_executor(
-				self.executor,
-				lambda: pipe(
-					prompt=final_positive_prompt,
-					negative_prompt=final_negative_prompt,
-					image=init_image,
-					strength=config.strength,
-					num_inference_steps=config.steps,
-					guidance_scale=config.cfg_scale,
-					generator=torch.Generator(device=pipe.device).manual_seed(random_seed),
-					num_images_per_prompt=config.number_of_images,
-					callback_on_step_end=progress_callback.callback_on_step_end,
-					callback_on_step_end_tensor_inputs=['latents'],
-				),
-			)
-
-			logger.info(f'Img2img generation completed: {output}')
-
-			# Process results and save images
-			items, nsfw_content_detected = self._process_generated_images(output)
-
-			# Final cleanup of the output object
+			# Cleanup output object
 			del output
-			memory_manager.clear_cache()
 
-			return ImageGenerationResponse(
-				items=items,
-				nsfw_content_detected=nsfw_content_detected,
-			)
+			return response
 
-		except ValueError:
-			# Re-raise validation errors
-			raise
+		except FileNotFoundError as error:
+			logger.error(f'Model directory not found: {error}')
+			raise ValueError(f'Required files not found: {error}') from error
+
 		except torch.cuda.OutOfMemoryError as error:
-			logger.error(f'OOM error during img2img: {error}')
-			memory_manager.clear_cache()
+			resource_manager.handle_oom_error()
 
 			raise ValueError(
 				f'Out of memory: {config.number_of_images} images at {config.width}x{config.height}. '
-				+ 'Try: (1) Reduce to 1 image, (2) Lower resolution to 512x512, (3) Reduce strength, '
-				+ 'or (4) Restart model.'
-			)
+				f'Try: (1) Reduce to 1 image, (2) Lower resolution to 512x512, (3) Reduce strength, '
+				f'or (4) Restart model.'
+			) from error
+
 		except Exception as error:
 			logger.exception(f'Failed img2img for prompt: "{config.prompt}"')
-			raise ValueError(f'Failed to generate img2img: {error}')
+			raise ValueError(f'Failed to generate img2img: {error}') from error
+
 		finally:
-			# Always clear cache
-			memory_manager.clear_cache()
+			# Step 8: Cleanup resources
+			lora_loader.unload_loras()
+			resource_manager.cleanup_after_generation()
 
 
 img2img_service = Img2ImgService()

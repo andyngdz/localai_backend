@@ -75,28 +75,6 @@ class TestProcessGeneratedImages:
 
 	@patch('app.cores.generation.image_utils.memory_manager')
 	@patch('app.cores.generation.image_utils.image_processor')
-	def test_handles_missing_clear_tensor_cache(self, mock_image_processor: Mock, mock_memory_manager: Mock):
-		"""Test that missing clear_tensor_cache attribute is handled gracefully."""
-		# Arrange
-		test_image = Image.new('RGB', (64, 64), color='blue')
-		mock_output = StableDiffusionPipelineOutput(images=[test_image], nsfw_content_detected=None)
-
-		# Ensure clear_tensor_cache does NOT exist
-		if hasattr(mock_image_processor, 'clear_tensor_cache'):
-			delattr(mock_image_processor, 'clear_tensor_cache')
-
-		mock_image_processor.is_nsfw_content_detected.return_value = [False]
-		mock_image_processor.save_image.return_value = ('/static/test.png', 'test.png')
-
-		# Act - should not raise error
-		items, nsfw_detected = process_generated_images(mock_output)
-
-		# Assert
-		assert len(items) == 1
-		assert nsfw_detected == [False]
-
-	@patch('app.cores.generation.image_utils.memory_manager')
-	@patch('app.cores.generation.image_utils.image_processor')
 	def test_skips_non_pil_images(self, mock_image_processor: Mock, mock_memory_manager: Mock):
 		"""Test that non-PIL Image objects are skipped."""
 		# Arrange

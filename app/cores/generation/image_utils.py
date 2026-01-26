@@ -20,8 +20,7 @@ def process_generated_images(output: StableDiffusionPipelineOutput) -> tuple[lis
 	"""
 
 	# Clear preview generation cache immediately after generation completes
-	if hasattr(image_processor, 'clear_tensor_cache'):
-		image_processor.clear_tensor_cache()
+	image_processor.clear_tensor_cache()
 
 	# Clear CUDA cache before accessing final images to maximize available memory
 	memory_manager.clear_cache()
