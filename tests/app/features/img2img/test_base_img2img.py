@@ -7,6 +7,7 @@ from unittest.mock import Mock, PropertyMock, patch
 import pytest
 from PIL import Image
 
+from app.schemas.hires_fix import HiresFixConfig, UpscalerType
 from app.schemas.img2img import Img2ImgConfig
 
 
@@ -290,7 +291,7 @@ class TestPhaseTrackerIntegration:
 			mock_loop.return_value.run_in_executor = create_mock_run_in_executor(mock_output)
 			await generator.execute_pipeline(sample_config, 'positive', 'negative', sample_init_image)
 
-		mock_phase_tracker_class.assert_called_once()
+		mock_phase_tracker_class.assert_called_once_with(has_hires_fix=False)
 		mock_tracker.start.assert_called_once()
 
 	@pytest.mark.asyncio
@@ -393,3 +394,138 @@ class TestPhaseTrackerIntegration:
 			await generator.execute_pipeline(sample_config, 'positive', 'negative', sample_init_image)
 
 		assert call_order == ['start', 'complete']
+
+
+class TestHiresFixIntegration:
+	"""Test hires fix application in img2img."""
+
+	@pytest.mark.asyncio
+	@patch('app.features.img2img.base_img2img.hires_fix_processor')
+	@patch('app.features.img2img.base_img2img.safety_checker_service')
+	@patch('app.features.img2img.base_img2img.Img2ImgPhaseTracker')
+	@patch('app.features.img2img.base_img2img.torch.Generator')
+	@patch('app.features.img2img.base_img2img.seed_manager')
+	@patch('app.features.img2img.base_img2img.progress_callback')
+	@patch('app.features.img2img.base_img2img.model_manager')
+	@patch('app.features.img2img.base_img2img.pipeline_converter')
+	async def test_applies_hires_fix_and_emits_upscaling_phase(
+		self,
+		mock_pipeline_converter,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_torch_generator,
+		mock_phase_tracker_class,
+		mock_safety_checker_service,
+		mock_hires_fix_processor,
+		sample_config,
+		mock_executor,
+		sample_init_image,
+	):
+		from app.features.img2img.base_img2img import BaseImg2Img
+
+		config_data = sample_config.model_dump()
+		config_data['hires_fix'] = HiresFixConfig(
+			upscale_factor=2.0,
+			upscaler=UpscalerType.LANCZOS,
+			denoising_strength=0.7,
+			steps=15,
+		)
+		config = Img2ImgConfig(**config_data)
+
+		mock_pipe = Mock()
+		mock_pipe.device = 'cuda'
+		mock_img2img_pipe = Mock()
+		mock_img2img_pipe.device = 'cuda'
+		mock_model_manager.pipe = mock_pipe
+		mock_pipeline_converter.convert_to_img2img.return_value = mock_img2img_pipe
+		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+
+		mock_output = Mock()
+		mock_output.images = [Image.new('RGB', (512, 512))]
+		mock_img2img_pipe.return_value = mock_output
+		mock_safety_checker_service.check_images.return_value = ([Image.new('RGB', (512, 512))], [False])
+		mock_hires_fix_processor.apply.return_value = [Image.new('RGB', (1024, 1024))]
+
+		call_order = []
+		mock_tracker = Mock()
+		mock_tracker.start.side_effect = lambda: call_order.append('start')
+		mock_tracker.upscaling.side_effect = lambda: call_order.append('upscaling')
+		mock_tracker.complete.side_effect = lambda: call_order.append('complete')
+		mock_phase_tracker_class.return_value = mock_tracker
+
+		generator = BaseImg2Img(mock_executor)
+
+		with patch('asyncio.get_event_loop') as mock_loop:
+			mock_loop.return_value.run_in_executor = create_mock_run_in_executor(mock_output)
+			await generator.execute_pipeline(config, 'final_positive', 'final_negative', sample_init_image)
+
+		mock_phase_tracker_class.assert_called_once_with(has_hires_fix=True)
+		assert call_order == ['start', 'upscaling', 'complete']
+		mock_hires_fix_processor.apply.assert_called_once()
+		request_arg = mock_hires_fix_processor.apply.call_args[0][0]
+		assert request_arg.prompt == 'final_positive'
+		assert request_arg.negative_prompt == 'final_negative'
+		assert request_arg.base_steps == config.steps
+		assert request_arg.hires_fix.upscale_factor == 2.0
+
+	@pytest.mark.asyncio
+	@patch('app.features.img2img.base_img2img.hires_fix_processor')
+	@patch('app.features.img2img.base_img2img.safety_checker_service')
+	@patch('app.features.img2img.base_img2img.Img2ImgPhaseTracker')
+	@patch('app.features.img2img.base_img2img.torch.Generator')
+	@patch('app.features.img2img.base_img2img.seed_manager')
+	@patch('app.features.img2img.base_img2img.progress_callback')
+	@patch('app.features.img2img.base_img2img.model_manager')
+	@patch('app.features.img2img.base_img2img.pipeline_converter')
+	async def test_skips_hires_fix_when_all_images_nsfw(
+		self,
+		mock_pipeline_converter,
+		mock_model_manager,
+		mock_progress_callback,
+		mock_seed_manager,
+		mock_torch_generator,
+		mock_phase_tracker_class,
+		mock_safety_checker_service,
+		mock_hires_fix_processor,
+		sample_config,
+		mock_executor,
+		sample_init_image,
+	):
+		from app.features.img2img.base_img2img import BaseImg2Img
+
+		config_data = sample_config.model_dump()
+		config_data['hires_fix'] = HiresFixConfig(
+			upscale_factor=2.0,
+			upscaler=UpscalerType.LANCZOS,
+			denoising_strength=0.7,
+			steps=15,
+		)
+		config = Img2ImgConfig(**config_data)
+
+		mock_pipe = Mock()
+		mock_pipe.device = 'cuda'
+		mock_img2img_pipe = Mock()
+		mock_img2img_pipe.device = 'cuda'
+		mock_model_manager.pipe = mock_pipe
+		mock_pipeline_converter.convert_to_img2img.return_value = mock_img2img_pipe
+		mock_seed_manager.get_seed.return_value = 12345
+		mock_torch_generator.return_value.manual_seed.return_value = Mock()
+
+		mock_output = Mock()
+		mock_output.images = [Image.new('RGB', (512, 512))]
+		mock_img2img_pipe.return_value = mock_output
+		mock_safety_checker_service.check_images.return_value = ([Image.new('RGB', (512, 512))], [True])
+
+		mock_tracker = Mock()
+		mock_phase_tracker_class.return_value = mock_tracker
+
+		generator = BaseImg2Img(mock_executor)
+
+		with patch('asyncio.get_event_loop') as mock_loop:
+			mock_loop.return_value.run_in_executor = create_mock_run_in_executor(mock_output)
+			await generator.execute_pipeline(config, 'final_positive', 'final_negative', sample_init_image)
+
+		mock_tracker.upscaling.assert_called_once()
+		mock_hires_fix_processor.apply.assert_not_called()

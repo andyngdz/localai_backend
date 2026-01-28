@@ -8,6 +8,7 @@ from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusion
 from PIL import Image
 
 from app.cores.generation import progress_callback, seed_manager
+from app.cores.generation.hires_fix_utils import apply_hires_fix_common
 from app.cores.generation.phase_tracker import Img2ImgPhaseTracker
 from app.cores.generation.safety_checker_service import safety_checker_service
 from app.cores.model_manager import model_manager
@@ -62,7 +63,7 @@ class BaseImg2Img:
 		logger.info(f"Generating img2img: '{config.prompt}'\n{logger_service.format_config(config)}")
 
 		# Initialize phase tracker and emit start phase
-		phase_tracker = Img2ImgPhaseTracker()
+		phase_tracker = Img2ImgPhaseTracker(has_hires_fix=config.hires_fix is not None)
 		phase_tracker.start()
 
 		# Set sampler
@@ -100,6 +101,21 @@ class BaseImg2Img:
 		# Run safety checker on generated images
 		images, nsfw_detected = safety_checker_service.check_images(images)
 
+		# Apply hires fix to safe images if configured
+		if config.hires_fix:
+			images = await apply_hires_fix_common(
+				config,
+				positive_prompt,
+				negative_prompt,
+				img2img_pipe,
+				generator,
+				images,
+				nsfw_detected,
+				loop,
+				self.executor,
+				phase_tracker,
+			)
+
 		# Emit completion phase
 		phase_tracker.complete()
 
@@ -109,3 +125,4 @@ class BaseImg2Img:
 			images=images,
 			nsfw_content_detected=nsfw_detected,
 		)
+
