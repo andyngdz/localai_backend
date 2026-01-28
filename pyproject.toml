@@ -43,7 +43,7 @@ dependencies = [
     "fsspec==2025.7.0",
     "greenlet==3.2.4",
     "h11==0.16.0",
-    "h2==4.2.0",
+    "h2==4.3.0",
     "hf-xet==1.2.0",
     "hpack==4.1.0",
     "htmlparser==0.0.2",
