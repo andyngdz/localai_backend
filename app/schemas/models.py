@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
+from app.schemas.model_family import ModelFamily
+
 
 class ModelSearchInfo(BaseModel):
 	"""
@@ -49,6 +51,7 @@ class LoadModelResponse(BaseModel):
 		default=64,
 		description='Sample size of the model.',
 	)
+	family: ModelFamily = Field(default=ModelFamily.UNKNOWN, description='Authoritative family for the loaded model.')
 
 
 class NewModelAvailableResponse(BaseModel):

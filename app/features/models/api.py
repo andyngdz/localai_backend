@@ -121,8 +121,9 @@ async def load_model(request: LoadModelRequest):
 
 		config = await model_manager.load_model_async(model_id)
 		sample_size = model_manager.sample_size
+		family = model_manager.loaded_model_family
 
-		return LoadModelResponse(model_id=model_id, config=config, sample_size=sample_size)
+		return LoadModelResponse(model_id=model_id, config=config, sample_size=sample_size, family=family)
 
 	except CancellationException:
 		# Model loading was cancelled (expected behavior during React double-mount)
@@ -210,6 +211,7 @@ def get_model_status():
 			'loaded_model_id': model_manager.id,
 			'has_model': model_manager.has_model,
 			'is_loading': state == ModelState.LOADING,
+			'loaded_model_family': model_manager.loaded_model_family.value,
 		}
 
 		return response
