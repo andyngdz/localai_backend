@@ -7,7 +7,7 @@ Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: accelerate==1.9.0
 Requires-Dist: aiohappyeyeballs==2.6.1
-Requires-Dist: aiohttp==3.12.14
+Requires-Dist: aiohttp==3.13.3
 Requires-Dist: aiosignal==1.4.0
 Requires-Dist: alabaster==1.0.0
 Requires-Dist: alembic==1.16.4
@@ -38,12 +38,12 @@ Requires-Dist: docutils==0.21.2
 Requires-Dist: executing==2.2.0
 Requires-Dist: fanstatic==1.5
 Requires-Dist: fastapi==0.116.1
-Requires-Dist: filelock==3.20.1
+Requires-Dist: filelock==3.20.3
 Requires-Dist: frozenlist==1.7.0
 Requires-Dist: fsspec==2025.7.0
 Requires-Dist: greenlet==3.2.4
 Requires-Dist: h11==0.16.0
-Requires-Dist: h2==4.2.0
+Requires-Dist: h2==4.3.0
 Requires-Dist: hf-xet==1.2.0
 Requires-Dist: hpack==4.1.0
 Requires-Dist: htmlparser==0.0.2
@@ -141,7 +141,7 @@ Requires-Dist: triton==3.2.0; sys_platform == "linux"
 Requires-Dist: ty>=0.0.1a28
 Requires-Dist: typing-extensions==4.15.0
 Requires-Dist: typing-inspection==0.4.1
-Requires-Dist: urllib3==2.6.0
+Requires-Dist: urllib3==2.6.3
 Requires-Dist: urllib3-secure-extra==0.1.0
 Requires-Dist: uvicorn==0.35.0
 Requires-Dist: wcwidth==0.2.13

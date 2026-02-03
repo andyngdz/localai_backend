@@ -8,13 +8,12 @@ import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
 from app.cores.generation import progress_callback, seed_manager
-from app.cores.generation.hires_fix import hires_fix_processor
+from app.cores.generation.hires_fix_utils import apply_hires_fix_common
 from app.cores.generation.latent_decoder import latent_decoder
 from app.cores.generation.phase_tracker import GenerationPhaseTracker
 from app.cores.generation.safety_checker_service import safety_checker_service
 from app.cores.model_manager import model_manager
 from app.schemas.generators import GeneratorConfig, OutputType, Text2ImgParams
-from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
@@ -107,7 +106,18 @@ class BaseGenerator:
 
 		# Apply hires fix to safe images if configured
 		if config.hires_fix:
-			images = await self._apply_hires_fix(config, pipe, generator, images, nsfw_detected, loop, phase_tracker)
+			images = await apply_hires_fix_common(
+				config,
+				positive_prompt,
+				negative_prompt,
+				pipe,
+				generator,
+				images,
+				nsfw_detected,
+				loop,
+				self.executor,
+				phase_tracker,
+			)
 
 		# Emit completion phase
 		phase_tracker.complete()
@@ -118,51 +128,3 @@ class BaseGenerator:
 			images=images,
 			nsfw_content_detected=nsfw_detected,
 		)
-
-	async def _apply_hires_fix(
-		self,
-		config: GeneratorConfig,
-		pipe: DiffusersPipeline,
-		generator: torch.Generator,
-		images: list,
-		nsfw_detected: list[bool],
-		loop: asyncio.AbstractEventLoop,
-		phase_tracker: GenerationPhaseTracker,
-	) -> list:
-		"""Apply hires fix to safe images only.
-
-		Args:
-			config: Generator configuration
-			pipe: Diffusion pipeline
-			images: Decoded base images
-			nsfw_detected: NSFW detection results for each image
-			generator: Torch generator for reproducibility
-			loop: Event loop for async execution
-			phase_tracker: Phase tracker to emit upscaling phase
-
-		Returns:
-			Images with hires fix applied to safe ones
-		"""
-		# Emit upscaling phase
-		phase_tracker.upscaling()
-
-		safe_indices = [idx for idx, nsfw in enumerate(nsfw_detected) if not nsfw]
-
-		if not safe_indices:
-			logger.warning('All images flagged as NSFW, skipping hires fix')
-			return images
-
-		logger.info(f'Applying hires fix to {len(safe_indices)} safe image(s)')
-
-		safe_images = [images[idx] for idx in safe_indices]
-
-		hires_images = await loop.run_in_executor(
-			self.executor,
-			lambda: hires_fix_processor.apply(config, pipe, generator, safe_images),
-		)
-
-		for safe_idx, hires_img in zip(safe_indices, hires_images):
-			images[safe_idx] = hires_img
-
-		logger.info('Hires fix applied successfully')
-		return images
