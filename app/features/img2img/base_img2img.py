@@ -125,4 +125,3 @@ class BaseImg2Img:
 			images=images,
 			nsfw_content_detected=nsfw_detected,
 		)
-

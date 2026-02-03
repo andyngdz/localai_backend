@@ -3,6 +3,7 @@
 from typing import Optional
 
 from app.cores.samplers import SamplerType
+from app.schemas.model_family import ModelFamily
 from app.services import logger_service
 
 from .loader_service import LoaderService
@@ -83,6 +84,39 @@ class ModelManager:
 			ValueError: If no model is loaded or sampler is unsupported
 		"""
 		self.pipeline_manager.set_sampler(sampler)
+
+	@property
+	def loaded_model_family(self) -> ModelFamily:
+		pipeline = self.pipeline_manager.get_pipeline()
+		if pipeline is None:
+			return ModelFamily.UNKNOWN
+
+		model_id = self.pipeline_manager.get_model_id()
+		pipeline_class_name: str | None = None
+		try:
+			raw_class_name = pipeline.config.get('_class_name')
+			pipeline_class_name = raw_class_name if isinstance(raw_class_name, str) else None
+		except Exception:
+			pipeline_class_name = None
+
+		resolved_class_name = pipeline_class_name or pipeline.__class__.__name__
+
+		pipeline_module = pipeline.__class__.__module__
+		if resolved_class_name.startswith('Flux') or '.pipelines.flux' in pipeline_module:
+			return ModelFamily.FLUX
+
+		if 'StableDiffusionXL' in resolved_class_name:
+			return ModelFamily.SDXL
+
+		if 'StableDiffusion3' in resolved_class_name:
+			return ModelFamily.SD3
+
+		if 'StableDiffusion' in resolved_class_name:
+			if model_id is not None and 'stable-diffusion-2' in model_id:
+				return ModelFamily.SD2
+			return ModelFamily.SD15
+
+		return ModelFamily.UNKNOWN
 
 	@property
 	def has_model(self) -> bool:
