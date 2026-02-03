@@ -400,7 +400,7 @@ class TestHiresFixIntegration:
 	"""Test hires fix application in img2img."""
 
 	@pytest.mark.asyncio
-	@patch('app.features.img2img.base_img2img.hires_fix_processor')
+	@patch('app.cores.generation.hires_fix_utils.hires_fix_processor')
 	@patch('app.features.img2img.base_img2img.safety_checker_service')
 	@patch('app.features.img2img.base_img2img.Img2ImgPhaseTracker')
 	@patch('app.features.img2img.base_img2img.torch.Generator')
@@ -471,7 +471,7 @@ class TestHiresFixIntegration:
 		assert request_arg.hires_fix.upscale_factor == 2.0
 
 	@pytest.mark.asyncio
-	@patch('app.features.img2img.base_img2img.hires_fix_processor')
+	@patch('app.cores.generation.hires_fix_utils.hires_fix_processor')
 	@patch('app.features.img2img.base_img2img.safety_checker_service')
 	@patch('app.features.img2img.base_img2img.Img2ImgPhaseTracker')
 	@patch('app.features.img2img.base_img2img.torch.Generator')
