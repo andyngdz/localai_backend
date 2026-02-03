@@ -112,7 +112,7 @@ class TestExecutePipeline:
 
 	@pytest.mark.asyncio
 	@patch('app.features.generators.base_generator.safety_checker_service')
-	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.cores.generation.hires_fix_utils.hires_fix_processor')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
 	@patch('app.features.generators.base_generator.seed_manager')
@@ -156,10 +156,10 @@ class TestExecutePipeline:
 
 	@pytest.mark.asyncio
 	@patch('app.features.generators.base_generator.safety_checker_service')
-	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.cores.generation.hires_fix_utils.hires_fix_processor')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
-	@patch('app.features.generators.base_generator.logger')
+	@patch('app.cores.generation.hires_fix_utils.logger')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
 	@patch('app.features.generators.base_generator.model_manager')
@@ -225,10 +225,10 @@ class TestApplyHiresFixToSafeImages:
 
 	@pytest.mark.asyncio
 	@patch('app.features.generators.base_generator.safety_checker_service')
-	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.cores.generation.hires_fix_utils.hires_fix_processor')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
-	@patch('app.features.generators.base_generator.logger')
+	@patch('app.cores.generation.hires_fix_utils.logger')
 	@patch('app.features.generators.base_generator.seed_manager')
 	@patch('app.features.generators.base_generator.progress_callback')
 	@patch('app.features.generators.base_generator.model_manager')
@@ -414,7 +414,7 @@ class TestPhaseTrackerIntegration:
 
 	@pytest.mark.asyncio
 	@patch('app.features.generators.base_generator.GenerationPhaseTracker')
-	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.cores.generation.hires_fix_utils.hires_fix_processor')
 	@patch('app.features.generators.base_generator.safety_checker_service')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')
@@ -526,7 +526,7 @@ class TestPhaseTrackerIntegration:
 
 	@pytest.mark.asyncio
 	@patch('app.features.generators.base_generator.GenerationPhaseTracker')
-	@patch('app.features.generators.base_generator.hires_fix_processor')
+	@patch('app.cores.generation.hires_fix_utils.hires_fix_processor')
 	@patch('app.features.generators.base_generator.safety_checker_service')
 	@patch('app.features.generators.base_generator.latent_decoder')
 	@patch('app.features.generators.base_generator.torch.Generator')

@@ -4,8 +4,7 @@ import torch
 from PIL import Image
 
 from app.cores.upscalers.traditional.refiner import img2img_refiner
-from app.schemas.generators import GeneratorConfig
-from app.schemas.hires_fix import UpscalerType
+from app.schemas.hires_fix import HiresFixRequest, UpscalerType
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
@@ -21,26 +20,18 @@ class TraditionalUpscaler:
 
 	def upscale(
 		self,
-		config: GeneratorConfig,
+		request: HiresFixRequest,
 		pipe: DiffusersPipeline,
 		generator: torch.Generator,
 		images: list[Image.Image],
-		scale_factor: float,
-		upscaler_type: UpscalerType,
-		hires_steps: int,
-		denoising_strength: float,
 	) -> list[Image.Image]:
 		"""Upscale images using PIL interpolation and refine with img2img pass.
 
 		Args:
-			config: Generator config (also provides base steps if hires_steps=0)
+			request: Hires fix request (provides prompts + hires config + base steps)
 			pipe: Diffusion pipeline
 			generator: Torch generator for reproducibility
 			images: Base PIL images to upscale
-			scale_factor: Upscaling factor
-			upscaler_type: PIL upscaling method
-			hires_steps: Inference steps for refinement (0 = use config.steps)
-			denoising_strength: How much to repaint during refinement
 
 		Returns:
 			Upscaled and refined PIL images
@@ -48,11 +39,17 @@ class TraditionalUpscaler:
 		if not images:
 			return []
 
+		hires_config = request.hires_fix
+		scale_factor = hires_config.upscale_factor
+		upscaler_type = hires_config.upscaler
+		hires_steps = hires_config.steps
+		denoising_strength = hires_config.denoising_strength
+
 		upscaled = self._upscale_pil(images, scale_factor, upscaler_type)
 
-		actual_steps = hires_steps if hires_steps > 0 else config.steps
+		actual_steps = hires_steps if hires_steps > 0 else request.base_steps
 		logger.info(f'Running refinement pass with {actual_steps} steps')
-		refined = img2img_refiner.refine(config, pipe, generator, upscaled, actual_steps, denoising_strength)
+		refined = img2img_refiner.refine(request, pipe, generator, upscaled, actual_steps, denoising_strength)
 
 		return refined
 

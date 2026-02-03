@@ -70,12 +70,15 @@ class GenerationPhaseTracker(BasePhaseTracker):
 
 
 class Img2ImgPhaseTracker(BasePhaseTracker):
-	"""Tracks and emits generation phase events for img2img frontend stepper.
+	"""Tracks and emits generation phase events for img2img frontend stepper."""
 
-	Img2img generation has a simpler phase structure without hires fix support.
-	"""
-
-	def __init__(self) -> None:
+	def __init__(self, has_hires_fix: bool) -> None:
 		"""Initialize tracker with img2img phases."""
 		phases = [GenerationPhase.IMAGE_GENERATION]
+		if has_hires_fix:
+			phases.append(GenerationPhase.UPSCALING)
 		super().__init__(phases)
+
+	def upscaling(self) -> None:
+		"""Emit upscaling phase event."""
+		self._emit(GenerationPhase.UPSCALING)

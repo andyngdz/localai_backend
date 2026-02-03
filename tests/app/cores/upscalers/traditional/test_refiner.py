@@ -7,8 +7,7 @@ import torch
 from PIL import Image
 
 from app.cores.upscalers.traditional.refiner import Img2ImgRefiner
-from app.schemas.generators import GeneratorConfig
-from app.schemas.hires_fix import HiresFixConfig, UpscalerType
+from app.schemas.hires_fix import HiresFixConfig, HiresFixRequest, UpscalerType
 
 
 class TestImg2ImgRefiner:
@@ -25,22 +24,20 @@ class TestImg2ImgRefiner:
 		return [Image.new('RGB', (1024, 1024), color='red')]
 
 	@pytest.fixture
-	def generator_config(self):
-		"""Create generator config."""
-		return GeneratorConfig(
-			prompt='test prompt',
-			negative_prompt='bad quality',
-			width=512,
-			height=512,
-			steps=20,
-			cfg_scale=7.5,
-			clip_skip=1,
+	def hires_request(self):
+		"""Create hires fix request."""
+		return HiresFixRequest(
 			hires_fix=HiresFixConfig(
 				upscale_factor=2.0,
 				upscaler=UpscalerType.LANCZOS,
 				denoising_strength=0.7,
 				steps=15,
 			),
+			prompt='test prompt',
+			negative_prompt='bad quality',
+			cfg_scale=7.5,
+			clip_skip=1,
+			base_steps=20,
 		)
 
 	@pytest.fixture
@@ -52,12 +49,12 @@ class TestImg2ImgRefiner:
 		mock.return_value = mock_output
 		return mock
 
-	def test_refine_returns_images(self, refiner, sample_images, generator_config, mock_pipe):
+	def test_refine_returns_images(self, refiner, sample_images, hires_request, mock_pipe):
 		"""Test that refine returns refined images."""
 		generator = torch.Generator().manual_seed(42)
 
 		result = refiner.refine(
-			config=generator_config,
+			request=hires_request,
 			pipe=mock_pipe,
 			generator=generator,
 			images=sample_images,
@@ -69,12 +66,12 @@ class TestImg2ImgRefiner:
 		assert isinstance(result[0], Image.Image)
 		mock_pipe.assert_called_once()
 
-	def test_refine_passes_correct_params(self, refiner, sample_images, generator_config, mock_pipe):
+	def test_refine_passes_correct_params(self, refiner, sample_images, hires_request, mock_pipe):
 		"""Test that refine passes correct parameters to pipeline."""
 		generator = torch.Generator().manual_seed(42)
 
 		refiner.refine(
-			config=generator_config,
+			request=hires_request,
 			pipe=mock_pipe,
 			generator=generator,
 			images=sample_images,
@@ -91,7 +88,7 @@ class TestImg2ImgRefiner:
 		assert call_kwargs['height'] == 1024
 		assert call_kwargs['width'] == 1024
 
-	def test_refine_batch_images(self, refiner, generator_config, mock_pipe):
+	def test_refine_batch_images(self, refiner, hires_request, mock_pipe):
 		"""Test that refine handles batch of images."""
 		images = [Image.new('RGB', (1024, 1024), color='red') for _ in range(3)]
 		mock_output = MagicMock()
@@ -101,7 +98,7 @@ class TestImg2ImgRefiner:
 		generator = torch.Generator().manual_seed(42)
 
 		result = refiner.refine(
-			config=generator_config,
+			request=hires_request,
 			pipe=mock_pipe,
 			generator=generator,
 			images=images,

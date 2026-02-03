@@ -6,7 +6,7 @@ from PIL import Image
 from app.constants.upscalers import REALESRGAN_UPSCALERS
 from app.cores.upscalers.realesrgan import realesrgan_upscaler
 from app.cores.upscalers.traditional import traditional_upscaler
-from app.schemas.generators import GeneratorConfig
+from app.schemas.hires_fix import HiresFixRequest
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
@@ -23,7 +23,7 @@ class HiresFixProcessor:
 
 	def apply(
 		self,
-		config: GeneratorConfig,
+		request: HiresFixRequest,
 		pipe: DiffusersPipeline,
 		generator: torch.Generator,
 		images: list[Image.Image],
@@ -31,7 +31,7 @@ class HiresFixProcessor:
 		"""Apply hires fix to decoded base images.
 
 		Args:
-			config: Generator config (contains hires_fix, prompt, steps, etc.)
+			request: Hires fix request (final prompts + hires config)
 			pipe: Diffusion pipeline
 			images: Decoded base PIL images
 			generator: Torch generator for reproducibility
@@ -39,9 +39,7 @@ class HiresFixProcessor:
 		Returns:
 			Upscaled (and optionally refined) PIL images at higher resolution
 		"""
-		assert config.hires_fix is not None
-
-		hires_config = config.hires_fix
+		hires_config = request.hires_fix
 		result: list[Image.Image] = []
 
 		logger.info(f'Applying hires fix\n{logger_service.format_config(hires_config)}')
@@ -54,14 +52,10 @@ class HiresFixProcessor:
 			)
 		else:
 			result = traditional_upscaler.upscale(
-				config,
+				request,
 				pipe,
 				generator,
 				images,
-				scale_factor=hires_config.upscale_factor,
-				upscaler_type=hires_config.upscaler,
-				hires_steps=hires_config.steps,
-				denoising_strength=hires_config.denoising_strength,
 			)
 
 		logger.info('Hires fix completed')

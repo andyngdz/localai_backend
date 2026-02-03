@@ -7,8 +7,7 @@ import torch
 from PIL import Image
 
 from app.cores.upscalers.traditional.upscaler import TraditionalUpscaler
-from app.schemas.generators import GeneratorConfig
-from app.schemas.hires_fix import HiresFixConfig, UpscalerType
+from app.schemas.hires_fix import HiresFixConfig, HiresFixRequest, UpscalerType
 
 
 class TestPilUpscaling:
@@ -85,40 +84,37 @@ class TestUpscaleWithRefinement:
 		return [Image.new('RGB', (512, 512), color='red')]
 
 	@pytest.fixture
-	def generator_config(self):
-		"""Create generator config."""
-		return GeneratorConfig(
-			prompt='test',
-			width=512,
-			height=512,
-			steps=20,
+	def hires_request(self):
+		"""Create hires fix request."""
+		return HiresFixRequest(
 			hires_fix=HiresFixConfig(
 				upscale_factor=2.0,
 				upscaler=UpscalerType.LANCZOS,
 				denoising_strength=0.7,
 				steps=15,
 			),
+			prompt='final prompt',
+			negative_prompt='final negative',
+			cfg_scale=7.5,
+			clip_skip=1,
+			base_steps=20,
 		)
 
-	def test_upscale_empty_list(self, upscaler, generator_config):
+	def test_upscale_empty_list(self, upscaler, hires_request):
 		"""Test that empty image list returns empty list."""
 		mock_pipe = MagicMock()
 		generator = torch.Generator().manual_seed(42)
 
 		result = upscaler.upscale(
-			generator_config,
+			hires_request,
 			mock_pipe,
 			generator,
 			[],
-			scale_factor=2.0,
-			upscaler_type=UpscalerType.LANCZOS,
-			hires_steps=15,
-			denoising_strength=0.7,
 		)
 
 		assert result == []
 
-	def test_uses_hires_steps_when_nonzero(self, upscaler, sample_images, generator_config):
+	def test_uses_hires_steps_when_nonzero(self, upscaler, sample_images, hires_request):
 		"""Test that hires_steps > 0 is used directly."""
 		mock_pipe = MagicMock()
 		mock_output = MagicMock()
@@ -130,20 +126,16 @@ class TestUpscaleWithRefinement:
 			mock_refiner.refine.return_value = [Image.new('RGB', (1024, 1024))]
 
 			upscaler.upscale(
-				generator_config,
+				hires_request,
 				mock_pipe,
 				generator,
 				sample_images,
-				scale_factor=2.0,
-				upscaler_type=UpscalerType.LANCZOS,
-				hires_steps=15,
-				denoising_strength=0.7,
 			)
 
 			call_args = mock_refiner.refine.call_args[0]
 			assert call_args[4] == 15  # steps parameter
 
-	def test_uses_base_steps_when_hires_steps_zero(self, upscaler, sample_images, generator_config):
+	def test_uses_base_steps_when_hires_steps_zero(self, upscaler, sample_images, hires_request):
 		"""Test that hires_steps=0 falls back to config.steps."""
 		mock_pipe = MagicMock()
 		mock_output = MagicMock()
@@ -154,15 +146,25 @@ class TestUpscaleWithRefinement:
 		with patch('app.cores.upscalers.traditional.upscaler.img2img_refiner') as mock_refiner:
 			mock_refiner.refine.return_value = [Image.new('RGB', (1024, 1024))]
 
+			request = HiresFixRequest(
+				hires_fix=HiresFixConfig(
+					upscale_factor=2.0,
+					upscaler=UpscalerType.LANCZOS,
+					denoising_strength=0.7,
+					steps=0,
+				),
+				prompt='final prompt',
+				negative_prompt='final negative',
+				cfg_scale=7.5,
+				clip_skip=1,
+				base_steps=20,
+			)
+
 			upscaler.upscale(
-				generator_config,
+				request,
 				mock_pipe,
 				generator,
 				sample_images,
-				scale_factor=2.0,
-				upscaler_type=UpscalerType.LANCZOS,
-				hires_steps=0,
-				denoising_strength=0.7,
 			)
 
 			call_args = mock_refiner.refine.call_args[0]
