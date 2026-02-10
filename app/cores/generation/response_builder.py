@@ -1,4 +1,4 @@
-"""Response building for image generation results."""
+"""Response building shared by generation features."""
 
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 
@@ -10,14 +10,7 @@ class ResponseBuilder:
 	"""Builds ImageGenerationResponse from pipeline output."""
 
 	def build_response(self, output: StableDiffusionPipelineOutput) -> ImageGenerationResponse:
-		"""Build response from pipeline output.
-
-		Args:
-			output: Pipeline output containing generated images
-
-		Returns:
-			ImageGenerationResponse with processed images and NSFW detection
-		"""
+		"""Build response from pipeline output."""
 		items, nsfw_content_detected = process_generated_images(output)
 
 		return ImageGenerationResponse(

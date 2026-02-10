@@ -1,26 +1,26 @@
-"""Core image generation logic."""
+"""Core image-to-image generation logic."""
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import cast
 
 import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
+from PIL import Image
 
 from app.cores.generation import progress_callback, seed_manager
 from app.cores.generation.hires_fix_utils import apply_hires_fix_common
-from app.cores.generation.latent_decoder import latent_decoder
-from app.cores.generation.phase_tracker import GenerationPhaseTracker
+from app.cores.generation.phase_tracker import Img2ImgPhaseTracker
 from app.cores.generation.safety_checker_service import safety_checker_service
 from app.cores.model_manager import model_manager
-from app.schemas.generators import GeneratorConfig, OutputType, Text2ImgParams
+from app.cores.pipeline_converter import pipeline_converter
+from app.schemas.img2img import Img2ImgConfig
 from app.services import logger_service
 
 logger = logger_service.get_logger(__name__, category='Generate')
 
 
-class BaseGenerator:
-	"""Handles core pipeline execution for image generation."""
+class BaseImg2Img:
+	"""Handles core pipeline execution for image-to-image generation."""
 
 	def __init__(self, executor: ThreadPoolExecutor):
 		"""Initialize generator with thread executor.
@@ -32,16 +32,18 @@ class BaseGenerator:
 
 	async def execute_pipeline(
 		self,
-		config: GeneratorConfig,
+		config: Img2ImgConfig,
 		positive_prompt: str,
 		negative_prompt: str,
+		init_image: Image.Image,
 	) -> StableDiffusionPipelineOutput:
-		"""Execute the diffusion pipeline for image generation.
+		"""Execute the diffusion pipeline for image-to-image generation.
 
 		Args:
-			config: Generation configuration
+			config: Img2Img configuration
 			positive_prompt: Processed positive prompt
 			negative_prompt: Processed negative prompt
+			init_image: Preprocessed source image
 
 		Returns:
 			Pipeline output with generated images
@@ -50,14 +52,18 @@ class BaseGenerator:
 			ValueError: If generation fails
 
 		Note:
-			Model validation is performed by GeneratorService before this method is called.
+			Model validation is performed by Img2ImgService before this method is called.
 		"""
 		pipe = model_manager.pipe
 
-		logger.info(f"Generating: '{config.prompt}'\n{logger_service.format_config(config)}")
+		# Convert pipeline to img2img mode
+		img2img_pipe = pipeline_converter.convert_to_img2img(pipe)
+		model_manager.pipe = img2img_pipe
+
+		logger.info(f"Generating img2img: '{config.prompt}'\n{logger_service.format_config(config)}")
 
 		# Initialize phase tracker and emit start phase
-		phase_tracker = GenerationPhaseTracker(config)
+		phase_tracker = Img2ImgPhaseTracker(has_hires_fix=config.hires_fix is not None)
 		phase_tracker.start()
 
 		# Set sampler
@@ -67,41 +73,32 @@ class BaseGenerator:
 		random_seed = seed_manager.get_seed(config.seed)
 
 		# Create generator for reproducibility
-		generator = torch.Generator(device=pipe.device).manual_seed(random_seed)
+		generator = torch.Generator(device=img2img_pipe.device).manual_seed(random_seed)
 
-		# Prepare pipeline parameters with type safety
-		pipeline_params = Text2ImgParams(
-			prompt=positive_prompt,
-			negative_prompt=negative_prompt,
-			num_inference_steps=config.steps,
-			guidance_scale=config.cfg_scale,
-			generator=generator,
-			clip_skip=config.clip_skip,
-			output_type=OutputType.LATENT,
-			height=config.height,
-			width=config.width,
-			num_images_per_prompt=config.number_of_images,
-			callback_on_step_end=progress_callback.callback_on_step_end,
-			callback_on_step_end_tensor_inputs=['latents'],
-		)
-
-		logger.info('Starting image generation in a separate thread.')
+		logger.info('Starting img2img generation in a separate thread.')
 		loop = asyncio.get_event_loop()
 
 		output = await loop.run_in_executor(
 			self.executor,
-			lambda: pipe(**vars(pipeline_params)),
+			lambda: img2img_pipe(
+				prompt=positive_prompt,
+				negative_prompt=negative_prompt,
+				image=init_image,
+				strength=config.strength,
+				num_inference_steps=config.steps,
+				guidance_scale=config.cfg_scale,
+				generator=generator,
+				clip_skip=config.clip_skip,
+				num_images_per_prompt=config.number_of_images,
+				callback_on_step_end=progress_callback.callback_on_step_end,
+				callback_on_step_end_tensor_inputs=['latents'],
+			),
 		)
 
-		# When output_type='latent', the output.images contains latent tensors
-		output_with_latents = cast(StableDiffusionPipelineOutput, output)
-		base_latents = cast(torch.Tensor, output_with_latents.images)
+		# Get images from output
+		images = list(output.images)
 
-		# Decode base latents to PIL images
-		images = latent_decoder.decode_latents(pipe, base_latents)
-
-		# Run safety checker on base resolution images
-		# SafetyCheckerService handles: database config check, model load/unload, NSFW detection
+		# Run safety checker on generated images
 		images, nsfw_detected = safety_checker_service.check_images(images)
 
 		# Apply hires fix to safe images if configured
@@ -110,7 +107,7 @@ class BaseGenerator:
 				config,
 				positive_prompt,
 				negative_prompt,
-				pipe,
+				img2img_pipe,
 				generator,
 				images,
 				nsfw_detected,
@@ -122,7 +119,7 @@ class BaseGenerator:
 		# Emit completion phase
 		phase_tracker.complete()
 
-		logger.info('Image generation completed successfully')
+		logger.info('Img2img generation completed successfully')
 
 		return StableDiffusionPipelineOutput(
 			images=images,

@@ -46,11 +46,11 @@ def mock_db():
 class TestLoadLorasForGeneration:
 	"""Test load_loras_for_generation() method."""
 
-	@patch('app.features.generators.lora_loader.model_manager')
-	@patch('app.features.generators.lora_loader.database_service')
+	@patch('app.cores.generation.lora_loader.model_manager')
+	@patch('app.cores.generation.lora_loader.database_service')
 	def test_returns_false_when_no_loras(self, mock_db_service, mock_model_manager, sample_config_without_loras, mock_db):
 		"""Test that method returns False when config has no LoRAs."""
-		from app.features.generators.lora_loader import LoRALoader
+		from app.cores.generation.lora_loader import LoRALoader
 
 		loader = LoRALoader()
 		result = loader.load_loras_for_generation(sample_config_without_loras, mock_db)
@@ -59,11 +59,11 @@ class TestLoadLorasForGeneration:
 		mock_db_service.get_lora_by_id.assert_not_called()
 		mock_model_manager.pipeline_manager.load_loras.assert_not_called()
 
-	@patch('app.features.generators.lora_loader.model_manager')
-	@patch('app.features.generators.lora_loader.database_service')
+	@patch('app.cores.generation.lora_loader.model_manager')
+	@patch('app.cores.generation.lora_loader.database_service')
 	def test_loads_loras_successfully(self, mock_db_service, mock_model_manager, sample_config_with_loras, mock_db):
 		"""Test successful LoRA loading."""
-		from app.features.generators.lora_loader import LoRALoader
+		from app.cores.generation.lora_loader import LoRALoader
 
 		# Setup
 		mock_lora1 = Mock()
@@ -95,10 +95,10 @@ class TestLoadLorasForGeneration:
 		assert call_args[1].id == 2
 		assert call_args[1].weight == 0.6
 
-	@patch('app.features.generators.lora_loader.database_service')
+	@patch('app.cores.generation.lora_loader.database_service')
 	def test_raises_when_lora_not_found(self, mock_db_service, sample_config_with_loras, mock_db):
 		"""Test that ValueError is raised when LoRA is not found in database."""
-		from app.features.generators.lora_loader import LoRALoader
+		from app.cores.generation.lora_loader import LoRALoader
 
 		# Setup - first LoRA exists, second doesn't
 		mock_lora1 = Mock()
@@ -113,12 +113,12 @@ class TestLoadLorasForGeneration:
 		with pytest.raises(ValueError, match='LoRA with id 2 not found'):
 			loader.load_loras_for_generation(sample_config_with_loras, mock_db)
 
-	@patch('app.features.generators.lora_loader.logger')
-	@patch('app.features.generators.lora_loader.model_manager')
-	@patch('app.features.generators.lora_loader.database_service')
+	@patch('app.cores.generation.lora_loader.logger')
+	@patch('app.cores.generation.lora_loader.model_manager')
+	@patch('app.cores.generation.lora_loader.database_service')
 	def test_logs_lora_loading(self, mock_db_service, mock_model_manager, mock_logger, sample_config_with_loras, mock_db):
 		"""Test that LoRA loading is logged."""
-		from app.features.generators.lora_loader import LoRALoader
+		from app.cores.generation.lora_loader import LoRALoader
 
 		# Setup
 		mock_lora1 = Mock()
@@ -144,21 +144,21 @@ class TestLoadLorasForGeneration:
 class TestUnloadLoras:
 	"""Test unload_loras() method."""
 
-	@patch('app.features.generators.lora_loader.model_manager')
+	@patch('app.cores.generation.lora_loader.model_manager')
 	def test_calls_pipeline_manager_unload(self, mock_model_manager):
 		"""Test that pipeline_manager.unload_loras is called."""
-		from app.features.generators.lora_loader import LoRALoader
+		from app.cores.generation.lora_loader import LoRALoader
 
 		loader = LoRALoader()
 		loader.unload_loras()
 
 		mock_model_manager.pipeline_manager.unload_loras.assert_called_once()
 
-	@patch('app.features.generators.lora_loader.logger')
-	@patch('app.features.generators.lora_loader.model_manager')
+	@patch('app.cores.generation.lora_loader.logger')
+	@patch('app.cores.generation.lora_loader.model_manager')
 	def test_handles_unload_errors_gracefully(self, mock_model_manager, mock_logger):
 		"""Test that unload errors are logged but not raised."""
-		from app.features.generators.lora_loader import LoRALoader
+		from app.cores.generation.lora_loader import LoRALoader
 
 		# Setup
 		mock_model_manager.pipeline_manager.unload_loras.side_effect = Exception('Unload failed')
@@ -171,10 +171,10 @@ class TestUnloadLoras:
 		mock_logger.error.assert_called_once()
 		assert 'Failed to unload LoRAs' in str(mock_logger.error.call_args)
 
-	@patch('app.features.generators.lora_loader.model_manager')
+	@patch('app.cores.generation.lora_loader.model_manager')
 	def test_safe_to_call_multiple_times(self, mock_model_manager):
 		"""Test that unload_loras can be called multiple times safely."""
-		from app.features.generators.lora_loader import LoRALoader
+		from app.cores.generation.lora_loader import LoRALoader
 
 		loader = LoRALoader()
 
@@ -192,13 +192,13 @@ class TestLoRALoaderSingleton:
 
 	def test_singleton_exists(self):
 		"""Test that lora_loader singleton instance exists."""
-		from app.features.generators.lora_loader import lora_loader
+		from app.cores.generation.lora_loader import lora_loader
 
 		assert lora_loader is not None
 
 	def test_singleton_has_required_methods(self):
 		"""Test that singleton has required methods."""
-		from app.features.generators.lora_loader import lora_loader
+		from app.cores.generation.lora_loader import lora_loader
 
 		assert hasattr(lora_loader, 'load_loras_for_generation')
 		assert hasattr(lora_loader, 'unload_loras')

@@ -8,6 +8,8 @@ from app.schemas.generators import (
 	ImageGenerationResponse,
 	ImageGenerationStepEndResponse,
 )
+from app.schemas.hires_fix import HiresFixConfig
+from app.schemas.loras import LoRAConfigItem
 from app.services.styles import DEFAULT_NEGATIVE_PROMPT
 
 
@@ -29,6 +31,7 @@ class Img2ImgConfig(BaseModel):
 	# Generation parameters (same as text-to-image)
 	width: int = Field(default=512, ge=64, description='Width of the generated image.')
 	height: int = Field(default=512, ge=64, description='Height of the generated image.')
+	hires_fix: HiresFixConfig | None = Field(default=None, description='High-resolution fix configuration.')
 	number_of_images: int = Field(default=1, ge=1, description='Number of images to generate.')
 	prompt: str = Field(..., max_length=1000, description='The text prompt for image generation.')
 	negative_prompt: str = Field(
@@ -41,6 +44,16 @@ class Img2ImgConfig(BaseModel):
 	styles: list[str] = Field(
 		default_factory=make_default_list_factory(str),
 		description='List of styles to apply.',
+	)
+	loras: list[LoRAConfigItem] = Field(
+		default_factory=make_default_list_factory(LoRAConfigItem),
+		description='List of LoRAs to apply during generation with individual weights.',
+	)
+	clip_skip: int = Field(
+		default=1,
+		ge=1,
+		le=12,
+		description='Number of CLIP layers to skip (1=no skip, 2=skip last layer). Required for some LoRAs.',
 	)
 
 

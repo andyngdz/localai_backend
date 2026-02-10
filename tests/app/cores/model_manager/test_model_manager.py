@@ -16,6 +16,7 @@ import pytest
 
 from app.cores.model_manager import ModelManager, ModelState, StateTransitionReason
 from app.cores.samplers import SamplerType
+from app.schemas.model_family import ModelFamily
 
 
 class TestModelManagerInitialization:
@@ -228,6 +229,132 @@ class TestModelManagerBackwardCompatibility:
 
 		# Verify
 		assert result is self.model_manager.loader_service.lock
+
+
+class TestLoadedModelFamily:
+	"""Test loaded_model_family derives value from loaded pipeline."""
+
+	def _make_pipeline(
+		self,
+		class_name: str,
+		module: str,
+		config_class_name: str | None,
+		raise_on_config_access: bool = False,
+	):
+		if raise_on_config_access:
+			pipeline_type = type(
+				class_name,
+				(),
+				{
+					'__module__': module,
+					'config': property(lambda _self: (_ for _ in ()).throw(RuntimeError('config not available'))),
+				},
+			)
+			return pipeline_type()
+
+		config: dict[str, object] = {}
+		if config_class_name is not None:
+			config['_class_name'] = config_class_name
+
+		pipeline_type = type(
+			class_name,
+			(),
+			{
+				'__module__': module,
+				'config': config,
+			},
+		)
+		return pipeline_type()
+
+	def test_loaded_model_family_unknown_when_no_pipeline(self):
+		model_manager = ModelManager()
+		with patch.object(model_manager.pipeline_manager, 'get_pipeline', return_value=None):
+			assert model_manager.loaded_model_family == ModelFamily.UNKNOWN
+
+	def test_loaded_model_family_detects_sdxl_from_pipeline_config(self):
+		model_manager = ModelManager()
+		pipeline = self._make_pipeline(
+			class_name='SomePipeline',
+			module='diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion',
+			config_class_name='StableDiffusionXLPipeline',
+		)
+
+		with (
+			patch.object(model_manager.pipeline_manager, 'get_pipeline', return_value=pipeline),
+			patch.object(model_manager.pipeline_manager, 'get_model_id', return_value='some/model'),
+		):
+			assert model_manager.loaded_model_family == ModelFamily.SDXL
+
+	def test_loaded_model_family_detects_sd3_from_pipeline_config(self):
+		model_manager = ModelManager()
+		pipeline = self._make_pipeline(
+			class_name='OtherPipeline',
+			module='diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3',
+			config_class_name='StableDiffusion3Pipeline',
+		)
+
+		with (
+			patch.object(model_manager.pipeline_manager, 'get_pipeline', return_value=pipeline),
+			patch.object(model_manager.pipeline_manager, 'get_model_id', return_value='some/model'),
+		):
+			assert model_manager.loaded_model_family == ModelFamily.SD3
+
+	def test_loaded_model_family_detects_sd2_from_model_id(self):
+		model_manager = ModelManager()
+		pipeline = self._make_pipeline(
+			class_name='StableDiffusionPipeline',
+			module='diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion',
+			config_class_name='StableDiffusionPipeline',
+		)
+
+		with (
+			patch.object(model_manager.pipeline_manager, 'get_pipeline', return_value=pipeline),
+			patch.object(model_manager.pipeline_manager, 'get_model_id', return_value='stabilityai/stable-diffusion-2-1'),
+		):
+			assert model_manager.loaded_model_family == ModelFamily.SD2
+
+	def test_loaded_model_family_defaults_to_sd15_when_model_id_missing(self):
+		model_manager = ModelManager()
+		pipeline = self._make_pipeline(
+			class_name='StableDiffusionPipeline',
+			module='diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion',
+			config_class_name='StableDiffusionPipeline',
+		)
+
+		with (
+			patch.object(model_manager.pipeline_manager, 'get_pipeline', return_value=pipeline),
+			patch.object(model_manager.pipeline_manager, 'get_model_id', return_value=None),
+		):
+			assert model_manager.loaded_model_family == ModelFamily.SD15
+
+	def test_loaded_model_family_detects_flux_from_class_name(self):
+		model_manager = ModelManager()
+		pipeline = self._make_pipeline(
+			class_name='FluxPipeline',
+			module='diffusers.pipelines.flux.pipeline_flux',
+			config_class_name=None,
+		)
+
+		with (
+			patch.object(model_manager.pipeline_manager, 'get_pipeline', return_value=pipeline),
+			patch.object(model_manager.pipeline_manager, 'get_model_id', return_value='black-forest-labs/FLUX.1-dev'),
+		):
+			assert model_manager.loaded_model_family == ModelFamily.FLUX
+
+	def test_loaded_model_family_falls_back_to_class_name_when_config_raises(self):
+		model_manager = ModelManager()
+		pipeline = self._make_pipeline(
+			class_name='StableDiffusionXLPipeline',
+			module='diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl',
+			config_class_name=None,
+			raise_on_config_access=True,
+		)
+
+		with (
+			patch.object(model_manager.pipeline_manager, 'get_pipeline', return_value=pipeline),
+			patch.object(model_manager.pipeline_manager, 'get_model_id', return_value='some/model'),
+		):
+			assert model_manager.loaded_model_family == ModelFamily.SDXL
 
 
 class TestModelManagerIntegration:

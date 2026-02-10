@@ -71,3 +71,25 @@ class HiresFixConfig(BaseModel):
 		ge=0,
 		description='Inference steps for hires pass. 0 means use same as main generation.',
 	)
+
+
+class HiresFixRequest(BaseModel):
+	"""Request schema for applying hires fix to existing PIL images.
+
+	This is intentionally decoupled from GeneratorConfig / Img2ImgConfig so multiple
+	features can reuse hires fix while providing the exact inputs required.
+
+	Note: prompt fields are the *final* prompts (after style application / clipping).
+	"""
+
+	hires_fix: HiresFixConfig = Field(..., description='Hires fix configuration.')
+	prompt: str = Field(..., max_length=2000, description='Final positive prompt after processing.')
+	negative_prompt: str = Field(..., max_length=2000, description='Final negative prompt after processing.')
+	cfg_scale: float = Field(default=7.5, ge=1, description='Classifier-Free Guidance scale (CFG scale).')
+	clip_skip: int = Field(
+		default=1,
+		ge=1,
+		le=12,
+		description='Number of CLIP layers to skip (1=no skip, 2=skip last layer).',
+	)
+	base_steps: int = Field(..., ge=1, description='Base inference steps from the primary generation pass.')

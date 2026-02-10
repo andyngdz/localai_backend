@@ -6,7 +6,8 @@ import torch
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from PIL import Image
 
-from app.schemas.generators import GeneratorConfig, Img2ImgParams, OutputType
+from app.schemas.generators import Img2ImgParams, OutputType
+from app.schemas.hires_fix import HiresFixRequest
 from app.schemas.model_loader import DiffusersPipeline
 from app.services import logger_service
 
@@ -18,7 +19,7 @@ class Img2ImgRefiner:
 
 	def refine(
 		self,
-		config: GeneratorConfig,
+		request: HiresFixRequest,
 		pipe: DiffusersPipeline,
 		generator: torch.Generator,
 		images: list[Image.Image],
@@ -28,7 +29,7 @@ class Img2ImgRefiner:
 		"""Run img2img refinement pass to add detail and reduce upscaling blur.
 
 		Args:
-			config: Generator config (prompt, negative_prompt, cfg_scale, etc.)
+			request: Hires fix request (final prompts + config)
 			pipe: Diffusion pipeline
 			generator: Torch generator for reproducibility
 			images: Upscaled PIL images
@@ -42,12 +43,12 @@ class Img2ImgRefiner:
 		width, height = images[0].size
 
 		params = Img2ImgParams(
-			prompt=config.prompt,
-			negative_prompt=config.negative_prompt,
+			prompt=request.prompt,
+			negative_prompt=request.negative_prompt,
 			num_inference_steps=steps,
-			guidance_scale=config.cfg_scale,
+			guidance_scale=request.cfg_scale,
 			generator=generator,
-			clip_skip=config.clip_skip,
+			clip_skip=request.clip_skip,
 			output_type=OutputType.PIL,
 			strength=denoising_strength,
 			num_images_per_prompt=batch_size,

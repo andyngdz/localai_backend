@@ -27,6 +27,7 @@ from app.features.models.api import (
 	load_model,
 	unload_model,
 )
+from app.schemas.model_family import ModelFamily
 from app.schemas.models import (
 	LoadModelRequest,
 	LoadModelResponse,
@@ -123,6 +124,7 @@ class TestLoadModelEndpoint:
 		# Create a proper AsyncMock for the async method
 		mock_model_manager.load_model_async = AsyncMock(return_value=self.model_config)
 		mock_model_manager.sample_size = self.sample_size
+		mock_model_manager.loaded_model_family = ModelFamily.SD15
 
 		# Act
 		result = await load_model(self.request)
@@ -133,6 +135,7 @@ class TestLoadModelEndpoint:
 		assert result.model_id == self.model_id
 		assert result.config == self.model_config
 		assert result.sample_size == self.sample_size
+		assert result.family == ModelFamily.SD15
 
 	@pytest.mark.asyncio
 	@patch('app.features.models.api.model_manager')
@@ -430,6 +433,7 @@ class TestGetModelStatusEndpoint:
 		mock_model_manager.current_state = ModelState.LOADED
 		mock_model_manager.id = 'test/model'
 		mock_model_manager.has_model = True
+		mock_model_manager.loaded_model_family = ModelFamily.SD15
 
 		# Act
 		from app.features.models.api import get_model_status
@@ -441,6 +445,7 @@ class TestGetModelStatusEndpoint:
 		assert result['loaded_model_id'] == 'test/model'
 		assert result['has_model'] is True
 		assert result['is_loading'] is False
+		assert result['loaded_model_family'] == 'sd15'
 
 	@patch('app.features.models.api.model_manager')
 	def test_get_model_status_loading_state(self, mock_model_manager):
@@ -451,6 +456,7 @@ class TestGetModelStatusEndpoint:
 		mock_model_manager.current_state = ModelState.LOADING
 		mock_model_manager.id = None
 		mock_model_manager.has_model = False
+		mock_model_manager.loaded_model_family = ModelFamily.UNKNOWN
 
 		# Act
 		from app.features.models.api import get_model_status
@@ -461,6 +467,28 @@ class TestGetModelStatusEndpoint:
 		assert result['state'] == 'loading'
 		assert result['is_loading'] is True
 		assert result['has_model'] is False
+		assert result['loaded_model_family'] == 'unknown'
+
+	@patch('app.features.models.api.model_manager')
+	def test_get_model_status_no_model_loaded(self, mock_model_manager):
+		"""Test model status when no model is loaded."""
+		# Arrange
+		from app.cores.model_manager import ModelState
+
+		mock_model_manager.current_state = ModelState.IDLE
+		mock_model_manager.id = None
+		mock_model_manager.has_model = False
+		mock_model_manager.loaded_model_family = ModelFamily.UNKNOWN
+
+		# Act
+		from app.features.models.api import get_model_status
+
+		result = get_model_status()
+
+		# Assert
+		assert result['state'] == 'idle'
+		assert result['has_model'] is False
+		assert result['loaded_model_family'] == 'unknown'
 
 	@patch('app.features.models.api.model_manager')
 	def test_get_model_status_error(self, mock_model_manager):

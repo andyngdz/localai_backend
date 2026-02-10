@@ -24,10 +24,10 @@ def sample_config():
 class TestPreparePrompts:
 	"""Test prepare_prompts() method."""
 
-	@patch('app.features.generators.prompt_processor.styles_service')
+	@patch('app.cores.generation.prompt_processor.styles_service')
 	def test_calls_styles_service_with_correct_params(self, mock_styles_service, sample_config):
 		"""Test that styles_service.apply_styles is called with correct parameters."""
-		from app.features.generators.prompt_processor import PromptProcessor
+		from app.cores.generation.prompt_processor import PromptProcessor
 
 		# Setup
 		mock_styles_service.apply_styles.return_value = ('processed positive', 'processed negative')
@@ -44,10 +44,10 @@ class TestPreparePrompts:
 		)
 		assert result == ('processed positive', 'processed negative')
 
-	@patch('app.features.generators.prompt_processor.styles_service')
+	@patch('app.cores.generation.prompt_processor.styles_service')
 	def test_returns_tuple_of_prompts(self, mock_styles_service, sample_config):
 		"""Test that method returns a tuple of (positive, negative) prompts."""
-		from app.features.generators.prompt_processor import PromptProcessor
+		from app.cores.generation.prompt_processor import PromptProcessor
 
 		# Setup
 		mock_styles_service.apply_styles.return_value = ('final positive prompt', 'final negative prompt')
@@ -62,10 +62,10 @@ class TestPreparePrompts:
 		assert positive == 'final positive prompt'
 		assert negative == 'final negative prompt'
 
-	@patch('app.features.generators.prompt_processor.styles_service')
+	@patch('app.cores.generation.prompt_processor.styles_service')
 	def test_handles_empty_styles_list(self, mock_styles_service):
 		"""Test processing with empty styles list."""
-		from app.features.generators.prompt_processor import PromptProcessor
+		from app.cores.generation.prompt_processor import PromptProcessor
 
 		# Setup
 		config = GeneratorConfig(
@@ -87,11 +87,11 @@ class TestPreparePrompts:
 		mock_styles_service.apply_styles.assert_called_once_with('test', 'bad', [])
 		assert result == ('test', 'bad')
 
-	@patch('app.features.generators.prompt_processor.logger')
-	@patch('app.features.generators.prompt_processor.styles_service')
+	@patch('app.cores.generation.prompt_processor.logger')
+	@patch('app.cores.generation.prompt_processor.styles_service')
 	def test_logs_processed_prompts(self, mock_styles_service, mock_logger, sample_config):
 		"""Test that processed prompts are logged."""
-		from app.features.generators.prompt_processor import PromptProcessor
+		from app.cores.generation.prompt_processor import PromptProcessor
 
 		# Setup
 		mock_styles_service.apply_styles.return_value = ('positive result', 'negative result')
@@ -111,13 +111,13 @@ class TestPromptProcessorSingleton:
 
 	def test_singleton_exists(self):
 		"""Test that prompt_processor singleton instance exists."""
-		from app.features.generators.prompt_processor import prompt_processor
+		from app.cores.generation.prompt_processor import prompt_processor
 
 		assert prompt_processor is not None
 
 	def test_singleton_has_prepare_prompts_method(self):
 		"""Test that singleton has prepare_prompts method."""
-		from app.features.generators.prompt_processor import prompt_processor
+		from app.cores.generation.prompt_processor import prompt_processor
 
 		assert hasattr(prompt_processor, 'prepare_prompts')
 		assert callable(prompt_processor.prepare_prompts)

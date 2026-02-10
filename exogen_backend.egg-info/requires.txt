@@ -1,6 +1,6 @@
 accelerate==1.9.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.12.14
+aiohttp==3.13.3
 aiosignal==1.4.0
 alabaster==1.0.0
 alembic==1.16.4
@@ -31,12 +31,12 @@ docutils==0.21.2
 executing==2.2.0
 fanstatic==1.5
 fastapi==0.116.1
-filelock==3.18.0
+filelock==3.20.3
 frozenlist==1.7.0
 fsspec==2025.7.0
 greenlet==3.2.4
 h11==0.16.0
-h2==4.2.0
+h2==4.3.0
 hf-xet==1.2.0
 hpack==4.1.0
 htmlparser==0.0.2
@@ -133,7 +133,7 @@ transformers==4.57.1
 ty>=0.0.1a28
 typing-extensions==4.15.0
 typing-inspection==0.4.1
-urllib3==2.6.0
+urllib3==2.6.3
 urllib3-secure-extra==0.1.0
 uvicorn==0.35.0
 wcwidth==0.2.13
