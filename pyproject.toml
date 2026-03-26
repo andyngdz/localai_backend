@@ -106,7 +106,7 @@ dependencies = [
     "realesrgan>=0.3.0",
     "redis==6.2.0",
     "regex==2025.7.34",
-    "requests==2.32.5",
+    "requests==2.33.0",
     "roman-numerals-py==3.1.0",
     "safetensors==0.6.2",
     "scipy>=1.16.3",
