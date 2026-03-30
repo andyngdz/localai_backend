@@ -94,7 +94,7 @@ dependencies = [
     "pydantic==2.11.7",
     "pydantic-core==2.33.2",
     "pydash>=8.0.5",
-    "pygments==2.19.2",
+    "pygments==2.20.0",
     "pyopenssl==25.1.0",
     "pypdl>=1.5.7",
     "pytest==8.3.3",
